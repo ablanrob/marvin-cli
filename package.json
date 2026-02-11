@@ -1,0 +1,51 @@
+{
+  "name": "marvin-cli",
+  "version": "0.1.0",
+  "description": "AI-powered software product development assistant with Product Owner, Delivery Manager, and Technical Lead personas",
+  "type": "module",
+  "bin": {
+    "marvin": "./dist/bin/marvin.js",
+    "marvin-serve": "./dist/bin/marvin-serve.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx bin/marvin.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.37",
+    "@commander-js/extra-typings": "^14.0.0",
+    "@inquirer/prompts": "^8.2.0",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "gray-matter": "^4.0.3",
+    "ora": "^9.3.0",
+    "simple-git": "^3.30.0",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.2",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
