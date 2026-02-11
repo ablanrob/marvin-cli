@@ -1,11 +1,11 @@
 {
-  "name": "marvin-cli",
+  "name": "mrvn-cli",
   "version": "0.1.0",
   "description": "AI-powered software product development assistant with Product Owner, Delivery Manager, and Technical Lead personas",
   "type": "module",
   "bin": {
-    "marvin": "./dist/bin/marvin.js",
-    "marvin-serve": "./dist/bin/marvin-serve.js"
+    "marvin": "./dist/marvin.js",
+    "marvin-serve": "./dist/marvin-serve.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
