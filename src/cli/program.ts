@@ -20,6 +20,7 @@ import {
   skillsCreateCommand,
 } from "./commands/skills.js";
 import { importCommand } from "./commands/import.js";
+import { analyzeCommand } from "./commands/analyze.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -124,6 +125,16 @@ export function createProgram(): Command {
     .description("Clone governance data from a remote repository")
     .action(async (url: string, directory?: string) => {
       await cloneCommand(url, directory);
+    });
+
+  program
+    .command("analyze <meeting-id>")
+    .description("Analyze a meeting to extract decisions, actions, and questions")
+    .option("--draft", "Propose artifacts without creating them (default)")
+    .option("--no-draft", "Create artifacts directly via MCP tools")
+    .option("--as <persona>", "Persona for analysis (default: delivery-manager)")
+    .action(async (meetingId: string, options) => {
+      await analyzeCommand(meetingId, options);
     });
 
   program

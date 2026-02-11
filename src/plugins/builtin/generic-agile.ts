@@ -22,6 +22,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
 - **create_meeting**: Record new meetings with attendees, date, and agenda.
 - **update_meeting**: Update meeting status or notes after completion.
+- **analyze_meeting**: Analyze a meeting to review its outcomes and extract artifacts.
 
 **Key Workflow Rules:**
 - Create features as "draft" and approve them when requirements are clear and prioritized.
@@ -43,6 +44,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
 - **create_meeting**: Record new meetings with attendees, date, and agenda.
 - **update_meeting**: Update meeting status or notes after completion.
+- **analyze_meeting**: Analyze a meeting to review its outcomes and extract artifacts.
 
 **Key Workflow Rules:**
 - Only create epics against approved features — create_epic enforces this.
@@ -71,11 +73,13 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
 - **create_meeting**: Record new meetings with attendees, date, and agenda.
 - **update_meeting**: Update meeting status or notes after completion.
+- **analyze_meeting**: Analyze a completed meeting to extract decisions, actions, and questions. Use this to ensure meeting outcomes are properly tracked as governance artifacts.
 
 **Key Workflow Rules:**
 - After generating any report, offer to save it with save_report for audit trail.
 - Proactively flag risks: unowned actions, overdue items, epics linked to deferred features.
-- Use feature progress reports for stakeholder updates and epic progress for sprint-level tracking.`,
+- Use feature progress reports for stakeholder updates and epic progress for sprint-level tracking.
+- Use analyze_meeting after meetings to extract outcomes into governance artifacts.`,
 
     "*": `You have access to feature, epic, and meeting tools for project coordination:
 
@@ -87,6 +91,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
 - **create_meeting**: Record meetings with attendees, date, and agenda.
-- **update_meeting**: Update meeting status or notes.`,
+- **update_meeting**: Update meeting status or notes.
+- **analyze_meeting**: Analyze a meeting to extract decisions, actions, and questions as governance artifacts.`,
   },
 };

@@ -164,6 +164,7 @@ export async function startSession(options: SessionOptions): Promise<void> {
       "mcp__marvin-governance__get_source_info",
       "mcp__marvin-governance__list_sessions",
       "mcp__marvin-governance__get_session",
+      "mcp__marvin-governance__analyze_meeting",
       ...pluginTools.map((t) => `mcp__marvin-governance__${t.name}`),
       ...codeSkillTools.map((t) => `mcp__marvin-governance__${t.name}`),
       ...actionTools.map((t) => `mcp__marvin-governance__${t.name}`),
