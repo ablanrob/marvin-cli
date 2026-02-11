@@ -113,6 +113,8 @@ Use Case (PO)         Tech Assessment (TL)      Extension Design (TL)
 | `marvin chat --as <persona>` | Start an interactive session (`po`, `dm`, `tl`) |
 | `marvin status` | Show document counts and open items |
 | `marvin config [key] [value]` | View or set configuration |
+| `marvin import <path>` | Import documents or sources from external paths |
+| `marvin import <path> --dry-run` | Preview import plan without writing files |
 | `marvin ingest [file]` | Process source documents into governance artifacts |
 | `marvin ingest --all` | Process all unprocessed source files |
 | `marvin config api-key` | Securely set your Anthropic API key |
@@ -182,6 +184,85 @@ personas:
   tech-lead:
     enabled: true
 ```
+
+## Import
+
+`marvin import` brings external data into your project. It auto-detects what you're pointing at and does the right thing:
+
+| Input | What happens |
+|-------|-------------|
+| Another `.marvin/` project (or dir with `config.yaml`) | Imports all governance documents from its `docs/` subdirectories |
+| Directory with `decisions/`, `actions/`, etc. | Imports markdown documents directly |
+| A `.md` file with valid Marvin frontmatter (`id` + `type`) | Imports as a single governance artifact |
+| Directory with PDFs, text files, or unstructured markdown | Copies to `.marvin/sources/` |
+| A single PDF or TXT file | Copies to `.marvin/sources/` |
+
+### Basic usage
+
+```bash
+# Preview what will happen (no files written)
+marvin import ./proto-governance --dry-run
+
+# Import governance documents from another directory
+marvin import ./proto-governance
+
+# Import a single Marvin-format document
+marvin import ./exported/D-001.md
+
+# Import from another Marvin project
+marvin import ../other-project/.marvin
+
+# Import raw source files (PDFs, text) into sources/
+marvin import ./reference-docs
+```
+
+### Handling ID conflicts
+
+When an imported document has the same ID as an existing one, the `--conflict` option controls behavior:
+
+```bash
+# Renumber conflicting IDs (default) — D-001 becomes D-004, etc.
+marvin import ./docs --conflict renumber
+
+# Skip documents that conflict
+marvin import ./docs --conflict skip
+
+# Overwrite existing documents
+marvin import ./docs --conflict overwrite
+```
+
+When renumbering, cross-references within document content are updated automatically (e.g. "See D-001" becomes "See D-004").
+
+### Tagging imports
+
+Add a tag to all imported documents for traceability:
+
+```bash
+marvin import ./proto-governance --tag imported:proto
+```
+
+### Importing and ingesting in one step
+
+When importing raw source files (PDFs, text), use `--ingest` to immediately process them with AI analysis:
+
+```bash
+# Copy files to sources/ and then run ingest on each
+marvin import ./reference-docs --ingest
+
+# Use a specific persona and create artifacts directly
+marvin import ./reference-docs --ingest --as tl --no-draft
+```
+
+### Options reference
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--dry-run` | Preview the import plan without writing files | off |
+| `--conflict <strategy>` | How to handle ID conflicts: `renumber`, `skip`, `overwrite` | `renumber` |
+| `--tag <tag>` | Tag added to all imported documents | none |
+| `--ingest` / `--no-ingest` | Trigger AI ingest after copying raw sources | off |
+| `--as <persona>` | Persona for ingest (`po`, `dm`, `tl`) | `product-owner` |
+| `--draft` / `--no-draft` | Draft mode for ingest (propose vs. create) | `--draft` |
 
 ## Sources & Ingest
 
@@ -317,6 +398,7 @@ src/plugins/               → Plugin system (methodology plugins)
       ├── generic-agile.ts → Default methodology
       ├── sap-aem.ts       → SAP AEM methodology
       └── tools/           → Tool implementations per artifact type
+src/import/                → Import engine (classifier, resolver, plan/execute)
 src/skills/                → Custom skill definitions
 src/git/                   → Git sync (simple-git wrapper for .marvin/)
 ```
@@ -351,12 +433,6 @@ npm run typecheck    # TypeScript check without emitting
 | Git sync | `simple-git` |
 | Testing | Vitest |
 | Build | tsup |
-
-## Roadmap
-
-**Phase 2** — ~~Git sync~~, ~~MCP server mode for Claude Desktop/Code~~, ~~SAP AEM plugin~~, ~~session persistence~~
-
-**Phase 3** — Confluence publishing, multi-provider AI, web UI
 
 ## License
 

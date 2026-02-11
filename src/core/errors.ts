@@ -36,3 +36,10 @@ export class ApiKeyMissingError extends MarvinError {
     this.name = "ApiKeyMissingError";
   }
 }
+
+export class ImportError extends MarvinError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ImportError";
+  }
+}

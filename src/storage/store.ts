@@ -152,6 +152,38 @@ export class DocumentStore {
     return doc;
   }
 
+  importDocument(
+    type: DocumentType,
+    frontmatter: DocumentFrontmatter,
+    content: string = "",
+  ): Document {
+    const dirName = this.typeDirs[type];
+    if (!dirName) {
+      throw new Error(`Unknown document type: ${type}`);
+    }
+
+    const existing = this.get(frontmatter.id);
+    if (existing) {
+      throw new Error(
+        `Document ${frontmatter.id} already exists. Resolve conflicts before importing.`,
+      );
+    }
+
+    const dir = path.join(this.docsDir, dirName);
+    fs.mkdirSync(dir, { recursive: true });
+
+    const fileName =
+      type === "meeting"
+        ? `${frontmatter.created.slice(0, 10)}-${slugify(frontmatter.title)}.md`
+        : `${frontmatter.id}.md`;
+    const filePath = path.join(dir, fileName);
+
+    const doc: Document = { frontmatter, content, filePath };
+    fs.writeFileSync(filePath, serializeDocument(doc), "utf-8");
+    this.index.set(frontmatter.id, frontmatter);
+    return doc;
+  }
+
   update(
     id: string,
     updates: Partial<DocumentFrontmatter>,

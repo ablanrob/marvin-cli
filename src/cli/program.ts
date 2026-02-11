@@ -19,6 +19,7 @@ import {
   skillsRemoveCommand,
   skillsCreateCommand,
 } from "./commands/skills.js";
+import { importCommand } from "./commands/import.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -123,6 +124,24 @@ export function createProgram(): Command {
     .description("Clone governance data from a remote repository")
     .action(async (url: string, directory?: string) => {
       await cloneCommand(url, directory);
+    });
+
+  program
+    .command("import <path>")
+    .description("Import documents or sources from external paths")
+    .option("--dry-run", "Preview without writing files")
+    .option(
+      "--conflict <strategy>",
+      "ID conflict strategy: renumber, skip, overwrite (default: renumber)",
+    )
+    .option("--tag <tag>", "Add tag to all imported documents")
+    .option("--ingest", "Trigger ingest after importing raw sources")
+    .option("--no-ingest", "Do not trigger ingest after importing raw sources")
+    .option("--as <persona>", "Persona for ingest (default: product-owner)")
+    .option("--draft", "Draft mode for ingest (default)")
+    .option("--no-draft", "Create artifacts directly during ingest")
+    .action(async (inputPath: string, options) => {
+      await importCommand(inputPath, options);
     });
 
   program
