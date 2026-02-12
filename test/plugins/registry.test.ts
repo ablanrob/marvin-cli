@@ -58,6 +58,7 @@ describe("getPluginTools", () => {
       expect(toolNames).toContain("get_meeting");
       expect(toolNames).toContain("create_meeting");
       expect(toolNames).toContain("update_meeting");
+      expect(toolNames).toContain("analyze_meeting");
       expect(toolNames).toContain("generate_status_report");
       expect(toolNames).toContain("generate_risk_register");
       expect(toolNames).toContain("generate_gar_report");
@@ -72,7 +73,7 @@ describe("getPluginTools", () => {
       expect(toolNames).toContain("get_epic");
       expect(toolNames).toContain("create_epic");
       expect(toolNames).toContain("update_epic");
-      expect(tools).toHaveLength(18);
+      expect(tools).toHaveLength(19);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
