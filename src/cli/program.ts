@@ -1,4 +1,8 @@
+import { createRequire } from "node:module";
 import { Command } from "commander";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json");
 import { initCommand } from "./commands/init.js";
 import { chatCommand } from "./commands/chat.js";
 import { listSessionsCommand, deleteSessionCommand } from "./commands/sessions.js";
@@ -30,7 +34,7 @@ export function createProgram(): Command {
     .description(
       "AI-powered product development assistant with Product Owner, Delivery Manager, and Technical Lead personas",
     )
-    .version("0.1.0");
+    .version(version);
 
   program
     .command("init")
