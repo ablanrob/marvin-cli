@@ -1,6 +1,6 @@
 {
   "name": "mrvn-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "AI-powered software product development assistant with Product Owner, Delivery Manager, and Technical Lead personas",
   "type": "module",
   "bin": {
