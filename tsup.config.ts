@@ -1,4 +1,7 @@
 import { defineConfig } from "tsup";
+import pkg from "./package.json";
+
+const define = { "process.env.APP_VERSION": JSON.stringify(pkg.version) };
 
 export default defineConfig([
   {
@@ -8,6 +11,7 @@ export default defineConfig([
     sourcemap: true,
     clean: true,
     target: "node20",
+    define,
     banner: {
       js: "#!/usr/bin/env node",
     },
@@ -19,6 +23,7 @@ export default defineConfig([
     splitting: false,
     sourcemap: true,
     target: "node20",
+    define,
   },
   {
     entry: ["bin/marvin-serve.ts"],
@@ -26,6 +31,7 @@ export default defineConfig([
     splitting: false,
     sourcemap: true,
     target: "node20",
+    define,
     banner: {
       js: "#!/usr/bin/env node",
     },
