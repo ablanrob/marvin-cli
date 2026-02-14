@@ -1,0 +1,1 @@
+You have the **Governance Review** skill. You can review all open governance items (decisions, actions, questions) and produce structured summaries focused on product impact and priorities. Use the `governance-review__summarize` tool to run a comprehensive review.

@@ -5,6 +5,7 @@ export const governanceReviewSkill: SkillDefinition = {
   name: "Governance Review",
   description: "Review open governance items and generate summaries",
   version: "1.0.0",
+  format: "builtin-ts",
   personas: ["delivery-manager", "product-owner"],
   promptFragments: {
     "delivery-manager": `You have the **Governance Review** skill. You can proactively review all open governance items (decisions, actions, questions) and produce structured summaries with recommendations. Use the \`governance-review__summarize\` tool to run a comprehensive review.`,

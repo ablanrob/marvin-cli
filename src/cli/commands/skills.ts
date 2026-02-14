@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as YAML from "yaml";
+import matter from "gray-matter";
 import chalk from "chalk";
 import { loadProject } from "../../core/project.js";
 import { loadProjectConfig, saveProjectConfig, type MarvinProjectConfig } from "../../core/config.js";
-import { loadAllSkills, listAllSkillInfo } from "../../skills/registry.js";
+import { loadAllSkills, listAllSkillInfo, migrateYamlToSkillMd } from "../../skills/registry.js";
 import { listPersonas } from "../../personas/registry.js";
 
 export async function skillsListCommand(): Promise<void> {
@@ -22,11 +23,13 @@ export async function skillsListCommand(): Promise<void> {
   console.log(chalk.bold("\nAvailable Skills\n"));
 
   const idWidth = Math.max(5, ...infos.map((s) => s.id.length));
+  const fmtWidth = Math.max(6, ...infos.map((s) => s.format.length));
   const verWidth = Math.max(7, ...infos.map((s) => s.version.length));
   const descWidth = Math.max(11, ...infos.map((s) => s.description.length));
 
   const header = [
     "ID".padEnd(idWidth),
+    "Format".padEnd(fmtWidth),
     "Version".padEnd(verWidth),
     "Description".padEnd(descWidth),
     "Personas",
@@ -41,6 +44,7 @@ export async function skillsListCommand(): Promise<void> {
     console.log(
       [
         info.id.padEnd(idWidth),
+        info.format.padEnd(fmtWidth),
         info.version.padEnd(verWidth),
         info.description.padEnd(descWidth),
         personas,
@@ -127,33 +131,92 @@ export async function skillsCreateCommand(name: string): Promise<void> {
   const skillsDir = path.join(project.marvinDir, "skills");
   fs.mkdirSync(skillsDir, { recursive: true });
 
-  const filePath = path.join(skillsDir, `${name}.yaml`);
-  if (fs.existsSync(filePath)) {
-    console.log(chalk.yellow(`Skill file already exists: ${filePath}`));
+  const skillDir = path.join(skillsDir, name);
+  if (fs.existsSync(skillDir)) {
+    console.log(chalk.yellow(`Skill directory already exists: ${skillDir}`));
     return;
   }
 
-  const template = {
-    id: name,
-    name: name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    description: `Custom skill: ${name}`,
-    version: "1.0.0",
-    personas: ["product-owner"],
-    promptFragments: {
-      "*": `You have the **${name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}** skill.`,
-    },
-    actions: [
-      {
-        id: "run",
-        name: `Run ${name}`,
-        description: `Execute the ${name} skill`,
-        systemPrompt: "You are a helpful assistant. Complete the requested task using the available governance tools.",
-        maxTurns: 5,
-      },
-    ],
-  };
+  fs.mkdirSync(skillDir, { recursive: true });
 
-  fs.writeFileSync(filePath, YAML.stringify(template), "utf-8");
-  console.log(chalk.green(`Created skill template: ${filePath}`));
-  console.log(chalk.dim("Edit the YAML file to customize your skill."));
+  const displayName = name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // Write SKILL.md
+  const frontmatter = {
+    name,
+    description: `Custom skill: ${name}`,
+    metadata: {
+      version: "1.0.0",
+      personas: ["product-owner"],
+    },
+  };
+  const body = `\nYou have the **${displayName}** skill.\n`;
+  const skillMd = matter.stringify(body, frontmatter);
+  fs.writeFileSync(path.join(skillDir, "SKILL.md"), skillMd, "utf-8");
+
+  // Write actions.yaml
+  const actions = [
+    {
+      id: "run",
+      name: `Run ${name}`,
+      description: `Execute the ${name} skill`,
+      systemPrompt: "You are a helpful assistant. Complete the requested task using the available governance tools.",
+      maxTurns: 5,
+    },
+  ];
+  fs.writeFileSync(path.join(skillDir, "actions.yaml"), YAML.stringify(actions), "utf-8");
+
+  console.log(chalk.green(`Created skill: ${skillDir}/`));
+  console.log(chalk.dim("  SKILL.md      — skill definition and prompt"));
+  console.log(chalk.dim("  actions.yaml  — action definitions"));
+  console.log(chalk.dim("\nAdd persona-specific prompts in personas/<persona-id>.md"));
+}
+
+export async function skillsMigrateCommand(): Promise<void> {
+  const project = loadProject();
+  const skillsDir = path.join(project.marvinDir, "skills");
+
+  if (!fs.existsSync(skillsDir)) {
+    console.log(chalk.dim("No skills directory found."));
+    return;
+  }
+
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(skillsDir);
+  } catch {
+    console.log(chalk.red("Could not read skills directory."));
+    return;
+  }
+
+  const yamlFiles = entries.filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"));
+  if (yamlFiles.length === 0) {
+    console.log(chalk.dim("No YAML skill files to migrate."));
+    return;
+  }
+
+  let migrated = 0;
+  for (const file of yamlFiles) {
+    const yamlPath = path.join(skillsDir, file);
+    const baseName = file.replace(/\.(yaml|yml)$/, "");
+    const outputDir = path.join(skillsDir, baseName);
+
+    if (fs.existsSync(outputDir)) {
+      console.log(chalk.yellow(`Skipping "${file}" — directory "${baseName}/" already exists.`));
+      continue;
+    }
+
+    try {
+      migrateYamlToSkillMd(yamlPath, outputDir);
+      fs.renameSync(yamlPath, `${yamlPath}.bak`);
+      console.log(chalk.green(`Migrated "${file}" → "${baseName}/"`));
+      migrated++;
+    } catch (err) {
+      console.log(chalk.red(`Failed to migrate "${file}": ${err}`));
+    }
+  }
+
+  if (migrated > 0) {
+    console.log(chalk.dim(`\n${migrated} skill(s) migrated. Original files renamed to *.bak`));
+  }
 }

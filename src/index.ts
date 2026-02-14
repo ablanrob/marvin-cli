@@ -49,12 +49,15 @@ export { resolvePlugin, getPluginTools, getPluginPromptFragment } from "./plugin
 export { COMMON_REGISTRATIONS, createCommonTools } from "./plugins/common.js";
 
 // Skills
-export type { SkillDefinition, SkillAction } from "./skills/types.js";
+export type { SkillDefinition, SkillAction, SkillFormat, SkillInfo } from "./skills/types.js";
 export {
   loadAllSkills,
+  loadSkillFromDirectory,
   resolveSkillsForPersona,
   getSkillTools,
   getSkillPromptFragment,
+  getSkillAgentDefinitions,
+  migrateYamlToSkillMd,
 } from "./skills/registry.js";
 
 // MCP

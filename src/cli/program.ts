@@ -18,6 +18,7 @@ import {
   skillsInstallCommand,
   skillsRemoveCommand,
   skillsCreateCommand,
+  skillsMigrateCommand,
 } from "./commands/skills.js";
 import { importCommand } from "./commands/import.js";
 import { analyzeCommand } from "./commands/analyze.js";
@@ -187,9 +188,16 @@ export function createProgram(): Command {
 
   skillsCmd
     .command("create <name>")
-    .description("Create a YAML skill template in .marvin/skills/")
+    .description("Create a new skill in .marvin/skills/ (SKILL.md format)")
     .action(async (name: string) => {
       await skillsCreateCommand(name);
+    });
+
+  skillsCmd
+    .command("migrate")
+    .description("Migrate YAML skill files to SKILL.md directory format")
+    .action(async () => {
+      await skillsMigrateCommand();
     });
 
   return program;

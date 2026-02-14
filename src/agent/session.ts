@@ -17,8 +17,7 @@ import { createMarvinMcpServer } from "./mcp-server.js";
 import { generateSessionName } from "./session-namer.js";
 import { SourceManifestManager } from "../sources/manifest.js";
 import { resolvePlugin, getPluginTools, getPluginPromptFragment } from "../plugins/registry.js";
-import { loadAllSkills, resolveSkillsForPersona, getSkillTools, getSkillPromptFragment } from "../skills/registry.js";
-import { createSkillActionTools } from "../skills/action-tools.js";
+import { loadAllSkills, resolveSkillsForPersona, getSkillTools, getSkillPromptFragment, getSkillAgentDefinitions } from "../skills/registry.js";
 
 export interface SessionOptions {
   persona: PersonaDefinition;
@@ -45,10 +44,7 @@ export async function startSession(options: SessionOptions): Promise<void> {
   const allSkills = loadAllSkills(marvinDir);
   const skillIds = resolveSkillsForPersona(persona.id, config.project.skills, allSkills);
   const codeSkillTools = getSkillTools(skillIds, allSkills, store);
-  const skillsWithActions = skillIds
-    .map((id) => allSkills.get(id)!)
-    .filter((s) => s.actions && s.actions.length > 0);
-  const actionTools = createSkillActionTools(skillsWithActions, { store, marvinDir, projectRoot });
+  const skillAgents = getSkillAgentDefinitions(skillIds, allSkills);
   const skillPromptFragment = getSkillPromptFragment(skillIds, allSkills, persona.id);
 
   const mcpServer = createMarvinMcpServer(store, {
@@ -56,7 +52,7 @@ export async function startSession(options: SessionOptions): Promise<void> {
     sourcesDir: hasSourcesDir ? sourcesDir : undefined,
     sessionStore,
     pluginTools,
-    skillTools: [...codeSkillTools, ...actionTools],
+    skillTools: codeSkillTools,
   });
   const systemPrompt = buildSystemPrompt(persona, config.project, pluginPromptFragment, skillPromptFragment);
 
@@ -167,9 +163,12 @@ export async function startSession(options: SessionOptions): Promise<void> {
       "mcp__marvin-governance__analyze_meeting",
       ...pluginTools.map((t) => `mcp__marvin-governance__${t.name}`),
       ...codeSkillTools.map((t) => `mcp__marvin-governance__${t.name}`),
-      ...actionTools.map((t) => `mcp__marvin-governance__${t.name}`),
     ],
   };
+
+  if (Object.keys(skillAgents).length > 0) {
+    queryOptions.agents = skillAgents;
+  }
 
   if (existingSession) {
     queryOptions.resume = existingSession.id;
