@@ -137,7 +137,7 @@ export class DocumentStore {
 
     const fileName =
       type === "meeting"
-        ? `${now.slice(0, 10)}-${slugify(fullFrontmatter.title)}.md`
+        ? `${(cleaned.date as string)?.slice(0, 10) ?? now.slice(0, 10)}-${slugify(fullFrontmatter.title)}.md`
         : `${id}.md`;
     const filePath = path.join(dir, fileName);
 
@@ -174,7 +174,7 @@ export class DocumentStore {
 
     const fileName =
       type === "meeting"
-        ? `${frontmatter.created.slice(0, 10)}-${slugify(frontmatter.title)}.md`
+        ? `${((frontmatter as any).date as string)?.slice(0, 10) ?? frontmatter.created.slice(0, 10)}-${slugify(frontmatter.title)}.md`
         : `${frontmatter.id}.md`;
     const filePath = path.join(dir, fileName);
 

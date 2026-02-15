@@ -64,7 +64,7 @@ export function createMeetingTools(
         owner: z.string().optional().describe("Meeting organizer"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
         attendees: z.array(z.string()).optional().describe("List of attendees"),
-        date: z.string().optional().describe("Meeting date (ISO format)"),
+        date: z.string().describe("Date the meeting took place (ISO format, e.g. '2025-01-15'). Extract from the meeting content. If not found, ask the user before calling this tool."),
       },
       async (args) => {
         const frontmatter: Record<string, unknown> = {
@@ -74,7 +74,7 @@ export function createMeetingTools(
         if (args.owner) frontmatter.owner = args.owner;
         if (args.tags) frontmatter.tags = args.tags;
         if (args.attendees) frontmatter.attendees = args.attendees;
-        if (args.date) frontmatter.date = args.date;
+        frontmatter.date = args.date;
 
         const doc = store.create(
           "meeting",

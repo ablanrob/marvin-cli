@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { z } from "zod/v4";
 import { DocumentStore } from "../../../src/storage/store.js";
 import { createMeetingTools } from "../../../src/plugins/builtin/tools/meetings.js";
 import { COMMON_REGISTRATIONS } from "../../../src/plugins/common.js";
@@ -49,11 +50,12 @@ describe("Meeting Tools", () => {
   });
 
   it("should list meetings", async () => {
-    await tools.create_meeting({ title: "Standup", content: "Daily standup." });
+    await tools.create_meeting({ title: "Standup", content: "Daily standup.", date: "2026-02-15" });
     await tools.create_meeting({
       title: "Retro",
       content: "Sprint retro.",
       status: "completed",
+      date: "2026-02-16",
     });
 
     const listResult = await tools.list_meetings({});
@@ -67,7 +69,7 @@ describe("Meeting Tools", () => {
   });
 
   it("should update a meeting", async () => {
-    await tools.create_meeting({ title: "Planning", content: "Plan." });
+    await tools.create_meeting({ title: "Planning", content: "Plan.", date: "2026-02-15" });
 
     const updateResult = await tools.update_meeting({
       id: "M-001",
@@ -86,5 +88,27 @@ describe("Meeting Tools", () => {
     const result = await tools.get_meeting({ id: "M-999" });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("not found");
+  });
+
+  it("should use the provided date for the meeting filename", async () => {
+    await tools.create_meeting({
+      title: "Past Standup",
+      content: "Notes from last week.",
+      date: "2025-12-01",
+    });
+
+    const meetingsDir = path.join(marvinDir, "docs", "meetings");
+    const files = fs.readdirSync(meetingsDir);
+    expect(files).toHaveLength(1);
+    expect(files[0]).toBe("2025-12-01-past-standup.md");
+  });
+
+  it("should reject create_meeting when date is omitted", async () => {
+    // inputSchema is the raw Zod shape — validate that parsing without date fails
+    const meetingTools = createMeetingTools(store);
+    const createTool = meetingTools.find((t) => t.name === "create_meeting")!;
+    const schema = z.object(createTool.inputSchema);
+    const result = schema.safeParse({ title: "Test", content: "Notes" });
+    expect(result.success).toBe(false);
   });
 });

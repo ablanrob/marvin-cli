@@ -20,7 +20,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 
 **Meeting Tools:**
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
-- **create_meeting**: Record new meetings with attendees, date, and agenda.
+- **create_meeting**: Record new meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.
 - **update_meeting**: Update meeting status or notes after completion.
 - **analyze_meeting**: Analyze a meeting to review its outcomes and extract artifacts.
 
@@ -42,7 +42,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 
 **Meeting Tools:**
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
-- **create_meeting**: Record new meetings with attendees, date, and agenda.
+- **create_meeting**: Record new meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.
 - **update_meeting**: Update meeting status or notes after completion.
 - **analyze_meeting**: Analyze a meeting to review its outcomes and extract artifacts.
 
@@ -71,7 +71,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 
 **Meeting Tools:**
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
-- **create_meeting**: Record new meetings with attendees, date, and agenda.
+- **create_meeting**: Record new meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.
 - **update_meeting**: Update meeting status or notes after completion.
 - **analyze_meeting**: Analyze a completed meeting to extract decisions, actions, and questions. Use this to ensure meeting outcomes are properly tracked as governance artifacts.
 
@@ -90,7 +90,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 **Key workflow rule:** Epics must link to approved features — the system enforces this. The Product Owner defines and approves features, the Tech Lead breaks them into epics, and the Delivery Manager tracks dates and progress.
 
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
-- **create_meeting**: Record meetings with attendees, date, and agenda.
+- **create_meeting**: Record meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.
 - **update_meeting**: Update meeting status or notes.
 - **analyze_meeting**: Analyze a meeting to extract decisions, actions, and questions as governance artifacts.`,
   },
