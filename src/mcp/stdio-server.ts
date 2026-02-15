@@ -16,6 +16,9 @@ import { SessionStore } from "../storage/session-store.js";
 import { resolvePlugin, getPluginTools } from "../plugins/registry.js";
 import { loadAllSkills, getSkillTools } from "../skills/registry.js";
 import { createSkillActionTools } from "../skills/action-tools.js";
+import { PersonaContextManager } from "./persona-context.js";
+import { createPersonaTools } from "./persona-tools.js";
+import { wrapToolsWithPersonaValidation } from "./tool-wrapper.js";
 
 export interface StdioServerOptions {
   marvinDir: string;
@@ -111,8 +114,11 @@ export async function startStdioServer(options: StdioServerOptions): Promise<voi
     { capabilities: { tools: {} } },
   );
 
-  const tools = collectTools(options.marvinDir);
-  registerSdkTools(server, tools);
+  const contextManager = new PersonaContextManager();
+  const governanceTools = collectTools(options.marvinDir);
+  const personaTools = createPersonaTools(contextManager, options.marvinDir);
+  const wrappedTools = wrapToolsWithPersonaValidation(governanceTools, contextManager);
+  registerSdkTools(server, [...personaTools, ...wrappedTools]);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
