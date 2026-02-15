@@ -7,7 +7,7 @@ export const genericAgilePlugin: MarvinPlugin = {
   description:
     "Default methodology plugin providing standard agile governance patterns for decisions, actions, and questions.",
   version: "0.1.0",
-  documentTypes: ["decision", "action", "question", "meeting", "report", "feature", "epic"],
+  documentTypes: ["decision", "action", "question", "meeting", "report", "feature", "epic", "contribution"],
   documentTypeRegistrations: [...COMMON_REGISTRATIONS],
   tools: (store) => [...createCommonTools(store)],
   promptFragments: {
@@ -28,7 +28,13 @@ export const genericAgilePlugin: MarvinPlugin = {
 - Create features as "draft" and approve them when requirements are clear and prioritized.
 - Do NOT create epics — that is the Tech Lead's responsibility. You can view epics to track progress.
 - Use priority levels (critical, high, medium, low) to communicate business value.
-- Tag features for categorization and cross-referencing.`,
+- Tag features for categorization and cross-referencing.
+
+**Contribution Tools:**
+- **list_contributions** / **get_contribution**: Browse and read contribution records.
+- **create_contribution**: Record a contribution with persona, type, and optional related artifact.
+- **update_contribution**: Update a contribution (e.g. append effects).
+- Available contribution types: stakeholder-feedback, acceptance-result, priority-change, market-insight.`,
 
     "tech-lead": `You own epics and break approved features into implementation work.
 
@@ -50,7 +56,13 @@ export const genericAgilePlugin: MarvinPlugin = {
 - Only create epics against approved features — create_epic enforces this.
 - Tag work items (actions, decisions, questions) with \`epic:E-xxx\` to group them under an epic.
 - Collaborate with the Delivery Manager on target dates and effort estimates.
-- Each epic should have a clear scope and definition of done.`,
+- Each epic should have a clear scope and definition of done.
+
+**Contribution Tools:**
+- **list_contributions** / **get_contribution**: Browse and read contribution records.
+- **create_contribution**: Record a contribution with persona, type, and optional related artifact.
+- **update_contribution**: Update a contribution (e.g. append effects).
+- Available contribution types: action-result, spike-findings, technical-assessment, architecture-review.`,
 
     "delivery-manager": `You track delivery across features and epics, manage schedules, and report on progress.
 
@@ -79,7 +91,13 @@ export const genericAgilePlugin: MarvinPlugin = {
 - After generating any report, offer to save it with save_report for audit trail.
 - Proactively flag risks: unowned actions, overdue items, epics linked to deferred features.
 - Use feature progress reports for stakeholder updates and epic progress for sprint-level tracking.
-- Use analyze_meeting after meetings to extract outcomes into governance artifacts.`,
+- Use analyze_meeting after meetings to extract outcomes into governance artifacts.
+
+**Contribution Tools:**
+- **list_contributions** / **get_contribution**: Browse and read contribution records.
+- **create_contribution**: Record a contribution with persona, type, and optional related artifact.
+- **update_contribution**: Update a contribution (e.g. append effects).
+- Available contribution types: risk-finding, blocker-report, dependency-update, status-assessment.`,
 
     "*": `You have access to feature, epic, and meeting tools for project coordination:
 
@@ -92,6 +110,11 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
 - **create_meeting**: Record meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.
 - **update_meeting**: Update meeting status or notes.
-- **analyze_meeting**: Analyze a meeting to extract decisions, actions, and questions as governance artifacts.`,
+- **analyze_meeting**: Analyze a meeting to extract decisions, actions, and questions as governance artifacts.
+
+**Contributions** (C-xxx): Structured inputs from personas outside of meetings (e.g. action results, risk findings, stakeholder feedback). Contributions are analyzed to produce governance effects.
+- **list_contributions** / **get_contribution**: Browse and read contribution records.
+- **create_contribution**: Record a contribution with persona, type, and optional related artifact.
+- **update_contribution**: Update a contribution (e.g. append effects).`,
   },
 };

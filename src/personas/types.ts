@@ -6,4 +6,5 @@ export interface PersonaDefinition {
   systemPrompt: string;
   focusAreas: string[];
   documentTypes: string[];
+  contributionTypes?: string[];
 }

@@ -36,4 +36,5 @@ export const techLead: PersonaDefinition = {
     "Epic creation and scoping",
   ],
   documentTypes: ["decision", "action", "question", "epic"],
+  contributionTypes: ["action-result", "spike-findings", "technical-assessment", "architecture-review"],
 };
