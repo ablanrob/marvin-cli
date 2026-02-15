@@ -36,4 +36,5 @@ export const deliveryManager: PersonaDefinition = {
     "Epic scheduling and tracking",
   ],
   documentTypes: ["action", "decision", "meeting", "question", "feature", "epic"],
+  contributionTypes: ["risk-finding", "blocker-report", "dependency-update", "status-assessment"],
 };

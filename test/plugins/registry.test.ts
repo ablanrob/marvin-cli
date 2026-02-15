@@ -73,7 +73,11 @@ describe("getPluginTools", () => {
       expect(toolNames).toContain("get_epic");
       expect(toolNames).toContain("create_epic");
       expect(toolNames).toContain("update_epic");
-      expect(tools).toHaveLength(19);
+      expect(toolNames).toContain("list_contributions");
+      expect(toolNames).toContain("get_contribution");
+      expect(toolNames).toContain("create_contribution");
+      expect(toolNames).toContain("update_contribution");
+      expect(tools).toHaveLength(23);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

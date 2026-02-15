@@ -22,6 +22,7 @@ import {
 } from "./commands/skills.js";
 import { importCommand } from "./commands/import.js";
 import { analyzeCommand } from "./commands/analyze.js";
+import { contributeCommand } from "./commands/contribute.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -136,6 +137,19 @@ export function createProgram(): Command {
     .option("--as <persona>", "Persona for analysis (default: delivery-manager)")
     .action(async (meetingId: string, options) => {
       await analyzeCommand(meetingId, options);
+    });
+
+  program
+    .command("contribute")
+    .description("Submit a structured contribution from a persona to generate governance effects")
+    .requiredOption("--as <persona>", "Persona making the contribution (po, dm, tl)")
+    .requiredOption("--type <type>", "Contribution type (e.g. action-result, risk-finding)")
+    .requiredOption("--prompt <text>", "Contribution content")
+    .option("--about <artifact-id>", "Related artifact ID (e.g. A-001)")
+    .option("--draft", "Propose effects without executing (default)")
+    .option("--no-draft", "Execute effects directly")
+    .action(async (options) => {
+      await contributeCommand(options);
     });
 
   program
