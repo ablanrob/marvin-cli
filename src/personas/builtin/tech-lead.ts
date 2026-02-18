@@ -34,7 +34,8 @@ export const techLead: PersonaDefinition = {
     "Implementation guidance",
     "Non-functional requirements",
     "Epic creation and scoping",
+    "Sprint scoping and technical execution",
   ],
-  documentTypes: ["decision", "action", "question", "epic"],
+  documentTypes: ["decision", "action", "question", "epic", "sprint"],
   contributionTypes: ["action-result", "spike-findings", "technical-assessment", "architecture-review"],
 };

@@ -242,6 +242,80 @@ export function createReportTools(
     ),
 
     tool(
+      "generate_sprint_progress",
+      "Generate progress report for a sprint or all sprints, showing linked epics and tagged work items",
+      {
+        sprint: z.string().optional().describe("Specific sprint ID (e.g. 'SP-001') or omit for all"),
+      },
+      async (args) => {
+        const allDocs = store.list();
+        const sprintDocs = store.list({ type: "sprint" });
+
+        const sprints = sprintDocs
+          .filter((s) => !args.sprint || s.frontmatter.id === args.sprint)
+          .map((sprintDoc) => {
+            const sprintId = sprintDoc.frontmatter.id;
+            const linkedEpicIds: string[] = sprintDoc.frontmatter.linkedEpics ?? [];
+
+            // Linked epics with their statuses
+            const linkedEpics = linkedEpicIds.map((epicId) => {
+              const epic = store.get(epicId);
+              return epic
+                ? { id: epicId, title: epic.frontmatter.title, status: epic.frontmatter.status }
+                : { id: epicId, title: "(not found)", status: "unknown" };
+            });
+
+            // Work items tagged sprint:SP-xxx
+            const workItems = allDocs.filter(
+              (d) =>
+                d.frontmatter.type !== "sprint" &&
+                d.frontmatter.type !== "epic" &&
+                d.frontmatter.tags?.includes(`sprint:${sprintId}`),
+            );
+
+            const byStatus: Record<string, number> = {};
+            for (const doc of workItems) {
+              byStatus[doc.frontmatter.status] = (byStatus[doc.frontmatter.status] ?? 0) + 1;
+            }
+
+            const doneCount =
+              (byStatus["done"] ?? 0) +
+              (byStatus["resolved"] ?? 0) +
+              (byStatus["closed"] ?? 0);
+            const total = workItems.length;
+            const completionPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+            return {
+              id: sprintDoc.frontmatter.id,
+              title: sprintDoc.frontmatter.title,
+              status: sprintDoc.frontmatter.status,
+              goal: sprintDoc.frontmatter.goal,
+              startDate: sprintDoc.frontmatter.startDate,
+              endDate: sprintDoc.frontmatter.endDate,
+              linkedEpics,
+              workItems: {
+                total,
+                done: doneCount,
+                completionPct,
+                byStatus,
+                items: workItems.map((d) => ({
+                  id: d.frontmatter.id,
+                  title: d.frontmatter.title,
+                  type: d.frontmatter.type,
+                  status: d.frontmatter.status,
+                })),
+              },
+            };
+          });
+
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ sprints }, null, 2) }],
+        };
+      },
+      { annotations: { readOnly: true } },
+    ),
+
+    tool(
       "generate_feature_progress",
       "Generate progress report for features and their linked epics",
       {
@@ -293,7 +367,7 @@ export function createReportTools(
         title: z.string().describe("Report title"),
         content: z.string().describe("Full report content in markdown"),
         reportType: z
-          .enum(["status", "risk-register", "gar", "epic-progress", "feature-progress", "custom"])
+          .enum(["status", "risk-register", "gar", "epic-progress", "feature-progress", "sprint-progress", "custom"])
           .describe("Type of report"),
         tags: z.array(z.string()).optional().describe("Additional tags"),
       },
