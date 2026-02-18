@@ -1,6 +1,6 @@
 # Marvin CLI
 
-AI-powered product development assistant. Marvin provides three expert personas — **Product Owner**, **Delivery Manager**, and **Technical Lead** — that help teams manage features, epics, decisions, actions, questions, and meetings through an interactive CLI backed by Claude.
+AI-powered product development assistant. Marvin provides three expert personas — **Product Owner**, **Delivery Manager**, and **Technical Lead** — that help teams manage features, epics, sprints, decisions, actions, questions, and meetings through an interactive CLI backed by Claude.
 
 ## Quick Start
 
@@ -22,7 +22,7 @@ npx tsx bin/marvin.ts chat --as tl     # Technical Lead
 
 ## How It Works
 
-Marvin stores all project governance data as **Markdown files with YAML frontmatter** inside a `.marvin/` directory. Each artifact gets its own file with an auto-incrementing ID (`F-001`, `E-001`, `D-001`, `A-002`, `Q-003`). This makes everything human-readable, Git-friendly, and Obsidian-compatible.
+Marvin stores all project governance data as **Markdown files with YAML frontmatter** inside a `.marvin/` directory. Each artifact gets its own file with an auto-incrementing ID (`F-001`, `E-001`, `SP-001`, `D-001`, `A-002`, `Q-003`). This makes everything human-readable, Git-friendly, and Obsidian-compatible.
 
 When you start a chat session, Marvin:
 
@@ -42,6 +42,7 @@ When you start a chat session, Marvin:
 └── docs/
     ├── features/              # F-001.md, F-002.md, ...
     ├── epics/                 # E-001.md, E-002.md, ...
+    ├── sprints/               # SP-001.md, SP-002.md, ...
     ├── decisions/             # D-001.md, D-002.md, ...
     ├── actions/               # A-001.md, A-002.md, ...
     ├── questions/             # Q-001.md, Q-002.md, ...
@@ -58,7 +59,7 @@ Marvin supports pluggable methodologies. Choose one during `marvin init`:
 
 ### Generic Agile (default)
 
-Standard agile governance with features, epics, decisions, actions, questions, meetings, and reports.
+Standard agile governance with features, epics, sprints, decisions, actions, questions, meetings, and reports.
 
 ### SAP Application Extension Methodology (SAP AEM)
 
@@ -74,7 +75,8 @@ A 3-phase methodology for building extensions on SAP BTP:
 
 ```
 Layer 1 — Core:          decisions, actions, questions     (always available)
-Layer 2 — Common:        meetings, reports, features, epics (shared across methodologies)
+Layer 2 — Common:        meetings, reports, features, epics, (shared across methodologies)
+                         sprints
 Layer 3 — Methodology:   use-cases, tech-assessments,       (sap-aem specific)
                          extension-designs, phase management
 ```
@@ -134,31 +136,43 @@ Use Case (PO)         Tech Assessment (TL)      Extension Design (TL)
 | Short Name | Full Name | Focus |
 |------------|-----------|-------|
 | `po` | Product Owner | Product vision, feature definition and prioritization, stakeholder needs, acceptance criteria |
-| `dm` | Delivery Manager | Project delivery, epic scheduling and tracking, risk management, governance, meeting facilitation |
-| `tl` | Technical Lead | Architecture, epic creation and scoping, code quality, technical decisions, implementation guidance |
+| `dm` | Delivery Manager | Project delivery, sprint planning and tracking, epic scheduling, risk management, governance, meeting facilitation |
+| `tl` | Technical Lead | Architecture, epic creation and scoping, sprint scoping and technical execution, code quality, technical decisions, implementation guidance |
 
-Each persona has a tuned system prompt that shapes how Claude approaches your project. The agent has access to governance tools for managing features, epics, decisions, actions, questions, meetings, and reports — plus methodology-specific tools when a plugin is active.
+Each persona has a tuned system prompt that shapes how Claude approaches your project. The agent has access to governance tools for managing features, epics, sprints, decisions, actions, questions, meetings, and reports — plus methodology-specific tools when a plugin is active.
 
-## Feature → Epic Workflow
+## Feature → Epic → Sprint Workflow
 
 Marvin enforces a structured product development workflow:
 
 1. **Product Owner** defines features (`F-xxx`) as `draft`, then approves them when requirements are clear
 2. **Tech Lead** breaks approved features into implementation epics (`E-xxx`) — the system **enforces** that epics can only be created against approved features
-3. **Delivery Manager** sets target dates on epics and tracks progress across features and epics
+3. **Delivery Manager** creates sprints (`SP-xxx`) with goals and date boundaries, assigns epics to sprints, and tracks progress
 
 ```
-Feature (PO)          Epic (TL)              Work Items
+Feature (PO)          Epic (TL)              Sprint (DM)
 ┌──────────┐    ┌──────────────┐    ┌──────────────────────┐
-│ F-001    │───▶│ E-001        │───▶│ A-001 (epic:E-001)   │
-│ approved │    │ linked: F-001│    │ D-003 (epic:E-001)   │
-└──────────┘    ├──────────────┤    └──────────────────────┘
-                │ E-002        │
-                │ linked: F-001│
-                └──────────────┘
+│ F-001    │───▶│ E-001        │───▶│ SP-001               │
+│ approved │    │ linked: F-001│    │ linkedEpics: [E-001]  │
+└──────────┘    ├──────────────┤    │ goal: "Deliver auth"  │
+                │ E-002        │    │ 2026-03-01..03-14     │
+                │ linked: F-001│    └──────────────────────┘
+                └──────────────┘             │
+                                    ┌────────┴─────────────┐
+                                    │ A-001 (sprint:SP-001) │
+                                    │ D-003 (sprint:SP-001) │
+                                    └──────────────────────┘
 ```
 
-This provides **hard enforcement** (epics must link to approved features) combined with **soft guidance** (persona prompts steer each role toward their responsibilities).
+**Sprints** are time-boxed iterations with:
+- `goal` — what the sprint aims to deliver
+- `startDate` / `endDate` — sprint boundaries (ISO dates)
+- `status` — `planned` → `active` → `completed` (or `cancelled`)
+- `linkedEpics` — soft-validated references to epic IDs (warns if not found but doesn't block creation)
+
+When a sprint links to epics, those epics are auto-tagged with `sprint:SP-xxx`. Work items (actions, decisions, questions) are associated with sprints via the same `sprint:SP-xxx` tag convention. The `generate_sprint_progress` report shows linked epics with statuses, tagged work items grouped by status, and done/total completion %.
+
+This provides **hard enforcement** (epics must link to approved features) combined with **soft guidance** (persona prompts steer each role toward their responsibilities) and **sprint-level tracking** for time-boxed delivery.
 
 ## Configuration
 
@@ -392,7 +406,7 @@ src/agent/                 → Claude Agent SDK integration, MCP tools
 src/mcp/                   → Standalone MCP stdio server adapter
 src/plugins/               → Plugin system (methodology plugins)
   ├── types.ts             → MarvinPlugin interface
-  ├── common.ts            → Shared registrations + tool factory (meetings, reports, features, epics)
+  ├── common.ts            → Shared registrations + tool factory (meetings, reports, features, epics, sprints)
   ├── registry.ts          → Plugin resolution
   └── builtin/
       ├── generic-agile.ts → Default methodology

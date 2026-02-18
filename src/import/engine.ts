@@ -174,6 +174,7 @@ function getDirNameForType(store: DocumentStore, type: string): string {
     report: "reports",
     feature: "features",
     epic: "epics",
+    sprint: "sprints",
   };
   return typeDir[type] ?? `${type}s`;
 }

@@ -7,7 +7,7 @@ export const genericAgilePlugin: MarvinPlugin = {
   description:
     "Default methodology plugin providing standard agile governance patterns for decisions, actions, and questions.",
   version: "0.1.0",
-  documentTypes: ["decision", "action", "question", "meeting", "report", "feature", "epic", "contribution"],
+  documentTypes: ["decision", "action", "question", "meeting", "report", "feature", "epic", "contribution", "sprint"],
   documentTypeRegistrations: [...COMMON_REGISTRATIONS],
   tools: (store) => [...createCommonTools(store)],
   promptFragments: {
@@ -34,7 +34,10 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **list_contributions** / **get_contribution**: Browse and read contribution records.
 - **create_contribution**: Record a contribution with persona, type, and optional related artifact.
 - **update_contribution**: Update a contribution (e.g. append effects).
-- Available contribution types: stakeholder-feedback, acceptance-result, priority-change, market-insight.`,
+- Available contribution types: stakeholder-feedback, acceptance-result, priority-change, market-insight.
+
+**Sprint Tools (read-only for awareness):**
+- **list_sprints** / **get_sprint**: View sprints to understand delivery timelines and iteration scope.`,
 
     "tech-lead": `You own epics and break approved features into implementation work.
 
@@ -62,7 +65,13 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **list_contributions** / **get_contribution**: Browse and read contribution records.
 - **create_contribution**: Record a contribution with persona, type, and optional related artifact.
 - **update_contribution**: Update a contribution (e.g. append effects).
-- Available contribution types: action-result, spike-findings, technical-assessment, architecture-review.`,
+- Available contribution types: action-result, spike-findings, technical-assessment, architecture-review.
+
+**Sprint Tools:**
+- **list_sprints** / **get_sprint**: View sprints to understand iteration scope and delivery dates.
+- **update_sprint**: Assign epics to sprints by updating linkedEpics when breaking features into work.
+- Tag technical actions and decisions with \`sprint:SP-xxx\` to associate them with a sprint.
+- Use **generate_sprint_progress** to track technical work completion within an iteration.`,
 
     "delivery-manager": `You track delivery across features and epics, manage schedules, and report on progress.
 
@@ -97,15 +106,30 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **list_contributions** / **get_contribution**: Browse and read contribution records.
 - **create_contribution**: Record a contribution with persona, type, and optional related artifact.
 - **update_contribution**: Update a contribution (e.g. append effects).
-- Available contribution types: risk-finding, blocker-report, dependency-update, status-assessment.`,
+- Available contribution types: risk-finding, blocker-report, dependency-update, status-assessment.
 
-    "*": `You have access to feature, epic, and meeting tools for project coordination:
+**Sprint Tools:**
+- **list_sprints** / **get_sprint**: Browse and read sprint definitions.
+- **create_sprint**: Create sprints with dates, goals, and linked epics. Use status "planned" for upcoming sprints or "active"/"completed"/"cancelled" for current/past sprints.
+- **update_sprint**: Update sprint status, dates, goal, or linked epics. When linkedEpics changes, affected epics are re-tagged automatically.
+- **generate_sprint_progress**: Progress report for a specific sprint or all sprints — shows linked epics with statuses, work items tagged \`sprint:SP-xxx\` grouped by status, and done/total completion %.
+- Use \`save_report\` with reportType "sprint-progress" to persist sprint reports.
+
+**Sprint Workflow:**
+- Create sprints with clear goals and date boundaries.
+- Assign epics to sprints via linkedEpics.
+- Tag work items (actions, decisions, questions) with \`sprint:SP-xxx\` for sprint scoping.
+- Track delivery dates and flag at-risk sprints.
+- Register past/completed sprints for historical tracking.`,
+
+    "*": `You have access to feature, epic, sprint, and meeting tools for project coordination:
 
 **Features** (F-xxx): Product capabilities defined by the Product Owner. Features progress through draft → approved → done.
 **Epics** (E-xxx): Implementation work packages created by the Tech Lead, linked to approved features. Epics progress through planned → in-progress → done.
+**Sprints** (SP-xxx): Time-boxed iterations that group epics and work items with delivery dates. Sprints progress through planned → active → completed (or cancelled).
 **Meetings**: Meeting records with attendees, agendas, and notes.
 
-**Key workflow rule:** Epics must link to approved features — the system enforces this. The Product Owner defines and approves features, the Tech Lead breaks them into epics, and the Delivery Manager tracks dates and progress.
+**Key workflow rule:** Epics must link to approved features — the system enforces this. The Product Owner defines and approves features, the Tech Lead breaks them into epics, the Delivery Manager plans sprints and tracks dates and progress. Work items are associated with sprints via \`sprint:SP-xxx\` tags.
 
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
 - **create_meeting**: Record meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.
