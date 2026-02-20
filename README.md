@@ -172,6 +172,19 @@ Feature (PO)          Epic (TL)              Sprint (DM)
 
 When a sprint links to epics, those epics are auto-tagged with `sprint:SP-xxx`. Work items (actions, decisions, questions) are associated with sprints via the same `sprint:SP-xxx` tag convention. The `generate_sprint_progress` report shows linked epics with statuses, tagged work items grouped by status, and done/total completion %.
 
+**Sprint planning** is supported by the `gather_sprint_planning_context` tool, which aggregates all planning-relevant data in a single call:
+
+| Section | Contents |
+|---------|----------|
+| `approvedFeatures` | Approved features sorted by priority, with epic counts by status |
+| `backlog` | Unassigned non-done epics, sorted by parent feature priority, enriched with feature context and effort estimates |
+| `activeSprint` | Current active sprint with linked epic statuses, work item counts, and completion % |
+| `velocityReference` | Last 2 completed sprints with epic count, effort strings, and work item throughput |
+| `blockers` | Open questions, open risk-finding and blocker-report contributions |
+| `summary` | Total backlog size, approved features with no epics, epics at risk, planned sprint count |
+
+When asked to propose a sprint, the DM reasons through priority, capacity, dependencies, and risk to present a structured proposal. The TL focuses on technical readiness, effort balance, and feature coverage. Both personas call this tool automatically before proposing a sprint plan.
+
 This provides **hard enforcement** (epics must link to approved features) combined with **soft guidance** (persona prompts steer each role toward their responsibilities) and **sprint-level tracking** for time-boxed delivery.
 
 ## Configuration
@@ -406,7 +419,7 @@ src/agent/                 → Claude Agent SDK integration, MCP tools
 src/mcp/                   → Standalone MCP stdio server adapter
 src/plugins/               → Plugin system (methodology plugins)
   ├── types.ts             → MarvinPlugin interface
-  ├── common.ts            → Shared registrations + tool factory (meetings, reports, features, epics, sprints)
+  ├── common.ts            → Shared registrations + tool factory (meetings, reports, features, epics, sprints, sprint planning)
   ├── registry.ts          → Plugin resolution
   └── builtin/
       ├── generic-agile.ts → Default methodology
