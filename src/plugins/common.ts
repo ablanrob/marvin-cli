@@ -7,6 +7,7 @@ import { createFeatureTools } from "./builtin/tools/features.js";
 import { createEpicTools } from "./builtin/tools/epics.js";
 import { createContributionTools } from "./builtin/tools/contributions.js";
 import { createSprintTools } from "./builtin/tools/sprints.js";
+import { createSprintPlanningTools } from "./builtin/tools/sprint-planning.js";
 
 export const COMMON_REGISTRATIONS: DocumentTypeRegistration[] = [
   { type: "meeting", dirName: "meetings", idPrefix: "M" },
@@ -25,5 +26,6 @@ export function createCommonTools(store: DocumentStore): SdkMcpToolDefinition<an
     ...createEpicTools(store),
     ...createContributionTools(store),
     ...createSprintTools(store),
+    ...createSprintPlanningTools(store),
   ];
 }

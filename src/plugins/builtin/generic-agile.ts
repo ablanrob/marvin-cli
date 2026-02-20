@@ -71,7 +71,12 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **list_sprints** / **get_sprint**: View sprints to understand iteration scope and delivery dates.
 - **update_sprint**: Assign epics to sprints by updating linkedEpics when breaking features into work.
 - Tag technical actions and decisions with \`sprint:SP-xxx\` to associate them with a sprint.
-- Use **generate_sprint_progress** to track technical work completion within an iteration.`,
+- Use **generate_sprint_progress** to track technical work completion within an iteration.
+
+**Sprint Planning:**
+- When asked to plan or propose a sprint, ALWAYS call **gather_sprint_planning_context** first.
+- Focus on: technical readiness of each epic, open technical questions or spikes, effort balance across the sprint, and feature coverage.
+- Present a structured sprint proposal with technical rationale for each selected epic, known technical risks, and any prerequisite work that should be completed first.`,
 
     "delivery-manager": `You track delivery across features and epics, manage schedules, and report on progress.
 
@@ -120,7 +125,13 @@ export const genericAgilePlugin: MarvinPlugin = {
 - Assign epics to sprints via linkedEpics.
 - Tag work items (actions, decisions, questions) with \`sprint:SP-xxx\` for sprint scoping.
 - Track delivery dates and flag at-risk sprints.
-- Register past/completed sprints for historical tracking.`,
+- Register past/completed sprints for historical tracking.
+
+**Sprint Planning:**
+- When asked to plan or propose a sprint, ALWAYS call **gather_sprint_planning_context** first. It aggregates approved features, backlog epics, active sprint status, velocity from recent sprints, blockers, and summary stats in one call.
+- Reason through: priority (critical/high features first), capacity (compare backlog effort to velocity reference), dependencies and blockers, balance across features, and risk.
+- Present a structured sprint proposal: title, goal, suggested dates, selected epics with rationale for each, excluded epics with reason, and identified risks.
+- After user confirmation, use **create_sprint** with the agreed epics to persist the sprint.`,
 
     "*": `You have access to feature, epic, sprint, and meeting tools for project coordination:
 
