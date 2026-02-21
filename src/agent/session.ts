@@ -17,7 +17,7 @@ import { createMarvinMcpServer } from "./mcp-server.js";
 import { generateSessionName } from "./session-namer.js";
 import { SourceManifestManager } from "../sources/manifest.js";
 import { resolvePlugin, getPluginTools, getPluginPromptFragment } from "../plugins/registry.js";
-import { loadAllSkills, resolveSkillsForPersona, getSkillTools, getSkillPromptFragment, getSkillAgentDefinitions } from "../skills/registry.js";
+import { loadAllSkills, resolveSkillsForPersona, collectSkillRegistrations, getSkillTools, getSkillPromptFragment, getSkillAgentDefinitions } from "../skills/registry.js";
 
 export interface SessionOptions {
   persona: PersonaDefinition;
@@ -30,19 +30,25 @@ export interface SessionOptions {
 
 export async function startSession(options: SessionOptions): Promise<void> {
   const { persona, config, marvinDir, projectRoot } = options;
+  // 1. Load plugin
   const plugin = resolvePlugin(config.project.methodology);
-  const registrations = plugin?.documentTypeRegistrations ?? [];
-  const store = new DocumentStore(marvinDir, registrations);
+  const pluginRegistrations = plugin?.documentTypeRegistrations ?? [];
+
+  // 2. Load skills and collect their document type registrations
+  const allSkills = loadAllSkills(marvinDir);
+  const skillIds = resolveSkillsForPersona(persona.id, config.project.skills, allSkills);
+  const skillRegistrations = collectSkillRegistrations(skillIds, allSkills);
+
+  // 3. Create store with combined registrations
+  const store = new DocumentStore(marvinDir, [...pluginRegistrations, ...skillRegistrations]);
   const sessionStore = new SessionStore(marvinDir);
   const sourcesDir = path.join(marvinDir, "sources");
   const hasSourcesDir = fs.existsSync(sourcesDir);
   const manifest = hasSourcesDir ? new SourceManifestManager(marvinDir) : undefined;
 
+  // 4. Get tools (which need the store)
   const pluginTools = plugin ? getPluginTools(plugin, store, marvinDir) : [];
   const pluginPromptFragment = plugin ? getPluginPromptFragment(plugin, persona.id) : undefined;
-
-  const allSkills = loadAllSkills(marvinDir);
-  const skillIds = resolveSkillsForPersona(persona.id, config.project.skills, allSkills);
   const codeSkillTools = getSkillTools(skillIds, allSkills, store);
   const skillAgents = getSkillAgentDefinitions(skillIds, allSkills);
   const skillPromptFragment = getSkillPromptFragment(skillIds, allSkills, persona.id);

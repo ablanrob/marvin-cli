@@ -5,11 +5,14 @@ import * as YAML from "yaml";
 import matter from "gray-matter";
 import type { AgentDefinition, SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../storage/store.js";
+import type { DocumentTypeRegistration } from "../storage/types.js";
 import type { SkillDefinition, SkillInfo } from "./types.js";
 import { governanceReviewSkill } from "./builtin/governance-review.js";
+import { jiraSkill } from "./builtin/jira/index.js";
 
 const BUILTIN_SKILLS: Record<string, SkillDefinition> = {
   "governance-review": governanceReviewSkill,
+  "jira": jiraSkill,
 };
 
 const GOVERNANCE_TOOL_NAMES = [
@@ -188,6 +191,20 @@ export function resolveSkillsForPersona(
     }
   }
   return result;
+}
+
+export function collectSkillRegistrations(
+  skillIds: string[],
+  allSkills: Map<string, SkillDefinition>,
+): DocumentTypeRegistration[] {
+  const registrations: DocumentTypeRegistration[] = [];
+  for (const id of skillIds) {
+    const skill = allSkills.get(id);
+    if (skill?.documentTypeRegistrations) {
+      registrations.push(...skill.documentTypeRegistrations);
+    }
+  }
+  return registrations;
 }
 
 export function getSkillTools(
