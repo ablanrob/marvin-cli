@@ -1,5 +1,6 @@
 import type { SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../storage/store.js";
+import type { DocumentTypeRegistration } from "../storage/types.js";
 
 export type SkillFormat = 'builtin-ts' | 'yaml' | 'skill-md';
 
@@ -11,6 +12,7 @@ export interface SkillDefinition {
   format: SkillFormat;
   dirPath?: string;
   personas?: string[];
+  documentTypeRegistrations?: DocumentTypeRegistration[];
   tools?: (store: DocumentStore) => SdkMcpToolDefinition<any>[];
   promptFragments?: Record<string, string>;
   actions?: SkillAction[];

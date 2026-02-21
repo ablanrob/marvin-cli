@@ -48,6 +48,7 @@ When you start a chat session, Marvin:
     ├── questions/             # Q-001.md, Q-002.md, ...
     ├── meetings/              # 2026-02-08-kickoff.md, ...
     ├── reports/               # R-001.md, R-002.md, ...
+    ├── jira-issues/           # JI-001.md, JI-002.md, ... (Jira skill)
     ├── use-cases/             # UC-001.md, UC-002.md, ... (SAP AEM)
     ├── tech-assessments/      # TA-001.md, TA-002.md, ... (SAP AEM)
     └── extension-designs/     # XD-001.md, XD-002.md, ... (SAP AEM)
@@ -107,6 +108,79 @@ Use Case (PO)         Tech Assessment (TL)      Extension Design (TL)
 
 **Switching methodologies:** Change `methodology` in `.marvin/config.yaml`. Existing files stay on disk. Common tools (meetings, features, epics, reports) remain available. Only methodology-specific CRUD tools are gained/lost.
 
+## Skills
+
+Skills are composable capabilities that work with any methodology. Unlike plugins (which define a methodology), skills add tools and behaviors that any persona can use.
+
+### Managing skills
+
+```bash
+marvin skills                           # List available skills and assignments
+marvin skills install jira --as all     # Enable for all personas
+marvin skills install jira --as po      # Enable for one persona
+marvin skills remove jira --as all      # Disable for all personas
+marvin skills remove jira --as po       # Disable for one persona
+```
+
+### Jira Integration
+
+Bidirectional sync between Marvin artifacts and Jira issues. Imported issues are stored locally as `JI-xxx` documents in `.marvin/docs/jira-issues/`.
+
+**Enabling the skill** — Jira is opt-in. Add it to the `skills` section of `.marvin/config.yaml` for the personas that need it:
+
+```yaml
+skills:
+  product-owner: [jira]
+  tech-lead: [jira]
+  delivery-manager: [jira]
+```
+
+**Authentication** — set three environment variables (no secrets in config files):
+
+```bash
+export JIRA_HOST=yourcompany.atlassian.net
+export JIRA_EMAIL=you@company.com
+export JIRA_API_TOKEN=your-api-token    # Generate at https://id.atlassian.com/manage-profile/security/api-tokens
+```
+
+**Tools available to all personas:**
+
+| Tool | Direction | Description |
+|------|-----------|-------------|
+| `list_jira_issues` | local read | List locally synced JI-xxx documents, filter by status or Jira key |
+| `get_jira_issue` | local read | Get a JI-xxx by local ID or Jira key |
+| `pull_jira_issue` | Jira → local | Fetch one issue by key, create/update local JI-xxx |
+| `pull_jira_issues_jql` | Jira → local | Bulk fetch via JQL query, create/update local JI-xxx |
+| `push_artifact_to_jira` | local → Jira | Create a Jira issue from any Marvin artifact (D/A/Q/F/E) |
+| `sync_jira_issue` | bidirectional | Push local changes to Jira, pull latest status/assignee/labels back |
+| `link_artifact_to_jira` | local only | Link a Marvin artifact to an existing JI-xxx |
+
+**How each persona uses it:**
+
+- **Product Owner** — Pull stakeholder-reported issues for triage, push approved features as Stories, link decisions to Jira issues for audit trail
+- **Tech Lead** — Pull technical issues for sprint planning, push epics for cross-team visibility, bidirectional sync to keep governance aligned
+- **Delivery Manager** — Pull sprint issues for progress tracking, push actions for stakeholder visibility, use JQL queries for reporting
+
+**JI document frontmatter:**
+
+```yaml
+id: JI-001
+title: "Implement user authentication"
+type: jira-issue
+status: open                    # mapped from Jira status
+jiraKey: PROJ-123
+jiraUrl: https://yourcompany.atlassian.net/browse/PROJ-123
+issueType: Story
+priority: Medium
+assignee: Jane Doe
+labels: [backend, auth]
+linkedArtifacts: [F-001, D-003]
+tags: [jira:PROJ-123]
+lastSyncedAt: "2026-02-20T10:30:00.000Z"
+```
+
+Tools gracefully handle missing Jira credentials — local read tools (`list_jira_issues`, `get_jira_issue`, `link_artifact_to_jira`) always work, while API-calling tools return a helpful error message asking you to set the environment variables.
+
 ## Commands
 
 | Command | Description |
@@ -129,6 +203,10 @@ Use Case (PO)         Tech Assessment (TL)      Extension Design (TL)
 | `marvin chat --resume <name>` | Resume a specific session by name |
 | `marvin sessions` | List all saved chat sessions |
 | `marvin sessions delete <name>` | Delete a saved session |
+| `marvin skills` | List available skills and persona assignments |
+| `marvin skills install <skill> --as <persona\|all>` | Enable a skill for a persona (or all) |
+| `marvin skills remove <skill> --as <persona\|all>` | Disable a skill for a persona (or all) |
+| `marvin skills create <name>` | Scaffold a new custom skill |
 | `marvin serve` | Start standalone MCP server for Claude Desktop/Code |
 
 ## Personas
@@ -426,7 +504,12 @@ src/plugins/               → Plugin system (methodology plugins)
       ├── sap-aem.ts       → SAP AEM methodology
       └── tools/           → Tool implementations per artifact type
 src/import/                → Import engine (classifier, resolver, plan/execute)
-src/skills/                → Custom skill definitions
+src/skills/                → Skill system (composable capabilities)
+  ├── types.ts             → SkillDefinition interface
+  ├── registry.ts          → Skill loading, resolution, tool/prompt collection
+  └── builtin/
+      ├── governance-review.ts → Governance review skill
+      └── jira/            → Jira integration skill (client, tools, definition)
 src/git/                   → Git sync (simple-git wrapper for .marvin/)
 ```
 
@@ -435,8 +518,8 @@ Key design decisions:
 - **One file per artifact** — Better for Git merges and human readability than a single register file
 - **System prompt composition** — Personas are behavioral modes (different system prompts), not separate agents
 - **MCP tools for data access** — The agent calls tools to read/write governance data, keeping AI reasoning separate from data operations
-- **Extensible storage** — `DocumentStore` accepts plugin-registered types at construction time; `DocumentType` is `string`, not a fixed union
-- **Layered capabilities** — Core governance is always available, common tools are shared across methodologies, methodology-specific tools layer on top
+- **Extensible storage** — `DocumentStore` accepts plugin- and skill-registered types at construction time; `DocumentType` is `string`, not a fixed union
+- **Layered capabilities** — Core governance is always available, common tools are shared across methodologies, methodology-specific tools layer on top, and skills (like Jira) compose with any methodology
 
 ## Development
 

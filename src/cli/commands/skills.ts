@@ -74,21 +74,28 @@ export async function skillsInstallCommand(
     return;
   }
 
+  const targets = persona === "all"
+    ? listPersonas().map((p) => p.id)
+    : [persona];
+
   const config = loadProjectConfig(project.marvinDir) as MarvinProjectConfig & { skills?: Record<string, string[]> };
   if (!config.skills) {
     config.skills = {};
   }
-  if (!config.skills[persona]) {
-    config.skills[persona] = [];
-  }
-  if (config.skills[persona].includes(skillId)) {
-    console.log(chalk.yellow(`Skill "${skillId}" is already assigned to ${persona}.`));
-    return;
+
+  for (const target of targets) {
+    if (!config.skills[target]) {
+      config.skills[target] = [];
+    }
+    if (config.skills[target].includes(skillId)) {
+      console.log(chalk.yellow(`Skill "${skillId}" is already assigned to ${target}.`));
+      continue;
+    }
+    config.skills[target].push(skillId);
+    console.log(chalk.green(`Assigned skill "${skillId}" to ${target}.`));
   }
 
-  config.skills[persona].push(skillId);
   saveProjectConfig(project.marvinDir, config);
-  console.log(chalk.green(`Assigned skill "${skillId}" to ${persona}.`));
 }
 
 export async function skillsRemoveCommand(
@@ -103,27 +110,33 @@ export async function skillsRemoveCommand(
     return;
   }
 
+  const targets = persona === "all"
+    ? listPersonas().map((p) => p.id)
+    : [persona];
+
   const config = loadProjectConfig(project.marvinDir) as MarvinProjectConfig & { skills?: Record<string, string[]> };
-  if (!config.skills?.[persona]) {
-    console.log(chalk.yellow(`No skills configured for ${persona}.`));
-    return;
+
+  for (const target of targets) {
+    if (!config.skills?.[target]) {
+      console.log(chalk.yellow(`No skills configured for ${target}.`));
+      continue;
+    }
+    const idx = config.skills[target].indexOf(skillId);
+    if (idx === -1) {
+      console.log(chalk.yellow(`Skill "${skillId}" is not assigned to ${target}.`));
+      continue;
+    }
+    config.skills[target].splice(idx, 1);
+    if (config.skills[target].length === 0) {
+      delete config.skills[target];
+    }
+    console.log(chalk.green(`Removed skill "${skillId}" from ${target}.`));
   }
 
-  const idx = config.skills[persona].indexOf(skillId);
-  if (idx === -1) {
-    console.log(chalk.yellow(`Skill "${skillId}" is not assigned to ${persona}.`));
-    return;
-  }
-
-  config.skills[persona].splice(idx, 1);
-  if (config.skills[persona].length === 0) {
-    delete config.skills[persona];
-  }
-  if (Object.keys(config.skills).length === 0) {
+  if (config.skills && Object.keys(config.skills).length === 0) {
     delete config.skills;
   }
   saveProjectConfig(project.marvinDir, config);
-  console.log(chalk.green(`Removed skill "${skillId}" from ${persona}.`));
 }
 
 export async function skillsCreateCommand(name: string): Promise<void> {

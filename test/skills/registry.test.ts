@@ -8,6 +8,7 @@ import {
   loadAllSkills,
   loadSkillFromDirectory,
   resolveSkillsForPersona,
+  collectSkillRegistrations,
   getSkillTools,
   getSkillPromptFragment,
   listAllSkillInfo,
@@ -201,11 +202,8 @@ describe("loadAllSkills", () => {
     );
 
     const skills = loadAllSkills(marvinDir);
-    // Should only have builtins
-    const nonBuiltinCount = [...skills.keys()].filter(
-      (k) => k !== "governance-review",
-    ).length;
-    expect(nonBuiltinCount).toBe(0);
+    // Should not load the readme.md as a skill
+    expect(skills.has("readme")).toBe(false);
   });
 });
 
@@ -595,5 +593,83 @@ describe("getSkillAgentDefinitions", () => {
     const skills = loadAllSkills();
     const agents = getSkillAgentDefinitions(["nonexistent"], skills);
     expect(Object.keys(agents)).toHaveLength(0);
+  });
+});
+
+describe("collectSkillRegistrations", () => {
+  it("should return registrations from skills with documentTypeRegistrations", () => {
+    const skills = new Map<string, SkillDefinition>();
+    skills.set("jira", {
+      id: "jira",
+      name: "Jira",
+      description: "Jira integration",
+      version: "1.0.0",
+      format: "builtin-ts",
+      documentTypeRegistrations: [
+        { type: "jira-issue", dirName: "jira-issues", idPrefix: "JI" },
+      ],
+    });
+
+    const regs = collectSkillRegistrations(["jira"], skills);
+    expect(regs).toHaveLength(1);
+    expect(regs[0].type).toBe("jira-issue");
+    expect(regs[0].dirName).toBe("jira-issues");
+    expect(regs[0].idPrefix).toBe("JI");
+  });
+
+  it("should return empty array for skills without documentTypeRegistrations", () => {
+    const skills = new Map<string, SkillDefinition>();
+    skills.set("no-regs", {
+      id: "no-regs",
+      name: "No Regs",
+      description: "No registrations",
+      version: "1.0.0",
+      format: "yaml",
+    });
+
+    const regs = collectSkillRegistrations(["no-regs"], skills);
+    expect(regs).toEqual([]);
+  });
+
+  it("should combine registrations from multiple skills", () => {
+    const skills = new Map<string, SkillDefinition>();
+    skills.set("skill-a", {
+      id: "skill-a",
+      name: "Skill A",
+      description: "A",
+      version: "1.0.0",
+      format: "builtin-ts",
+      documentTypeRegistrations: [
+        { type: "type-a", dirName: "dir-a", idPrefix: "A" },
+      ],
+    });
+    skills.set("skill-b", {
+      id: "skill-b",
+      name: "Skill B",
+      description: "B",
+      version: "1.0.0",
+      format: "builtin-ts",
+      documentTypeRegistrations: [
+        { type: "type-b", dirName: "dir-b", idPrefix: "B" },
+      ],
+    });
+
+    const regs = collectSkillRegistrations(["skill-a", "skill-b"], skills);
+    expect(regs).toHaveLength(2);
+    expect(regs[0].type).toBe("type-a");
+    expect(regs[1].type).toBe("type-b");
+  });
+
+  it("should skip unknown skill IDs", () => {
+    const skills = new Map<string, SkillDefinition>();
+    const regs = collectSkillRegistrations(["nonexistent"], skills);
+    expect(regs).toEqual([]);
+  });
+
+  it("should work with builtin jira skill", () => {
+    const skills = loadAllSkills();
+    const regs = collectSkillRegistrations(["jira"], skills);
+    expect(regs).toHaveLength(1);
+    expect(regs[0].type).toBe("jira-issue");
   });
 });
