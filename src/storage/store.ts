@@ -220,14 +220,13 @@ export class DocumentStore {
     if (!prefix) {
       throw new Error(`Unknown document type: ${type}`);
     }
-    const dirName = this.typeDirs[type];
-    const dir = path.join(this.docsDir, dirName);
-    if (!fs.existsSync(dir)) return `${prefix}-001`;
 
-    const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
+    // Scan the in-memory index for the highest existing number with this prefix.
+    // This works regardless of filename format (e.g. meetings use date-based names).
+    const pattern = new RegExp(`^${prefix}-(\\d+)$`);
     let maxNum = 0;
-    for (const file of files) {
-      const match = file.match(new RegExp(`^${prefix}-(\\d+)\\.md$`));
+    for (const id of this.index.keys()) {
+      const match = id.match(pattern);
       if (match) {
         maxNum = Math.max(maxNum, parseInt(match[1], 10));
       }
