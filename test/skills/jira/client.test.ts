@@ -8,13 +8,15 @@ describe("createJiraClient", () => {
     process.env = { ...originalEnv };
   });
 
-  it("should return a JiraClient when all env vars are set", () => {
+  it("should return a resolved config when all env vars are set", () => {
     process.env.JIRA_HOST = "example.atlassian.net";
     process.env.JIRA_EMAIL = "user@example.com";
     process.env.JIRA_API_TOKEN = "test-token";
 
-    const client = createJiraClient();
-    expect(client).toBeInstanceOf(JiraClient);
+    const result = createJiraClient();
+    expect(result).not.toBeNull();
+    expect(result!.client).toBeInstanceOf(JiraClient);
+    expect(result!.host).toBe("example.atlassian.net");
   });
 
   it("should return null when JIRA_HOST is missing", () => {
@@ -48,6 +50,44 @@ describe("createJiraClient", () => {
 
     expect(createJiraClient()).toBeNull();
   });
+
+  it("should prefer user config over env vars", () => {
+    process.env.JIRA_HOST = "env.atlassian.net";
+    process.env.JIRA_EMAIL = "env@example.com";
+    process.env.JIRA_API_TOKEN = "env-token";
+
+    const result = createJiraClient({
+      host: "config.atlassian.net",
+      email: "config@example.com",
+      apiToken: "config-token",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.host).toBe("config.atlassian.net");
+  });
+
+  it("should fall back to env vars for missing user config fields", () => {
+    process.env.JIRA_HOST = "env.atlassian.net";
+    process.env.JIRA_EMAIL = "env@example.com";
+    process.env.JIRA_API_TOKEN = "env-token";
+
+    const result = createJiraClient({ host: "config.atlassian.net" });
+    expect(result).not.toBeNull();
+    expect(result!.host).toBe("config.atlassian.net");
+  });
+
+  it("should work with user config alone (no env vars)", () => {
+    delete process.env.JIRA_HOST;
+    delete process.env.JIRA_EMAIL;
+    delete process.env.JIRA_API_TOKEN;
+
+    const result = createJiraClient({
+      host: "config.atlassian.net",
+      email: "config@example.com",
+      apiToken: "config-token",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.host).toBe("config.atlassian.net");
+  });
 });
 
 describe("JiraClient", () => {
@@ -58,8 +98,6 @@ describe("JiraClient", () => {
       apiToken: "token123",
     });
 
-    // Verify via the auth header (Basic auth encoding)
-    // The client doesn't expose baseUrl publicly, but we can verify construction works
     expect(client).toBeInstanceOf(JiraClient);
   });
 
@@ -70,8 +108,6 @@ describe("JiraClient", () => {
       apiToken: "my-api-token",
     });
 
-    // The auth header is private, so we verify by ensuring the client is constructed
-    // and verify encoding matches expected format
     const expected = Buffer.from("test@example.com:my-api-token").toString("base64");
     expect(expected).toBe("dGVzdEBleGFtcGxlLmNvbTpteS1hcGktdG9rZW4=");
     expect(client).toBeInstanceOf(JiraClient);

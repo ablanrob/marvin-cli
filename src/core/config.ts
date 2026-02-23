@@ -4,10 +4,17 @@ import * as os from "node:os";
 import * as YAML from "yaml";
 import { ConfigError } from "./errors.js";
 
+export interface JiraUserConfig {
+  host?: string;
+  email?: string;
+  apiToken?: string;
+}
+
 export interface MarvinUserConfig {
   apiKey?: string;
   defaultModel?: string;
   defaultPersona?: string;
+  jira?: JiraUserConfig;
 }
 
 export interface GitConfig {

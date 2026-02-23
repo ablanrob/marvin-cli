@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
+import { loadUserConfig } from "../../../core/config.js";
 import { createJiraClient, type JiraIssue } from "./client.js";
 
 const JIRA_TYPE = "jira-issue";
@@ -10,7 +11,7 @@ function jiraNotConfiguredError() {
     content: [
       {
         type: "text" as const,
-        text: "Jira is not configured. Set JIRA_HOST, JIRA_EMAIL, and JIRA_API_TOKEN environment variables.",
+        text: 'Jira is not configured. Run "marvin config jira" or set JIRA_HOST, JIRA_EMAIL, and JIRA_API_TOKEN environment variables.',
       },
     ],
     isError: true,
@@ -52,6 +53,8 @@ function findByJiraKey(store: DocumentStore, jiraKey: string) {
 export function createJiraTools(
   store: DocumentStore,
 ): SdkMcpToolDefinition<any>[] {
+  const jiraUserConfig = loadUserConfig().jira;
+
   return [
     // --- Local read tools ---
 
@@ -132,17 +135,16 @@ export function createJiraTools(
         key: z.string().describe("Jira issue key (e.g. 'PROJ-123')"),
       },
       async (args) => {
-        const client = createJiraClient();
-        if (!client) return jiraNotConfiguredError();
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
 
-        const issue = await client.getIssue(args.key);
-        const host = process.env.JIRA_HOST!;
+        const issue = await jira.client.getIssue(args.key);
         const existing = findByJiraKey(store, args.key);
 
         if (existing) {
           const fm = jiraIssueToFrontmatter(
             issue,
-            host,
+            jira.host,
             existing.frontmatter.linkedArtifacts as string[],
           );
           const doc = store.update(
@@ -160,7 +162,7 @@ export function createJiraTools(
           };
         }
 
-        const fm = jiraIssueToFrontmatter(issue, host);
+        const fm = jiraIssueToFrontmatter(issue, jira.host);
         const doc = store.create(
           JIRA_TYPE,
           fm as any,
@@ -185,11 +187,10 @@ export function createJiraTools(
         maxResults: z.number().optional().describe("Max issues to fetch (default 50)"),
       },
       async (args) => {
-        const client = createJiraClient();
-        if (!client) return jiraNotConfiguredError();
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
 
-        const result = await client.searchIssues(args.jql, args.maxResults);
-        const host = process.env.JIRA_HOST!;
+        const result = await jira.client.searchIssues(args.jql, args.maxResults);
 
         const created: string[] = [];
         const updated: string[] = [];
@@ -200,7 +201,7 @@ export function createJiraTools(
           if (existing) {
             const fm = jiraIssueToFrontmatter(
               issue,
-              host,
+              jira.host,
               existing.frontmatter.linkedArtifacts as string[],
             );
             store.update(
@@ -210,7 +211,7 @@ export function createJiraTools(
             );
             updated.push(`${existing.frontmatter.id} (${issue.key})`);
           } else {
-            const fm = jiraIssueToFrontmatter(issue, host);
+            const fm = jiraIssueToFrontmatter(issue, jira.host);
             const doc = store.create(
               JIRA_TYPE,
               fm as any,
@@ -246,8 +247,8 @@ export function createJiraTools(
           .describe("Jira issue type (default: 'Task')"),
       },
       async (args) => {
-        const client = createJiraClient();
-        if (!client) return jiraNotConfiguredError();
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
 
         const artifact = store.get(args.artifactId);
         if (!artifact) {
@@ -267,21 +268,20 @@ export function createJiraTools(
           `Status: ${artifact.frontmatter.status}`,
         ].join("\n");
 
-        const jiraResult = await client.createIssue({
+        const jiraResult = await jira.client.createIssue({
           project: { key: args.projectKey },
           summary: artifact.frontmatter.title,
           description,
           issuetype: { name: args.issueType ?? "Task" },
         });
 
-        const host = process.env.JIRA_HOST!;
         const jiDoc = store.create(
           JIRA_TYPE,
           {
             title: artifact.frontmatter.title,
             status: "open",
             jiraKey: jiraResult.key,
-            jiraUrl: `https://${host}/browse/${jiraResult.key}`,
+            jiraUrl: `https://${jira.host}/browse/${jiraResult.key}`,
             issueType: args.issueType ?? "Task",
             priority: "Medium",
             assignee: "",
@@ -313,8 +313,8 @@ export function createJiraTools(
         id: z.string().describe("Local JI-xxx ID"),
       },
       async (args) => {
-        const client = createJiraClient();
-        if (!client) return jiraNotConfiguredError();
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
 
         const doc = store.get(args.id);
         if (!doc || doc.frontmatter.type !== JIRA_TYPE) {
@@ -329,17 +329,16 @@ export function createJiraTools(
         const jiraKey = doc.frontmatter.jiraKey as string;
 
         // Push local → Jira
-        await client.updateIssue(jiraKey, {
+        await jira.client.updateIssue(jiraKey, {
           summary: doc.frontmatter.title,
           description: doc.content || undefined,
         });
 
         // Pull Jira → local
-        const issue = await client.getIssue(jiraKey);
-        const host = process.env.JIRA_HOST!;
+        const issue = await jira.client.getIssue(jiraKey);
         const fm = jiraIssueToFrontmatter(
           issue,
-          host,
+          jira.host,
           doc.frontmatter.linkedArtifacts as string[],
         );
         store.update(args.id, fm, issue.fields.description ?? "");
