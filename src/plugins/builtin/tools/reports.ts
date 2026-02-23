@@ -1,6 +1,8 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
+import { collectGarMetrics } from "../../../reports/gar/collector.js";
+import { evaluateGar } from "../../../reports/gar/evaluator.js";
 
 export function createReportTools(
   store: DocumentStore,
@@ -102,44 +104,11 @@ export function createReportTools(
       "Generate a Green-Amber-Red report with metrics across scope, schedule, quality, and resources",
       {},
       async () => {
-        const allActions = store.list({ type: "action" });
-        const openActions = allActions.filter((d) => d.frontmatter.status === "open");
-        const doneActions = allActions.filter((d) => d.frontmatter.status === "done");
-
-        const allDocs = store.list();
-        const blockedItems = allDocs.filter(
-          (d) => d.frontmatter.tags?.includes("blocked"),
-        );
-        const overdueItems = allDocs.filter(
-          (d) => d.frontmatter.tags?.includes("overdue"),
-        );
-        const openQuestions = store.list({ type: "question", status: "open" });
-        const riskItems = allDocs.filter(
-          (d) => d.frontmatter.tags?.includes("risk"),
-        );
-        const unownedActions = openActions.filter((d) => !d.frontmatter.owner);
-
-        const areas = {
-          scope: {
-            total: allActions.length,
-            open: openActions.length,
-            done: doneActions.length,
-          },
-          schedule: {
-            blocked: blockedItems.length,
-            overdue: overdueItems.length,
-          },
-          quality: {
-            openQuestions: openQuestions.length,
-            risks: riskItems.length,
-          },
-          resources: {
-            unowned: unownedActions.length,
-          },
-        };
+        const metrics = collectGarMetrics(store);
+        const report = evaluateGar("project", metrics);
 
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ areas }, null, 2) }],
+          content: [{ type: "text" as const, text: JSON.stringify(report, null, 2) }],
         };
       },
       { annotations: { readOnly: true } },

@@ -71,17 +71,30 @@ describe("Report Tools", () => {
   });
 
   describe("generate_gar_report", () => {
-    it("should return area metrics", async () => {
+    it("should return enriched report with areas and statuses", async () => {
       const result = await tools.generate_gar_report({});
-      const { areas } = JSON.parse(result.content[0].text);
+      const report = JSON.parse(result.content[0].text);
 
-      expect(areas.scope.total).toBe(4);
-      expect(areas.scope.open).toBe(3);
-      expect(areas.scope.done).toBe(1);
-      expect(areas.schedule.blocked).toBe(1);
-      expect(areas.quality.openQuestions).toBe(1);
-      expect(areas.quality.risks).toBe(2);
-      expect(areas.resources.unowned).toBe(2);
+      // Metrics are still present
+      expect(report.metrics.scope.total).toBe(4);
+      expect(report.metrics.scope.open).toBe(3);
+      expect(report.metrics.scope.done).toBe(1);
+      expect(report.metrics.scope.completionPct).toBe(25);
+      expect(report.metrics.schedule.blocked).toBe(1);
+      expect(report.metrics.quality.openQuestions).toBe(1);
+      expect(report.metrics.quality.risks).toBe(2);
+      expect(report.metrics.resources.unowned).toBe(2);
+
+      // Areas with statuses
+      expect(report.areas).toHaveLength(4);
+      const names = report.areas.map((a: any) => a.name);
+      expect(names).toEqual(["Scope", "Schedule", "Quality", "Resources"]);
+      for (const area of report.areas) {
+        expect(["green", "amber", "red"]).toContain(area.status);
+      }
+
+      // Overall
+      expect(["green", "amber", "red"]).toContain(report.overall);
     });
   });
 

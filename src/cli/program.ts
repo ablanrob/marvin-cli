@@ -23,6 +23,7 @@ import {
 import { importCommand } from "./commands/import.js";
 import { analyzeCommand } from "./commands/analyze.js";
 import { contributeCommand } from "./commands/contribute.js";
+import { garReportCommand } from "./commands/report.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -212,6 +213,21 @@ export function createProgram(): Command {
     .description("Migrate YAML skill files to SKILL.md directory format")
     .action(async () => {
       await skillsMigrateCommand();
+    });
+
+  const reportCmd = program
+    .command("report")
+    .description("Generate project reports");
+
+  reportCmd
+    .command("gar")
+    .description("Generate a Green/Amber/Red status report")
+    .option(
+      "--format <format>",
+      "Output format: ascii or confluence (default: ascii)",
+    )
+    .action(async (options) => {
+      await garReportCommand(options);
     });
 
   return program;

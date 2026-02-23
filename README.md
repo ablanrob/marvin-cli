@@ -207,6 +207,8 @@ Tools gracefully handle missing Jira credentials — local read tools (`list_jir
 | `marvin skills install <skill> --as <persona\|all>` | Enable a skill for a persona (or all) |
 | `marvin skills remove <skill> --as <persona\|all>` | Disable a skill for a persona (or all) |
 | `marvin skills create <name>` | Scaffold a new custom skill |
+| `marvin report gar` | Generate a Green/Amber/Red status report (ASCII) |
+| `marvin report gar --format confluence` | GAR report as Confluence-friendly markdown |
 | `marvin serve` | Start standalone MCP server for Claude Desktop/Code |
 
 ## Personas
@@ -503,6 +505,7 @@ src/plugins/               → Plugin system (methodology plugins)
       ├── generic-agile.ts → Default methodology
       ├── sap-aem.ts       → SAP AEM methodology
       └── tools/           → Tool implementations per artifact type
+src/reports/               → Report generators (GAR report: collector, evaluator, renderers)
 src/import/                → Import engine (classifier, resolver, plan/execute)
 src/skills/                → Skill system (composable capabilities)
   ├── types.ts             → SkillDefinition interface
