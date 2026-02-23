@@ -107,12 +107,17 @@ export class JiraClient {
   }
 }
 
-export function createJiraClient(): JiraClient | null {
-  const host = process.env.JIRA_HOST;
-  const email = process.env.JIRA_EMAIL;
-  const apiToken = process.env.JIRA_API_TOKEN;
+export interface ResolvedJiraConfig {
+  client: JiraClient;
+  host: string;
+}
+
+export function createJiraClient(jiraUserConfig?: { host?: string; email?: string; apiToken?: string }): ResolvedJiraConfig | null {
+  const host = jiraUserConfig?.host ?? process.env.JIRA_HOST;
+  const email = jiraUserConfig?.email ?? process.env.JIRA_EMAIL;
+  const apiToken = jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN;
 
   if (!host || !email || !apiToken) return null;
 
-  return new JiraClient({ host, email, apiToken });
+  return { client: new JiraClient({ host, email, apiToken }), host };
 }
