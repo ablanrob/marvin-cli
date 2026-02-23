@@ -103,6 +103,21 @@ describe("Meeting Tools", () => {
     expect(files[0]).toBe("2025-12-01-past-standup.md");
   });
 
+  it("should assign sequential IDs to multiple meetings", async () => {
+    await tools.create_meeting({ title: "Kickoff", content: "Start.", date: "2026-01-01" });
+    await tools.create_meeting({ title: "Standup", content: "Daily.", date: "2026-01-02" });
+    await tools.create_meeting({ title: "Retro", content: "Review.", date: "2026-01-03" });
+
+    const m1 = await tools.get_meeting({ id: "M-001" });
+    expect(JSON.parse(m1.content[0].text).title).toBe("Kickoff");
+
+    const m2 = await tools.get_meeting({ id: "M-002" });
+    expect(JSON.parse(m2.content[0].text).title).toBe("Standup");
+
+    const m3 = await tools.get_meeting({ id: "M-003" });
+    expect(JSON.parse(m3.content[0].text).title).toBe("Retro");
+  });
+
   it("should reject create_meeting when date is omitted", async () => {
     // inputSchema is the raw Zod shape — validate that parsing without date fails
     const meetingTools = createMeetingTools(store);
