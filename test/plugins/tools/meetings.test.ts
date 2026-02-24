@@ -118,6 +118,42 @@ describe("Meeting Tools", () => {
     expect(JSON.parse(m3.content[0].text).title).toBe("Retro");
   });
 
+  it("should assign IDs above file count when existing meetings have duplicate IDs", async () => {
+    // Simulate corrupted data: 3 files all with id: M-001
+    const meetingsDir = path.join(marvinDir, "docs", "meetings");
+    for (const [date, title] of [["2025-10-01", "Meeting A"], ["2025-10-02", "Meeting B"], ["2025-10-03", "Meeting C"]]) {
+      const slug = title.toLowerCase().replace(/\s+/g, "-");
+      const filePath = path.join(meetingsDir, `${date}-${slug}.md`);
+      fs.writeFileSync(filePath, [
+        "---",
+        "id: M-001",
+        `title: ${title}`,
+        "type: meeting",
+        "status: completed",
+        `date: ${date}`,
+        `created: ${date}T00:00:00.000Z`,
+        `updated: ${date}T00:00:00.000Z`,
+        "---",
+        `Notes for ${title}`,
+      ].join("\n"));
+    }
+
+    // Recreate store so it picks up the corrupted files
+    store = new DocumentStore(marvinDir, COMMON_REGISTRATIONS);
+    const freshTools: Record<string, (args: any) => Promise<any>> = {};
+    for (const t of createMeetingTools(store)) {
+      freshTools[t.name] = (t as any).handler;
+    }
+
+    // New meeting should get M-004 (above the 3 existing files), not M-002
+    const result = await freshTools.create_meeting({
+      title: "New Meeting",
+      content: "Fresh notes.",
+      date: "2025-11-01",
+    });
+    expect(result.content[0].text).toContain("M-004");
+  });
+
   it("should reject create_meeting when date is omitted", async () => {
     // inputSchema is the raw Zod shape — validate that parsing without date fails
     const meetingTools = createMeetingTools(store);

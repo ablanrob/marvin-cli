@@ -53,6 +53,11 @@ export class DocumentStore {
         const raw = fs.readFileSync(filePath, "utf-8");
         const doc = parseDocument(raw, filePath);
         if (doc.frontmatter.id) {
+          if (this.index.has(doc.frontmatter.id)) {
+            console.warn(
+              `[marvin] Duplicate ID "${doc.frontmatter.id}" in ${file} — conflicts with existing entry. Run ID repair to fix.`,
+            );
+          }
           this.index.set(doc.frontmatter.id, doc.frontmatter);
         }
       }
@@ -220,17 +225,30 @@ export class DocumentStore {
     if (!prefix) {
       throw new Error(`Unknown document type: ${type}`);
     }
+    const dirName = this.typeDirs[type];
+    const dir = path.join(this.docsDir, dirName);
+    if (!fs.existsSync(dir)) return `${prefix}-001`;
 
-    // Scan the in-memory index for the highest existing number with this prefix.
-    // This works regardless of filename format (e.g. meetings use date-based names).
-    const pattern = new RegExp(`^${prefix}-(\\d+)$`);
+    // Scan every file's frontmatter ID to find the highest number.
+    // Cannot rely on the in-memory index (Map) because duplicate IDs
+    // from corrupted data collapse into a single entry.
+    const idPattern = new RegExp(`^${prefix}-(\\d+)$`);
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
     let maxNum = 0;
-    for (const id of this.index.keys()) {
-      const match = id.match(pattern);
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      const raw = fs.readFileSync(filePath, "utf-8");
+      const doc = parseDocument(raw, filePath);
+      const match = doc.frontmatter.id?.match(idPattern);
       if (match) {
         maxNum = Math.max(maxNum, parseInt(match[1], 10));
       }
     }
+
+    // Guard against corrupted data where many files share the same ID:
+    // ensure the next ID is always higher than the total file count.
+    maxNum = Math.max(maxNum, files.length);
+
     return `${prefix}-${String(maxNum + 1).padStart(3, "0")}`;
   }
 
