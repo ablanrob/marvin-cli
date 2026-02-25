@@ -87,6 +87,21 @@ a:hover { text-decoration: underline; }
   border-right: 2px solid var(--accent);
 }
 
+.nav-group {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.nav-group-label {
+  padding: 0.25rem 1.25rem 0.25rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
 .main {
   margin-left: 220px;
   flex: 1;
