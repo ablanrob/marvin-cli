@@ -2,17 +2,21 @@ import * as http from "node:http";
 import { exec } from "node:child_process";
 import { loadProject } from "../core/project.js";
 import { resolvePlugin } from "../plugins/registry.js";
+import { COMMON_REGISTRATIONS } from "../plugins/common.js";
 import {
   loadAllSkills,
   collectSkillRegistrations,
 } from "../skills/registry.js";
 import { DocumentStore } from "../storage/store.js";
 import { handleRequest } from "./router.js";
+import type { NavGroup } from "./templates/layout.js";
 
 export interface WebServerOptions {
   port: number;
   open: boolean;
 }
+
+const CORE_TYPES = ["decision", "action", "question"];
 
 export async function startWebServer(opts: WebServerOptions): Promise<void> {
   const project = loadProject();
@@ -29,8 +33,29 @@ export async function startWebServer(opts: WebServerOptions): Promise<void> {
   ]);
   const projectName = project.config.name;
 
+  // Build grouped nav
+  const commonTypes = new Set(COMMON_REGISTRATIONS.map((r) => r.type));
+  const pluginOnlyTypes = pluginRegs
+    .map((r) => r.type)
+    .filter((t) => !commonTypes.has(t));
+  const skillTypes = skillRegs.map((r) => r.type);
+
+  const navGroups: NavGroup[] = [
+    { label: "Governance", types: CORE_TYPES },
+    { label: "Project", types: [...commonTypes] },
+  ];
+  if (pluginOnlyTypes.length > 0) {
+    navGroups.push({
+      label: plugin?.name ?? "Plugin",
+      types: pluginOnlyTypes,
+    });
+  }
+  if (skillTypes.length > 0) {
+    navGroups.push({ label: "Skills", types: skillTypes });
+  }
+
   const server = http.createServer((req, res) => {
-    handleRequest(req, res, store, projectName);
+    handleRequest(req, res, store, projectName, navGroups);
   });
 
   server.listen(opts.port, () => {

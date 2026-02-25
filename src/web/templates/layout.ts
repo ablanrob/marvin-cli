@@ -106,29 +106,45 @@ function inline(text: string): string {
   return s;
 }
 
+export interface NavGroup {
+  label: string;
+  types: string[];
+}
+
 interface LayoutOptions {
   title: string;
   activePath: string;
   projectName: string;
-  navTypes: string[];
+  navGroups: NavGroup[];
 }
 
 export function layout(opts: LayoutOptions, body: string): string {
-  const navItems = [
+  const topItems = [
     { href: "/", label: "Overview" },
     { href: "/board", label: "Board" },
     { href: "/gar", label: "GAR Report" },
   ];
 
-  const typeNavItems = opts.navTypes.map((type) => ({
-    href: `/docs/${type}`,
-    label: typeLabel(type) + "s",
-  }));
-
   const isActive = (href: string) =>
     opts.activePath === href || (href !== "/" && opts.activePath.startsWith(href))
       ? " active"
       : "";
+
+  const groupsHtml = opts.navGroups
+    .map((group) => {
+      const links = group.types
+        .map((type) => {
+          const href = `/docs/${type}`;
+          return `<a href="${href}" class="${isActive(href)}">${typeLabel(type)}s</a>`;
+        })
+        .join("\n          ");
+      return `
+        <div class="nav-group">
+          <div class="nav-group-label">${escapeHtml(group.label)}</div>
+          ${links}
+        </div>`;
+    })
+    .join("\n");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -146,8 +162,8 @@ export function layout(opts: LayoutOptions, body: string): string {
         <div class="project-name">${escapeHtml(opts.projectName)}</div>
       </div>
       <nav>
-        ${navItems.map((n) => `<a href="${n.href}" class="${isActive(n.href)}">${n.label}</a>`).join("\n        ")}
-        ${typeNavItems.map((n) => `<a href="${n.href}" class="${isActive(n.href)}">${n.label}</a>`).join("\n        ")}
+        ${topItems.map((n) => `<a href="${n.href}" class="${isActive(n.href)}">${n.label}</a>`).join("\n        ")}
+        ${groupsHtml}
       </nav>
     </aside>
     <main class="main">
