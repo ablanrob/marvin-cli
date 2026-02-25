@@ -24,6 +24,7 @@ import { importCommand } from "./commands/import.js";
 import { analyzeCommand } from "./commands/analyze.js";
 import { contributeCommand } from "./commands/contribute.js";
 import { garReportCommand } from "./commands/report.js";
+import { webCommand } from "./commands/web.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -228,6 +229,15 @@ export function createProgram(): Command {
     )
     .action(async (options) => {
       await garReportCommand(options);
+    });
+
+  program
+    .command("web")
+    .description("Launch a local web dashboard for project data")
+    .option("-p, --port <port>", "Port to listen on (default: 3000)")
+    .option("--no-open", "Don't auto-open the browser")
+    .action(async (options) => {
+      await webCommand(options);
     });
 
   return program;
