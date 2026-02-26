@@ -18,6 +18,7 @@ import { generateSessionName } from "./session-namer.js";
 import { SourceManifestManager } from "../sources/manifest.js";
 import { resolvePlugin, getPluginTools, getPluginPromptFragment } from "../plugins/registry.js";
 import { loadAllSkills, resolveSkillsForPersona, collectSkillRegistrations, getSkillTools, getSkillPromptFragment, getSkillAgentDefinitions } from "../skills/registry.js";
+import { buildNavGroups } from "../web/server.js";
 
 export interface SessionOptions {
   persona: PersonaDefinition;
@@ -53,12 +54,23 @@ export async function startSession(options: SessionOptions): Promise<void> {
   const skillAgents = getSkillAgentDefinitions(skillIds, allSkills);
   const skillPromptFragment = getSkillPromptFragment(skillIds, allSkills, persona.id);
 
+  // Build nav groups for web dashboard tools (uses all skills for full nav)
+  const allSkillIds = [...allSkills.keys()];
+  const allSkillRegs = collectSkillRegistrations(allSkillIds, allSkills);
+  const navGroups = buildNavGroups({
+    pluginRegs: pluginRegistrations,
+    skillRegs: allSkillRegs,
+    pluginName: plugin?.name,
+  });
+
   const mcpServer = createMarvinMcpServer(store, {
     manifest,
     sourcesDir: hasSourcesDir ? sourcesDir : undefined,
     sessionStore,
     pluginTools,
     skillTools: codeSkillTools,
+    projectName: config.project.name,
+    navGroups,
   });
   const systemPrompt = buildSystemPrompt(persona, config.project, pluginPromptFragment, skillPromptFragment);
 
@@ -167,6 +179,12 @@ export async function startSession(options: SessionOptions): Promise<void> {
       "mcp__marvin-governance__list_sessions",
       "mcp__marvin-governance__get_session",
       "mcp__marvin-governance__analyze_meeting",
+      "mcp__marvin-governance__start_web_dashboard",
+      "mcp__marvin-governance__stop_web_dashboard",
+      "mcp__marvin-governance__get_web_dashboard_urls",
+      "mcp__marvin-governance__get_dashboard_overview",
+      "mcp__marvin-governance__get_dashboard_gar",
+      "mcp__marvin-governance__get_dashboard_board",
       ...pluginTools.map((t) => `mcp__marvin-governance__${t.name}`),
       ...codeSkillTools.map((t) => `mcp__marvin-governance__${t.name}`),
     ],
