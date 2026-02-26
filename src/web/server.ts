@@ -16,7 +16,37 @@ export interface WebServerOptions {
   open: boolean;
 }
 
+export interface BuildNavGroupsInput {
+  pluginRegs: Array<{ type: string }>;
+  skillRegs: Array<{ type: string }>;
+  pluginName?: string;
+}
+
 const CORE_TYPES = ["decision", "action", "question"];
+
+export function buildNavGroups(input: BuildNavGroupsInput): NavGroup[] {
+  const commonTypes = new Set(COMMON_REGISTRATIONS.map((r) => r.type));
+  const pluginOnlyTypes = input.pluginRegs
+    .map((r) => r.type)
+    .filter((t) => !commonTypes.has(t));
+  const skillTypes = input.skillRegs.map((r) => r.type);
+
+  const navGroups: NavGroup[] = [
+    { label: "Governance", types: CORE_TYPES },
+    { label: "Project", types: [...commonTypes] },
+  ];
+  if (pluginOnlyTypes.length > 0) {
+    navGroups.push({
+      label: input.pluginName ?? "Plugin",
+      types: pluginOnlyTypes,
+    });
+  }
+  if (skillTypes.length > 0) {
+    navGroups.push({ label: "Skills", types: skillTypes });
+  }
+
+  return navGroups;
+}
 
 export async function startWebServer(opts: WebServerOptions): Promise<void> {
   const project = loadProject();
@@ -33,26 +63,11 @@ export async function startWebServer(opts: WebServerOptions): Promise<void> {
   ]);
   const projectName = project.config.name;
 
-  // Build grouped nav
-  const commonTypes = new Set(COMMON_REGISTRATIONS.map((r) => r.type));
-  const pluginOnlyTypes = pluginRegs
-    .map((r) => r.type)
-    .filter((t) => !commonTypes.has(t));
-  const skillTypes = skillRegs.map((r) => r.type);
-
-  const navGroups: NavGroup[] = [
-    { label: "Governance", types: CORE_TYPES },
-    { label: "Project", types: [...commonTypes] },
-  ];
-  if (pluginOnlyTypes.length > 0) {
-    navGroups.push({
-      label: plugin?.name ?? "Plugin",
-      types: pluginOnlyTypes,
-    });
-  }
-  if (skillTypes.length > 0) {
-    navGroups.push({ label: "Skills", types: skillTypes });
-  }
+  const navGroups = buildNavGroups({
+    pluginRegs,
+    skillRegs,
+    pluginName: plugin?.name,
+  });
 
   const server = http.createServer((req, res) => {
     handleRequest(req, res, store, projectName, navGroups);
@@ -80,7 +95,7 @@ export async function startWebServer(opts: WebServerOptions): Promise<void> {
   process.on("SIGTERM", shutdown);
 }
 
-function openBrowser(url: string): void {
+export function openBrowser(url: string): void {
   const platform = process.platform;
   const cmd =
     platform === "darwin"

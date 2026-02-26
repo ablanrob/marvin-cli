@@ -12,6 +12,8 @@ import { createQuestionTools } from "./tools/questions.js";
 import { createDocumentTools } from "./tools/documents.js";
 import { createSourceTools } from "./tools/sources.js";
 import { createSessionTools } from "./tools/sessions.js";
+import { createWebTools } from "./tools/web.js";
+import type { NavGroup } from "../web/templates/layout.js";
 
 export interface McpServerOptions {
   manifest?: SourceManifestManager;
@@ -19,6 +21,8 @@ export interface McpServerOptions {
   sessionStore?: SessionStore;
   pluginTools?: SdkMcpToolDefinition<any>[];
   skillTools?: SdkMcpToolDefinition<any>[];
+  projectName?: string;
+  navGroups?: NavGroup[];
 }
 
 export function createMarvinMcpServer(
@@ -34,6 +38,9 @@ export function createMarvinMcpServer(
     ...(options?.sessionStore ? createSessionTools(options.sessionStore) : []),
     ...(options?.pluginTools ?? []),
     ...(options?.skillTools ?? []),
+    ...(options?.projectName && options?.navGroups
+      ? createWebTools(store, options.projectName, options.navGroups)
+      : []),
   ];
 
   return createSdkMcpServer({
