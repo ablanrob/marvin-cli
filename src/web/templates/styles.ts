@@ -107,7 +107,33 @@ a:hover { text-decoration: underline; }
   flex: 1;
   padding: 2rem 2.5rem;
   max-width: 1200px;
+  position: relative;
+  transition: max-width 0.2s ease;
 }
+.main.expanded {
+  max-width: none;
+}
+.expand-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+.expand-toggle:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+.main.expanded .icon-expand { display: none; }
+.main:not(.expanded) .icon-collapse { display: none; }
 
 /* Page header */
 .page-header {
@@ -421,6 +447,14 @@ tr:hover td {
   border-radius: 3px;
   font-family: var(--mono);
   font-size: 0.85em;
+}
+.detail-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.25rem 0;
+}
+.detail-content .table-wrap {
+  margin: 0.75rem 0;
 }
 
 /* Filters */
