@@ -25,6 +25,7 @@ import { analyzeCommand } from "./commands/analyze.js";
 import { contributeCommand } from "./commands/contribute.js";
 import { garReportCommand, healthReportCommand } from "./commands/report.js";
 import { webCommand } from "./commands/web.js";
+import { generateClaudeMdCommand } from "./commands/generate.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -249,6 +250,18 @@ export function createProgram(): Command {
     .option("--no-open", "Don't auto-open the browser")
     .action(async (options) => {
       await webCommand(options);
+    });
+
+  const generateCmd = program
+    .command("generate")
+    .description("Generate project files");
+
+  generateCmd
+    .command("claude-md")
+    .description("Generate .marvin/CLAUDE.md project instruction file")
+    .option("--force", "Overwrite existing file without prompting")
+    .action(async (options) => {
+      await generateClaudeMdCommand(options);
     });
 
   return program;

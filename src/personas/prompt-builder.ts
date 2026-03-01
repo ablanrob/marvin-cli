@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { PersonaDefinition } from "./types.js";
 import type { MarvinProjectConfig } from "../core/config.js";
 
@@ -6,10 +8,23 @@ export function buildSystemPrompt(
   projectConfig: MarvinProjectConfig,
   pluginPromptFragment?: string,
   skillPromptFragment?: string,
+  marvinDir?: string,
 ): string {
   const parts: string[] = [];
 
   parts.push(persona.systemPrompt);
+
+  if (marvinDir) {
+    const claudeMdPath = path.join(marvinDir, "CLAUDE.md");
+    try {
+      const content = fs.readFileSync(claudeMdPath, "utf-8").trim();
+      if (content) {
+        parts.push(`\n## Project Instructions\n${content}\n`);
+      }
+    } catch {
+      // File missing — silent no-op
+    }
+  }
 
   parts.push(`
 ## Project Context

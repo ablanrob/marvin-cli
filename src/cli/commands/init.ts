@@ -5,6 +5,7 @@ import chalk from "chalk";
 import { input, confirm, select } from "@inquirer/prompts";
 import { isMarvinProject } from "../../core/project.js";
 import { resolvePlugin } from "../../plugins/registry.js";
+import { getDefaultClaudeMdContent } from "../../templates/claude-md.js";
 
 export async function initCommand(): Promise<void> {
   const cwd = process.cwd();
@@ -75,10 +76,17 @@ export async function initCommand(): Promise<void> {
     "utf-8",
   );
 
+  fs.writeFileSync(
+    path.join(marvinDir, "CLAUDE.md"),
+    getDefaultClaudeMdContent(projectName),
+    "utf-8",
+  );
+
   console.log(chalk.green(`\nInitialized Marvin project "${projectName}" in ${cwd}`));
   console.log(chalk.dim(`Methodology: ${plugin?.name ?? methodology}`));
   console.log(chalk.dim("\nCreated:"));
   console.log(chalk.dim("  .marvin/config.yaml"));
+  console.log(chalk.dim("  .marvin/CLAUDE.md"));
   console.log(chalk.dim("  .marvin/docs/decisions/"));
   console.log(chalk.dim("  .marvin/docs/actions/"));
   console.log(chalk.dim("  .marvin/docs/questions/"));
