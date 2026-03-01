@@ -1,5 +1,6 @@
 import type { GarReport } from "../../../reports/gar/types.js";
 import { escapeHtml } from "../layout.js";
+import { buildStatusPie } from "../mermaid.js";
 
 export function garPage(report: GarReport): string {
   const dotClass = `dot-${report.overall}`;
@@ -36,5 +37,12 @@ export function garPage(report: GarReport): string {
     <div class="gar-areas">
       ${areaCards}
     </div>
+
+    <div class="section-title">Status Distribution</div>
+    ${buildStatusPie("Action Status", {
+      Open: report.metrics.scope.open,
+      Done: report.metrics.scope.done,
+      "In Progress": Math.max(0, report.metrics.scope.total - report.metrics.scope.open - report.metrics.scope.done),
+    })}
   `;
 }

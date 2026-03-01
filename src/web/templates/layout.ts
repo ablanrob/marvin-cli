@@ -176,6 +176,7 @@ export function layout(opts: LayoutOptions, body: string): string {
     { href: "/", label: "Overview" },
     { href: "/board", label: "Board" },
     { href: "/gar", label: "GAR Report" },
+    { href: "/health", label: "Health" },
   ];
 
   const isActive = (href: string) =>
@@ -227,6 +228,8 @@ export function layout(opts: LayoutOptions, body: string): string {
       ${body}
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>
 </body>
 </html>`;
 }

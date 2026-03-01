@@ -83,4 +83,42 @@ describe("collectGarMetrics", () => {
     expect(metrics.schedule.overdue).toBe(1);
     expect(metrics.schedule.items).toHaveLength(1);
   });
+
+  it("should count open action with past dueDate as overdue", () => {
+    store.create("action", { title: "Overdue task", status: "open", dueDate: "2020-01-01" } as any);
+
+    const metrics = collectGarMetrics(store);
+
+    expect(metrics.schedule.overdue).toBe(1);
+    expect(metrics.schedule.items).toHaveLength(1);
+    expect(metrics.schedule.items[0].title).toBe("Overdue task");
+  });
+
+  it("should NOT count done action with past dueDate as overdue", () => {
+    store.create("action", { title: "Completed task", status: "done", dueDate: "2020-01-01" } as any);
+
+    const metrics = collectGarMetrics(store);
+
+    expect(metrics.schedule.overdue).toBe(0);
+    expect(metrics.schedule.items).toHaveLength(0);
+  });
+
+  it("should deduplicate action with both overdue tag and past dueDate", () => {
+    store.create("action", { title: "Double overdue", status: "open", tags: ["overdue"], dueDate: "2020-01-01" } as any);
+
+    const metrics = collectGarMetrics(store);
+
+    expect(metrics.schedule.overdue).toBe(1);
+    expect(metrics.schedule.items).toHaveLength(1);
+  });
+
+  it("should count tag-overdue question and date-overdue action separately", () => {
+    store.create("question", { title: "Overdue Q", status: "open", tags: ["overdue"] });
+    store.create("action", { title: "Late action", status: "open", dueDate: "2020-01-01" } as any);
+
+    const metrics = collectGarMetrics(store);
+
+    expect(metrics.schedule.overdue).toBe(2);
+    expect(metrics.schedule.items).toHaveLength(2);
+  });
 });

@@ -107,7 +107,7 @@ export function createWebTools(
           content: [{ type: "text" as const, text: JSON.stringify(urls, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -130,7 +130,7 @@ export function createWebTools(
           content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -143,7 +143,7 @@ export function createWebTools(
           content: [{ type: "text" as const, text: JSON.stringify(report, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -172,7 +172,7 @@ export function createWebTools(
           content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
   ];
 }

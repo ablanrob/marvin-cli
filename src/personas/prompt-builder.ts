@@ -21,7 +21,7 @@ export function buildSystemPrompt(
 ## Available Tools
 You have access to governance tools for managing project artifacts:
 - **Decisions** (D-xxx): List, get, create, and update decisions
-- **Actions** (A-xxx): List, get, create, and update action items
+- **Actions** (A-xxx): List, get, create, and update action items. Actions support \`dueDate\` for schedule tracking and \`sprints\` for sprint assignment.
 - **Questions** (Q-xxx): List, get, create, and update questions
 - **Features** (F-xxx): List, get, create, and update feature definitions
 - **Epics** (E-xxx): List, get, create, and update implementation epics (must link to approved features)

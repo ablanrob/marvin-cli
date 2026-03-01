@@ -33,7 +33,7 @@ export function wrapToolsWithPersonaValidation(
 
     return {
       ...t,
-      handler: async (args: Record<string, unknown>, extra: Record<string, unknown>) => {
+      handler: async (args: Record<string, unknown>, extra: unknown) => {
         const persona = ctx.getActivePersona();
 
         if (!persona) {
@@ -80,5 +80,5 @@ export function wrapToolsWithPersonaValidation(
         return { ...result, content };
       },
     };
-  });
+  }) as SdkMcpToolDefinition<any>[];
 }

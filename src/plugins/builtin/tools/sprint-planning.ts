@@ -60,7 +60,7 @@ export function createSprintPlanningTools(
         // --- backlog: epics not in any sprint and not done ---
         const assignedEpicIds = new Set<string>();
         for (const sp of sprints) {
-          const linked: string[] = sp.frontmatter.linkedEpics ?? [];
+          const linked: string[] = (sp.frontmatter.linkedEpics as string[]) ?? [];
           for (const id of linked) assignedEpicIds.add(id);
         }
 
@@ -101,7 +101,7 @@ export function createSprintPlanningTools(
         let activeSprint: Record<string, unknown> | null = null;
 
         if (activeSprintDoc) {
-          const linkedEpicIds: string[] = activeSprintDoc.frontmatter.linkedEpics ?? [];
+          const linkedEpicIds: string[] = (activeSprintDoc.frontmatter.linkedEpics as string[]) ?? [];
           const linkedEpics = linkedEpicIds.map((epicId) => {
             const epic = store.get(epicId);
             return epic
@@ -145,7 +145,7 @@ export function createSprintPlanningTools(
           .slice(0, 2);
 
         const velocityReference = completedSprints.map((sp) => {
-          const linkedEpicIds: string[] = sp.frontmatter.linkedEpics ?? [];
+          const linkedEpicIds: string[] = (sp.frontmatter.linkedEpics as string[]) ?? [];
           const efforts: string[] = [];
           for (const epicId of linkedEpicIds) {
             const epic = store.get(epicId);
@@ -247,7 +247,7 @@ export function createSprintPlanningTools(
           content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
   ];
 }

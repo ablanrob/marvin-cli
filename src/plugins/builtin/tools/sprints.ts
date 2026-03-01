@@ -31,7 +31,7 @@ export function createSprintTools(
           content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -59,7 +59,7 @@ export function createSprintTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -164,7 +164,7 @@ export function createSprintTools(
 
         // Handle linkedEpics change: re-tag affected epics
         if (linkedEpics !== undefined) {
-          const oldLinked: string[] = existing.frontmatter.linkedEpics ?? [];
+          const oldLinked: string[] = (existing.frontmatter.linkedEpics as string[]) ?? [];
           const sprintTag = `sprint:${id}`;
 
           // Remove sprint tag from epics no longer linked

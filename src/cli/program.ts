@@ -23,7 +23,7 @@ import {
 import { importCommand } from "./commands/import.js";
 import { analyzeCommand } from "./commands/analyze.js";
 import { contributeCommand } from "./commands/contribute.js";
-import { garReportCommand } from "./commands/report.js";
+import { garReportCommand, healthReportCommand } from "./commands/report.js";
 import { webCommand } from "./commands/web.js";
 
 export function createProgram(): Command {
@@ -229,6 +229,17 @@ export function createProgram(): Command {
     )
     .action(async (options) => {
       await garReportCommand(options);
+    });
+
+  reportCmd
+    .command("health")
+    .description("Generate a governance health check report")
+    .option(
+      "--format <format>",
+      "Output format: ascii or confluence (default: ascii)",
+    )
+    .action(async (options) => {
+      await healthReportCommand(options);
     });
 
   program

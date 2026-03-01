@@ -162,12 +162,26 @@ a:hover { text-decoration: underline; }
 .breadcrumb a:hover { color: var(--accent); }
 .breadcrumb .sep { margin: 0 0.4rem; }
 
+/* Card groups */
+.card-group {
+  margin-bottom: 1.5rem;
+}
+
+.card-group-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
 /* Cards grid */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .card {
@@ -500,5 +514,44 @@ tr:hover td {
 .priority-high { color: var(--red); }
 .priority-medium { color: var(--amber); }
 .priority-low { color: var(--green); }
+
+/* Health */
+.health-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 2rem 0 1rem;
+  color: var(--text);
+}
+
+/* Mermaid diagrams */
+.mermaid-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.mermaid-container .mermaid {
+  display: flex;
+  justify-content: center;
+}
+
+.mermaid-empty {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.875rem;
+}
+
+.mermaid-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.mermaid-row .mermaid-container {
+  margin: 0;
+}
 `;
 }
