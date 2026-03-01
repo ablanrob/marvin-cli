@@ -138,7 +138,8 @@ The contributor is identifying a project risk.
 - Create actions for risk mitigation tasks
 - Create decisions for risk response strategies
 - Create questions for risks needing further assessment
-- Tag all related artifacts with "risk" for tracking`,
+- Tag all related artifacts with "risk" for tracking
+- When a risk is resolved, use the update tool to remove the "risk" tag and add "risk-mitigated" so it no longer inflates the GAR quality metric`,
 
     "blocker-report": `
 ### Type-Specific Guidance: Blocker Report

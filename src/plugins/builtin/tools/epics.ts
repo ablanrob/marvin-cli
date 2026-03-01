@@ -160,6 +160,7 @@ export function createEpicTools(
         owner: z.string().optional().describe("New owner"),
         targetDate: z.string().optional().describe("New target date"),
         estimatedEffort: z.string().optional().describe("New estimated effort"),
+        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
         const { id, content, ...updates } = args;

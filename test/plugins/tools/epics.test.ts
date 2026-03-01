@@ -217,6 +217,31 @@ describe("Epic Tools", () => {
     });
   });
 
+  describe("update_epic tags", () => {
+    it("should update epic tags", async () => {
+      await featureTools.create_feature({
+        title: "Feature",
+        content: "F",
+        status: "approved",
+      });
+      await epicTools.create_epic({
+        title: "Risky Epic",
+        content: "Has risk.",
+        linkedFeature: "F-001",
+        tags: ["risk"],
+      });
+
+      const before = store.get("E-001");
+      expect(before!.frontmatter.tags).toContain("risk");
+
+      await epicTools.update_epic({ id: "E-001", tags: ["feature:F-001", "risk-mitigated"] });
+
+      const after = store.get("E-001");
+      expect(after!.frontmatter.tags).toEqual(["feature:F-001", "risk-mitigated"]);
+      expect(after!.frontmatter.tags).not.toContain("risk");
+    });
+  });
+
   it("should return error for non-existent epic", async () => {
     const result = await epicTools.get_epic({ id: "E-999" });
     expect(result.isError).toBe(true);

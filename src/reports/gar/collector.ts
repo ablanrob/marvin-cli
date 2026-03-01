@@ -27,8 +27,11 @@ export function collectGarMetrics(store: DocumentStore): GarMetrics {
   );
 
   const openQuestions = store.list({ type: "question", status: "open" });
-  const riskItems = allDocs.filter((d) =>
-    d.frontmatter.tags?.includes("risk"),
+  const riskItems = allDocs.filter(
+    (d) =>
+      d.frontmatter.tags?.includes("risk") &&
+      d.frontmatter.status !== "done" &&
+      d.frontmatter.status !== "closed",
   );
   const unownedActions = openActions.filter((d) => !d.frontmatter.owner);
 

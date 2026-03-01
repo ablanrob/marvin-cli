@@ -121,4 +121,25 @@ describe("collectGarMetrics", () => {
     expect(metrics.schedule.overdue).toBe(2);
     expect(metrics.schedule.items).toHaveLength(2);
   });
+
+  it("should exclude risk items with status 'done' from quality risks", () => {
+    store.create("action", { title: "Open risk", status: "open", tags: ["risk"] });
+    store.create("action", { title: "Done risk", status: "done", tags: ["risk"] });
+
+    const metrics = collectGarMetrics(store);
+
+    expect(metrics.quality.risks).toBe(1);
+    expect(metrics.quality.items).toHaveLength(1);
+    expect(metrics.quality.items[0].title).toBe("Open risk");
+  });
+
+  it("should exclude risk items with status 'closed' from quality risks", () => {
+    store.create("question", { title: "Open risk Q", status: "open", tags: ["risk"] });
+    store.create("question", { title: "Closed risk Q", status: "closed", tags: ["risk"] });
+
+    const metrics = collectGarMetrics(store);
+
+    expect(metrics.quality.risks).toBe(1);
+    expect(metrics.quality.items[0].title).toBe("Open risk Q");
+  });
 });

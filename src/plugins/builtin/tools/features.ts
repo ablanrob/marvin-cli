@@ -114,6 +114,7 @@ export function createFeatureTools(
           .enum(["critical", "high", "medium", "low"])
           .optional()
           .describe("New priority"),
+        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
         const { id, content, ...updates } = args;
