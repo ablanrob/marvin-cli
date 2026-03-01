@@ -153,13 +153,24 @@ export function createActionTools(
         owner: z.string().optional().describe("New owner"),
         priority: z.string().optional().describe("New priority"),
         dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
+        tags: z.array(z.string()).optional().describe("Replace all tags. When provided with sprints, sprint tags are merged into this array."),
         sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
       },
       async (args) => {
-        const { id, content, sprints, ...updates } = args;
+        const { id, content, sprints, tags, ...updates } = args;
 
-        // Handle sprint tag replacement
-        if (sprints !== undefined) {
+        if (tags !== undefined) {
+          // tags takes precedence — merge sprint tags into the provided array
+          const merged = [...tags];
+          if (sprints) {
+            for (const s of sprints) {
+              const tag = `sprint:${s}`;
+              if (!merged.includes(tag)) merged.push(tag);
+            }
+          }
+          (updates as any).tags = merged;
+        } else if (sprints !== undefined) {
+          // Legacy behavior: only replace sprint tags, preserve non-sprint tags
           const existing = store.get(id);
           if (!existing) {
             return {

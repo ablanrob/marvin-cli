@@ -85,4 +85,17 @@ describe("Feature Tools", () => {
     const doc = store.get("F-001");
     expect(doc!.frontmatter.status).toBe("approved");
   });
+
+  it("should update feature tags", async () => {
+    await tools.create_feature({ title: "Risky Feature", content: "Has risk.", tags: ["risk"] });
+
+    const before = store.get("F-001");
+    expect(before!.frontmatter.tags).toContain("risk");
+
+    await tools.update_feature({ id: "F-001", tags: ["risk-mitigated"] });
+
+    const after = store.get("F-001");
+    expect(after!.frontmatter.tags).toEqual(["risk-mitigated"]);
+    expect(after!.frontmatter.tags).not.toContain("risk");
+  });
 });

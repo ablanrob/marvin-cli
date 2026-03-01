@@ -94,6 +94,7 @@ export function createDecisionTools(
         status: z.string().optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: z.string().optional().describe("New owner"),
+        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
         const { id, content, ...updates } = args;

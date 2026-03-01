@@ -58,7 +58,10 @@ export function createReportTools(
       async () => {
         const allDocs = store.list();
         const taggedRisks = allDocs.filter(
-          (d) => d.frontmatter.tags?.includes("risk"),
+          (d) =>
+            d.frontmatter.tags?.includes("risk") &&
+            d.frontmatter.status !== "done" &&
+            d.frontmatter.status !== "closed",
         );
         const highPriorityActions = store
           .list({ type: "action", status: "open" })

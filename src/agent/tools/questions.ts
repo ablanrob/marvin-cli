@@ -97,6 +97,7 @@ export function createQuestionTools(
         status: z.string().optional().describe("New status (e.g. 'answered')"),
         content: z.string().optional().describe("Updated content / answer"),
         owner: z.string().optional().describe("New owner"),
+        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
         const { id, content, ...updates } = args;

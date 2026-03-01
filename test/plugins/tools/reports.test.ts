@@ -68,6 +68,21 @@ describe("Report Tools", () => {
       expect(register.pendingDecisions).toHaveLength(1);
       expect(register.unownedActions).toHaveLength(2); // Write tests + Deploy
     });
+
+    it("should exclude done/closed risks from tagged risks", async () => {
+      // Add a done risk and a closed risk
+      store.create("action", { title: "Mitigated risk", status: "done", tags: ["risk"] });
+      store.create("question", { title: "Closed risk Q", status: "closed", tags: ["risk"] });
+
+      const result = await tools.generate_risk_register({});
+      const register = JSON.parse(result.content[0].text);
+
+      // Still only the 2 original open risks (Build API open + Which DB? open)
+      expect(register.taggedRisks).toHaveLength(2);
+      const ids = register.taggedRisks.map((r: any) => r.id);
+      expect(ids).toContain("A-001"); // Build API
+      expect(ids).toContain("Q-001"); // Which DB?
+    });
   });
 
   describe("generate_gar_report", () => {
