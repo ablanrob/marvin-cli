@@ -72,7 +72,7 @@ export async function startSession(options: SessionOptions): Promise<void> {
     projectName: config.project.name,
     navGroups,
   });
-  const systemPrompt = buildSystemPrompt(persona, config.project, pluginPromptFragment, skillPromptFragment);
+  const systemPrompt = buildSystemPrompt(persona, config.project, pluginPromptFragment, skillPromptFragment, marvinDir);
 
   // Resolve resume session
   let existingSession: SessionEntry | undefined;
