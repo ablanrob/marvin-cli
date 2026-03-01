@@ -1,6 +1,6 @@
 # Marvin CLI
 
-AI-powered product development assistant. Marvin provides three expert personas — **Product Owner**, **Delivery Manager**, and **Technical Lead** — that help teams manage features, epics, sprints, decisions, actions, questions, and meetings through an interactive CLI backed by Claude.
+AI-powered product development assistant. Marvin provides three expert personas — **Product Owner**, **Delivery Manager**, and **Technical Lead** — that help teams manage features, epics, sprints, decisions, actions, questions, meetings, and reports through an interactive CLI backed by Claude.
 
 ## Quick Start
 
@@ -35,6 +35,7 @@ When you start a chat session, Marvin:
 ├── config.yaml                # Project configuration
 ├── sessions.yaml              # Saved chat sessions
 ├── templates/                 # Document templates
+├── skills/                    # Custom skills (SKILL.md format)
 ├── sources/                   # Source documents for ingestion
 │   ├── .manifest.yaml         # Tracks processing state
 │   ├── Requirements.pdf       # Source document
@@ -48,11 +49,227 @@ When you start a chat session, Marvin:
     ├── questions/             # Q-001.md, Q-002.md, ...
     ├── meetings/              # 2026-02-08-kickoff.md, ...
     ├── reports/               # R-001.md, R-002.md, ...
+    ├── contributions/         # C-001.md, C-002.md, ...
     ├── jira-issues/           # JI-001.md, JI-002.md, ... (Jira skill)
     ├── use-cases/             # UC-001.md, UC-002.md, ... (SAP AEM)
     ├── tech-assessments/      # TA-001.md, TA-002.md, ... (SAP AEM)
     └── extension-designs/     # XD-001.md, XD-002.md, ... (SAP AEM)
 ```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `marvin init` | Create a `.marvin/` project (includes methodology picker) |
+| `marvin chat --as <persona>` | Start an interactive session (`po`, `dm`, `tl`) |
+| `marvin chat -p "<text>" --as <persona>` | Single-prompt (non-interactive) session |
+| `marvin chat --resume` | Resume a past session (interactive picker) |
+| `marvin chat --resume <name>` | Resume a specific session by name |
+| `marvin status` | Show document counts and open items |
+| `marvin config [key] [value]` | View or set configuration |
+| `marvin config api-key` | Securely set your Anthropic API key |
+| `marvin import <path>` | Import documents or sources from external paths |
+| `marvin import <path> --dry-run` | Preview import plan without writing files |
+| `marvin ingest [file]` | Process source documents into governance artifacts |
+| `marvin ingest --all` | Process all unprocessed source files |
+| `marvin analyze <meeting-id>` | Analyze a meeting to extract decisions, actions, questions |
+| `marvin contribute` | Submit a structured contribution from a persona |
+| `marvin report gar` | Generate a Green/Amber/Red status report (ASCII) |
+| `marvin report gar --format confluence` | GAR report as Confluence-friendly markdown |
+| `marvin report health` | Generate a governance health check report (ASCII) |
+| `marvin report health --format confluence` | Health report as Confluence-friendly markdown |
+| `marvin web` | Launch a local web dashboard for project data |
+| `marvin web -p 8080` | Web dashboard on a custom port |
+| `marvin serve` | Start standalone MCP server for Claude Desktop/Code |
+| `marvin sync` | Stage, commit, pull, and push governance data |
+| `marvin sync init [--remote <url>]` | Initialize a git repo inside `.marvin/` |
+| `marvin sync status` | Show branch, remote, and changed files |
+| `marvin sync remote <url>` | Set or update the remote repository URL |
+| `marvin clone <url> [dir]` | Clone governance data from a remote repo |
+| `marvin sessions` | List all saved chat sessions |
+| `marvin sessions delete <name>` | Delete a saved session |
+| `marvin skills` | List available skills and persona assignments |
+| `marvin skills install <skill> --as <persona\|all>` | Enable a skill for a persona (or all) |
+| `marvin skills remove <skill> --as <persona\|all>` | Disable a skill for a persona (or all) |
+| `marvin skills create <name>` | Scaffold a new custom skill |
+| `marvin skills migrate` | Migrate old YAML skills to SKILL.md format |
+
+## Personas
+
+| Short Name | Full Name | Focus |
+|------------|-----------|-------|
+| `po` | Product Owner | Product vision, feature definition and prioritization, stakeholder needs, acceptance criteria |
+| `dm` | Delivery Manager | Project delivery, sprint planning and tracking, epic scheduling, risk management, governance, meeting facilitation |
+| `tl` | Technical Lead | Architecture, epic creation and scoping, sprint scoping and technical execution, code quality, technical decisions, implementation guidance |
+
+Each persona has a tuned system prompt that shapes how Claude approaches your project. The agent has access to governance tools for managing features, epics, sprints, decisions, actions, questions, meetings, and reports — plus methodology-specific tools when a plugin is active.
+
+## Feature → Epic → Sprint Workflow
+
+Marvin enforces a structured product development workflow:
+
+1. **Product Owner** defines features (`F-xxx`) as `draft`, then approves them when requirements are clear
+2. **Tech Lead** breaks approved features into implementation epics (`E-xxx`) — the system **enforces** that epics can only be created against approved features
+3. **Delivery Manager** creates sprints (`SP-xxx`) with goals and date boundaries, assigns epics to sprints, and tracks progress
+
+```
+Feature (PO)          Epic (TL)              Sprint (DM)
+┌──────────┐    ┌──────────────┐    ┌──────────────────────┐
+│ F-001    │───▶│ E-001        │───▶│ SP-001               │
+│ approved │    │ linked: F-001│    │ linkedEpics: [E-001]  │
+└──────────┘    ├──────────────┤    │ goal: "Deliver auth"  │
+                │ E-002        │    │ 2026-03-01..03-14     │
+                │ linked: F-001│    └──────────────────────┘
+                └──────────────┘             │
+                                    ┌────────┴─────────────┐
+                                    │ A-001 (sprint:SP-001) │
+                                    │ D-003 (sprint:SP-001) │
+                                    └──────────────────────┘
+```
+
+**Sprints** are time-boxed iterations with:
+- `goal` — what the sprint aims to deliver
+- `startDate` / `endDate` — sprint boundaries (ISO dates)
+- `status` — `planned` → `active` → `completed` (or `cancelled`)
+- `linkedEpics` — soft-validated references to epic IDs (warns if not found but doesn't block creation)
+
+When a sprint links to epics, those epics are auto-tagged with `sprint:SP-xxx`. Work items (actions, decisions, questions) are associated with sprints via the same `sprint:SP-xxx` tag convention.
+
+### Action Scheduling
+
+Actions support a `dueDate` field (ISO date) and a `sprints` parameter for sprint assignment:
+
+- **`create_action`** and **`update_action`** accept `dueDate` (e.g. `'2026-03-15'`) and `sprints` (e.g. `['SP-001']`)
+- The `sprints` parameter translates to `sprint:SP-xxx` tags automatically
+- When an action has a `dueDate` but no sprint assigned, the tool suggests matching sprints whose date range contains the due date
+- **`suggest_sprints_for_action`** is a standalone read-only tool that returns matching sprints for any due date
+- Open actions with a `dueDate` in the past are **automatically flagged as overdue** in GAR reports (merged with tag-based `overdue` items, deduplicated)
+
+### Sprint Planning
+
+Sprint planning is supported by the `gather_sprint_planning_context` tool, which aggregates all planning-relevant data in a single call:
+
+| Section | Contents |
+|---------|----------|
+| `approvedFeatures` | Approved features sorted by priority, with epic counts by status |
+| `backlog` | Unassigned non-done epics, sorted by parent feature priority, enriched with feature context and effort estimates |
+| `activeSprint` | Current active sprint with linked epic statuses, work item counts, and completion % |
+| `velocityReference` | Last 2 completed sprints with epic count, effort strings, and work item throughput |
+| `blockers` | Open questions, open risk-finding and blocker-report contributions |
+| `summary` | Total backlog size, approved features with no epics, epics at risk, planned sprint count |
+
+When asked to propose a sprint, the DM reasons through priority, capacity, dependencies, and risk to present a structured proposal. The TL focuses on technical readiness, effort balance, and feature coverage. Both personas call this tool automatically before proposing a sprint plan.
+
+This provides **hard enforcement** (epics must link to approved features) combined with **soft guidance** (persona prompts steer each role toward their responsibilities) and **sprint-level tracking** for time-boxed delivery.
+
+## Web Dashboard
+
+Marvin includes a local web dashboard for visualizing project data.
+
+```bash
+marvin web                  # Start on port 3000, auto-open browser
+marvin web -p 8080          # Custom port
+marvin web --no-open        # Don't auto-open the browser
+```
+
+**Pages:**
+
+| Page | URL | Description |
+|------|-----|-------------|
+| Overview | `/` | Document type counts and recent activity |
+| GAR Report | `/gar` | Visual Green/Amber/Red status across scope, schedule, quality, resources |
+| Health Check | `/health` | Governance health check covering artifact completeness and process metrics |
+| Status Board | `/board` | Kanban-style board with documents grouped by status, filterable by type |
+| Document List | `/docs/:type` | Filterable list by status and owner |
+| Document Detail | `/docs/:type/:id` | Full document view with rendered markdown |
+
+The sidebar groups navigation into Governance (decisions, actions, questions), Project (features, epics, sprints), and plugin/skill-specific sections.
+
+**Agent access:** During chat sessions, the agent can start the dashboard and query dashboard data via MCP tools (`start_web_dashboard`, `stop_web_dashboard`, `get_dashboard_overview`, `get_dashboard_gar`, `get_dashboard_board`).
+
+## Contributions
+
+Contributions (C-xxx) are structured inputs from personas outside of meetings. Each persona has specific contribution types that generate governance effects when analyzed.
+
+```bash
+# Draft mode (default) — proposes effects without executing
+marvin contribute --as tl --type action-result --prompt "Unit tests completed for auth module"
+
+# Direct mode — creates/updates artifacts with source:C-xxx traceability
+marvin contribute --as po --type stakeholder-feedback --prompt "CFO wants cost reporting" --no-draft
+
+# Link to a related artifact
+marvin contribute --as dm --type risk-finding --prompt "Third-party API rate limit risk" --about A-001
+```
+
+**Contribution types by persona:**
+
+| Persona | Types |
+|---------|-------|
+| Product Owner | `stakeholder-feedback`, `acceptance-result`, `priority-change`, `market-insight` |
+| Tech Lead | `action-result`, `spike-findings`, `technical-assessment`, `architecture-review` |
+| Delivery Manager | `risk-finding`, `blocker-report`, `dependency-update`, `status-assessment` |
+
+During chat sessions, the agent has access to `list_contributions`, `get_contribution`, `create_contribution`, and `update_contribution` tools.
+
+## GAR Reports
+
+The Green/Amber/Red report evaluates project health across four dimensions:
+
+| Dimension | What it measures |
+|-----------|-----------------|
+| **Scope** | Completion percentage (done vs total actions) |
+| **Schedule** | Blocked items + overdue items (tag-based and date-based, deduplicated) |
+| **Quality** | Risk-tagged items + open questions |
+| **Resources** | Unowned open actions |
+
+Each dimension gets a Green/Amber/Red rating based on thresholds. The combined project status uses the worst individual rating.
+
+```bash
+marvin report gar                      # ASCII terminal output with color
+marvin report gar --format confluence  # Confluence-ready markdown
+```
+
+During chat sessions, the agent can generate GAR reports via the `generate_gar_report` tool and persist them with `save_report`.
+
+## Health Check
+
+The health check report provides a comprehensive view of **artifact data quality** and **governance process health** across two sections.
+
+### Completeness
+
+Checks open/active items for required fields:
+
+| Type | Open statuses | Required fields |
+|------|---------------|-----------------|
+| Action | `open`, `in-progress` | owner, priority, dueDate, content |
+| Decision | `open`, `proposed` | owner, content |
+| Question | `open` | owner, content |
+| Feature | `draft`, `approved` | owner, priority, content |
+| Epic | `planned`, `in-progress` | owner, targetDate, estimatedEffort, content |
+| Sprint | `planned`, `active` | goal, startDate, endDate, at least 1 linkedEpic |
+
+Each category gets a completion percentage: 100% = green, 75%+ = amber, <75% = red.
+
+### Process
+
+Measures governance workflow health using timestamps:
+
+| Metric | What it measures | Green | Amber | Red |
+|--------|-----------------|-------|-------|-----|
+| Stale items | Open items not updated in 14+ days | 0 | 1-3 | 4+ |
+| Aging actions | Open actions older than 30 days | 0 | 1-3 | 4+ |
+| Decision velocity | Avg days to resolve decisions | ≤7d | ≤21d | >21d |
+| Question resolution | Avg days to answer questions | ≤7d | ≤14d | >14d |
+
+The overall status uses the worst rating across all completeness and process categories.
+
+```bash
+marvin report health                      # ASCII terminal output with color
+marvin report health --format confluence  # Confluence-ready markdown
+```
+
+During chat sessions, the agent can generate health reports via the `generate_health_report` tool.
 
 ## Methodologies
 
@@ -77,7 +294,7 @@ A 3-phase methodology for building extensions on SAP BTP:
 ```
 Layer 1 — Core:          decisions, actions, questions     (always available)
 Layer 2 — Common:        meetings, reports, features, epics, (shared across methodologies)
-                         sprints
+                         sprints, contributions
 Layer 3 — Methodology:   use-cases, tech-assessments,       (sap-aem specific)
                          extension-designs, phase management
 ```
@@ -122,6 +339,34 @@ marvin skills remove jira --as all      # Disable for all personas
 marvin skills remove jira --as po       # Disable for one persona
 ```
 
+### Creating custom skills
+
+```bash
+marvin skills create my-custom-skill
+```
+
+This scaffolds a new skill in `.marvin/skills/my-custom-skill/`:
+
+```
+.marvin/skills/my-custom-skill/
+├── SKILL.md          # Skill definition (YAML frontmatter + prompt body)
+├── actions.yaml      # Action definitions
+└── personas/         # Persona-specific prompts (optional)
+    ├── product-owner.md
+    ├── tech-lead.md
+    └── delivery-manager.md
+```
+
+If you have skills in the older YAML format, migrate them:
+
+```bash
+marvin skills migrate    # Converts .yaml files to SKILL.md directories
+```
+
+### Governance Review
+
+Built-in skill that enables DM and PO personas to review all open governance items and produce structured summaries with recommendations. Reviews open decisions, actions, and questions for age, ownership, priority, and blockers.
+
 ### Jira Integration
 
 Bidirectional sync between Marvin artifacts and Jira issues. Imported issues are stored locally as `JI-xxx` documents in `.marvin/docs/jira-issues/`.
@@ -161,136 +406,19 @@ export JIRA_API_TOKEN=your-api-token    # Generate at https://id.atlassian.com/m
 - **Tech Lead** — Pull technical issues for sprint planning, push epics for cross-team visibility, bidirectional sync to keep governance aligned
 - **Delivery Manager** — Pull sprint issues for progress tracking, push actions for stakeholder visibility, use JQL queries for reporting
 
-**JI document frontmatter:**
-
-```yaml
-id: JI-001
-title: "Implement user authentication"
-type: jira-issue
-status: open                    # mapped from Jira status
-jiraKey: PROJ-123
-jiraUrl: https://yourcompany.atlassian.net/browse/PROJ-123
-issueType: Story
-priority: Medium
-assignee: Jane Doe
-labels: [backend, auth]
-linkedArtifacts: [F-001, D-003]
-tags: [jira:PROJ-123]
-lastSyncedAt: "2026-02-20T10:30:00.000Z"
-```
-
 Tools gracefully handle missing Jira credentials — local read tools (`list_jira_issues`, `get_jira_issue`, `link_artifact_to_jira`) always work, while API-calling tools return a helpful error message asking you to set the environment variables.
 
-## Commands
+## Meeting Analysis
 
-| Command | Description |
-|---------|-------------|
-| `marvin init` | Create a `.marvin/` project (includes methodology picker) |
-| `marvin chat --as <persona>` | Start an interactive session (`po`, `dm`, `tl`) |
-| `marvin status` | Show document counts and open items |
-| `marvin config [key] [value]` | View or set configuration |
-| `marvin import <path>` | Import documents or sources from external paths |
-| `marvin import <path> --dry-run` | Preview import plan without writing files |
-| `marvin ingest [file]` | Process source documents into governance artifacts |
-| `marvin ingest --all` | Process all unprocessed source files |
-| `marvin config api-key` | Securely set your Anthropic API key |
-| `marvin sync` | Stage, commit, pull, and push governance data |
-| `marvin sync init [--remote <url>]` | Initialize a git repo inside `.marvin/` |
-| `marvin sync status` | Show branch, remote, and changed files |
-| `marvin sync remote <url>` | Set or update the remote repository URL |
-| `marvin clone <url> [dir]` | Clone governance data from a remote repo |
-| `marvin chat --resume` | Resume a past session (interactive picker) |
-| `marvin chat --resume <name>` | Resume a specific session by name |
-| `marvin sessions` | List all saved chat sessions |
-| `marvin sessions delete <name>` | Delete a saved session |
-| `marvin skills` | List available skills and persona assignments |
-| `marvin skills install <skill> --as <persona\|all>` | Enable a skill for a persona (or all) |
-| `marvin skills remove <skill> --as <persona\|all>` | Disable a skill for a persona (or all) |
-| `marvin skills create <name>` | Scaffold a new custom skill |
-| `marvin report gar` | Generate a Green/Amber/Red status report (ASCII) |
-| `marvin report gar --format confluence` | GAR report as Confluence-friendly markdown |
-| `marvin serve` | Start standalone MCP server for Claude Desktop/Code |
+Analyze completed meetings to extract governance artifacts:
 
-## Personas
-
-| Short Name | Full Name | Focus |
-|------------|-----------|-------|
-| `po` | Product Owner | Product vision, feature definition and prioritization, stakeholder needs, acceptance criteria |
-| `dm` | Delivery Manager | Project delivery, sprint planning and tracking, epic scheduling, risk management, governance, meeting facilitation |
-| `tl` | Technical Lead | Architecture, epic creation and scoping, sprint scoping and technical execution, code quality, technical decisions, implementation guidance |
-
-Each persona has a tuned system prompt that shapes how Claude approaches your project. The agent has access to governance tools for managing features, epics, sprints, decisions, actions, questions, meetings, and reports — plus methodology-specific tools when a plugin is active.
-
-## Feature → Epic → Sprint Workflow
-
-Marvin enforces a structured product development workflow:
-
-1. **Product Owner** defines features (`F-xxx`) as `draft`, then approves them when requirements are clear
-2. **Tech Lead** breaks approved features into implementation epics (`E-xxx`) — the system **enforces** that epics can only be created against approved features
-3. **Delivery Manager** creates sprints (`SP-xxx`) with goals and date boundaries, assigns epics to sprints, and tracks progress
-
-```
-Feature (PO)          Epic (TL)              Sprint (DM)
-┌──────────┐    ┌──────────────┐    ┌──────────────────────┐
-│ F-001    │───▶│ E-001        │───▶│ SP-001               │
-│ approved │    │ linked: F-001│    │ linkedEpics: [E-001]  │
-└──────────┘    ├──────────────┤    │ goal: "Deliver auth"  │
-                │ E-002        │    │ 2026-03-01..03-14     │
-                │ linked: F-001│    └──────────────────────┘
-                └──────────────┘             │
-                                    ┌────────┴─────────────┐
-                                    │ A-001 (sprint:SP-001) │
-                                    │ D-003 (sprint:SP-001) │
-                                    └──────────────────────┘
+```bash
+marvin analyze M-001                  # Draft mode — proposes without creating
+marvin analyze M-001 --no-draft       # Create artifacts directly
+marvin analyze M-001 --as tl          # Use tech-lead persona (default: dm)
 ```
 
-**Sprints** are time-boxed iterations with:
-- `goal` — what the sprint aims to deliver
-- `startDate` / `endDate` — sprint boundaries (ISO dates)
-- `status` — `planned` → `active` → `completed` (or `cancelled`)
-- `linkedEpics` — soft-validated references to epic IDs (warns if not found but doesn't block creation)
-
-When a sprint links to epics, those epics are auto-tagged with `sprint:SP-xxx`. Work items (actions, decisions, questions) are associated with sprints via the same `sprint:SP-xxx` tag convention. The `generate_sprint_progress` report shows linked epics with statuses, tagged work items grouped by status, and done/total completion %.
-
-**Sprint planning** is supported by the `gather_sprint_planning_context` tool, which aggregates all planning-relevant data in a single call:
-
-| Section | Contents |
-|---------|----------|
-| `approvedFeatures` | Approved features sorted by priority, with epic counts by status |
-| `backlog` | Unassigned non-done epics, sorted by parent feature priority, enriched with feature context and effort estimates |
-| `activeSprint` | Current active sprint with linked epic statuses, work item counts, and completion % |
-| `velocityReference` | Last 2 completed sprints with epic count, effort strings, and work item throughput |
-| `blockers` | Open questions, open risk-finding and blocker-report contributions |
-| `summary` | Total backlog size, approved features with no epics, epics at risk, planned sprint count |
-
-When asked to propose a sprint, the DM reasons through priority, capacity, dependencies, and risk to present a structured proposal. The TL focuses on technical readiness, effort balance, and feature coverage. Both personas call this tool automatically before proposing a sprint plan.
-
-This provides **hard enforcement** (epics must link to approved features) combined with **soft guidance** (persona prompts steer each role toward their responsibilities) and **sprint-level tracking** for time-boxed delivery.
-
-## Configuration
-
-Marvin uses two configuration layers:
-
-- **User config** (`~/.config/marvin/config.yaml`) — API key, default model, default persona
-- **Project config** (`.marvin/config.yaml`) — Project name, methodology, persona overrides
-
-The API key resolves in order: user config > `ANTHROPIC_API_KEY` environment variable.
-
-**Example project config (SAP AEM):**
-
-```yaml
-name: my-btp-project
-methodology: sap-aem
-aem:
-  currentPhase: assess-use-case
-personas:
-  product-owner:
-    enabled: true
-  delivery-manager:
-    enabled: true
-  tech-lead:
-    enabled: true
-```
+The `analyze_meeting` MCP tool is also available during chat sessions for the same workflow.
 
 ## Import
 
@@ -396,7 +524,32 @@ marvin ingest --all --as tl
 
 **Direct mode** (`--no-draft`): Claude creates artifacts directly using MCP tools. Each artifact gets a `source` frontmatter field for traceability.
 
-The `.manifest.yaml` file in `sources/` tracks processing state — which files have been processed, which artifacts were created, and any errors.
+The `.manifest.yaml` file in `sources/` tracks processing state — which files have been processed, which artifacts were created, and any errors. During chat sessions, the agent can query source status via `list_sources` and `get_source_info` tools.
+
+## Session Persistence
+
+Every chat session is **automatically saved** when you exit. Marvin uses the Claude Agent SDK's built-in session persistence and generates an AI-powered name for each session (e.g. `jwt-auth-decision`, `sprint-3-planning`).
+
+```bash
+# Start a new session — auto-saved on exit
+marvin chat --as po
+
+# → On exit: Session saved as "graphql-vs-rest-decision"
+
+# List saved sessions
+marvin sessions
+
+# Resume via interactive picker
+marvin chat --resume
+
+# Resume a specific session by name
+marvin chat --resume graphql-vs-rest-decision
+
+# Delete a session
+marvin sessions delete graphql-vs-rest-decision
+```
+
+Session metadata (name, persona, timestamps, turn count) is stored in `.marvin/sessions.yaml`. The agent also has read-only MCP access to session history (`list_sessions`, `get_session`) — it can reference what was discussed in previous sessions for continuity.
 
 ## Git Sync
 
@@ -461,30 +614,30 @@ marvin-serve --project-dir /path/to/project
 }
 ```
 
-## Session Persistence
+## Configuration
 
-Every chat session is **automatically saved** when you exit. Marvin uses the Claude Agent SDK's built-in session persistence and generates an AI-powered name for each session (e.g. `jwt-auth-decision`, `sprint-3-planning`).
+Marvin uses two configuration layers:
 
-```bash
-# Start a new session — auto-saved on exit
-marvin chat --as po
+- **User config** (`~/.config/marvin/config.yaml`) — API key, default model, default persona
+- **Project config** (`.marvin/config.yaml`) — Project name, methodology, persona overrides
 
-# → On exit: Session saved as "graphql-vs-rest-decision"
+The API key resolves in order: user config > `ANTHROPIC_API_KEY` environment variable.
 
-# List saved sessions
-marvin sessions
+**Example project config (SAP AEM):**
 
-# Resume via interactive picker
-marvin chat --resume
-
-# Resume a specific session by name
-marvin chat --resume graphql-vs-rest-decision
-
-# Delete a session
-marvin sessions delete graphql-vs-rest-decision
+```yaml
+name: my-btp-project
+methodology: sap-aem
+aem:
+  currentPhase: assess-use-case
+personas:
+  product-owner:
+    enabled: true
+  delivery-manager:
+    enabled: true
+  tech-lead:
+    enabled: true
 ```
-
-Session metadata (name, persona, timestamps, turn count) is stored in `.marvin/sessions.yaml`. The agent also has read-only MCP access to session history — it can reference what was discussed in previous sessions for continuity.
 
 ## Architecture
 
@@ -496,16 +649,19 @@ src/core/                  → Project discovery, config, errors
 src/storage/               → Extensible document store (Markdown + YAML frontmatter)
 src/personas/              → Persona definitions, registry, prompt builder
 src/agent/                 → Claude Agent SDK integration, MCP tools
+  └── tools/               → Session, source, web dashboard, and document tools
 src/mcp/                   → Standalone MCP stdio server adapter
+src/web/                   → Web dashboard (server, router, templates)
 src/plugins/               → Plugin system (methodology plugins)
   ├── types.ts             → MarvinPlugin interface
-  ├── common.ts            → Shared registrations + tool factory (meetings, reports, features, epics, sprints, sprint planning)
+  ├── common.ts            → Shared registrations + tool factory
   ├── registry.ts          → Plugin resolution
   └── builtin/
       ├── generic-agile.ts → Default methodology
       ├── sap-aem.ts       → SAP AEM methodology
       └── tools/           → Tool implementations per artifact type
-src/reports/               → Report generators (GAR report: collector, evaluator, renderers)
+src/reports/               → Report generators (GAR, Health: collector, evaluator, renderers)
+src/contributions/         → Contribution workflow (types, prompts, analysis)
 src/import/                → Import engine (classifier, resolver, plan/execute)
 src/skills/                → Skill system (composable capabilities)
   ├── types.ts             → SkillDefinition interface

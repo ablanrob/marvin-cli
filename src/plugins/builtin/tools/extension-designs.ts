@@ -40,7 +40,7 @@ export function createExtensionDesignTools(
           content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -68,7 +68,7 @@ export function createExtensionDesignTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(

@@ -28,7 +28,7 @@ export function createSessionTools(
           content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -47,7 +47,7 @@ export function createSessionTools(
           content: [{ type: "text" as const, text: JSON.stringify(session, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
   ];
 }

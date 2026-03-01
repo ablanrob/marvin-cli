@@ -2,6 +2,25 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
 
+function findMatchingSprints(
+  store: DocumentStore,
+  dueDate: string,
+): { id: string; title: string; startDate: string; endDate: string }[] {
+  const sprints = store.list({ type: "sprint" });
+  return sprints
+    .filter((s) => {
+      const start = s.frontmatter.startDate as string | undefined;
+      const end = s.frontmatter.endDate as string | undefined;
+      return start && end && dueDate >= start && dueDate <= end;
+    })
+    .map((s) => ({
+      id: s.frontmatter.id,
+      title: s.frontmatter.title,
+      startDate: s.frontmatter.startDate as string,
+      endDate: s.frontmatter.endDate as string,
+    }));
+}
+
 export function createActionTools(
   store: DocumentStore,
 ): SdkMcpToolDefinition<any>[] {
@@ -19,19 +38,26 @@ export function createActionTools(
           status: args.status,
           owner: args.owner,
         });
-        const summary = docs.map((d) => ({
-          id: d.frontmatter.id,
-          title: d.frontmatter.title,
-          status: d.frontmatter.status,
-          owner: d.frontmatter.owner,
-          priority: d.frontmatter.priority,
-          created: d.frontmatter.created,
-        }));
+        const summary = docs.map((d) => {
+          const sprintIds = (d.frontmatter.tags ?? [])
+            .filter((t) => t.startsWith("sprint:"))
+            .map((t) => t.slice(7));
+          return {
+            id: d.frontmatter.id,
+            title: d.frontmatter.title,
+            status: d.frontmatter.status,
+            owner: d.frontmatter.owner,
+            priority: d.frontmatter.priority,
+            dueDate: d.frontmatter.dueDate,
+            sprints: sprintIds.length > 0 ? sprintIds : undefined,
+            created: d.frontmatter.created,
+          };
+        });
         return {
           content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -59,7 +85,7 @@ export function createActionTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -72,8 +98,18 @@ export function createActionTools(
         owner: z.string().optional().describe("Person responsible"),
         priority: z.string().optional().describe("Priority (high, medium, low)"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
+        dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
+        sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (e.g. ['SP-001']). Adds sprint:SP-xxx tags."),
       },
       async (args) => {
+        const tags = [...(args.tags ?? [])];
+        if (args.sprints) {
+          for (const sprintId of args.sprints) {
+            const tag = `sprint:${sprintId}`;
+            if (!tags.includes(tag)) tags.push(tag);
+          }
+        }
+
         const doc = store.create(
           "action",
           {
@@ -81,17 +117,27 @@ export function createActionTools(
             status: args.status,
             owner: args.owner,
             priority: args.priority,
-            tags: args.tags,
+            tags: tags.length > 0 ? tags : undefined,
+            dueDate: args.dueDate,
           },
           args.content,
         );
+
+        const parts = [`Created action ${doc.frontmatter.id}: ${doc.frontmatter.title}`];
+
+        // If dueDate set but no sprints provided, suggest matching sprints
+        if (args.dueDate && (!args.sprints || args.sprints.length === 0)) {
+          const matching = findMatchingSprints(store, args.dueDate);
+          if (matching.length > 0) {
+            const suggestions = matching
+              .map((s) => `${s.id} "${s.title}" (${s.startDate} – ${s.endDate})`)
+              .join(", ");
+            parts.push(`Suggested sprints for dueDate ${args.dueDate}: ${suggestions}. Use the sprints parameter or update_action to assign.`);
+          }
+        }
+
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Created action ${doc.frontmatter.id}: ${doc.frontmatter.title}`,
-            },
-          ],
+          content: [{ type: "text" as const, text: parts.join("\n") }],
         };
       },
     ),
@@ -106,9 +152,27 @@ export function createActionTools(
         content: z.string().optional().describe("New content"),
         owner: z.string().optional().describe("New owner"),
         priority: z.string().optional().describe("New priority"),
+        dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
+        sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
       },
       async (args) => {
-        const { id, content, ...updates } = args;
+        const { id, content, sprints, ...updates } = args;
+
+        // Handle sprint tag replacement
+        if (sprints !== undefined) {
+          const existing = store.get(id);
+          if (!existing) {
+            return {
+              content: [{ type: "text" as const, text: `Action ${id} not found` }],
+              isError: true,
+            };
+          }
+          const existingTags: string[] = existing.frontmatter.tags ?? [];
+          const nonSprintTags = existingTags.filter((t) => !t.startsWith("sprint:"));
+          const newSprintTags = sprints.map((s) => `sprint:${s}`);
+          (updates as any).tags = [...nonSprintTags, ...newSprintTags];
+        }
+
         const doc = store.update(id, updates, content);
         return {
           content: [
@@ -119,6 +183,36 @@ export function createActionTools(
           ],
         };
       },
+    ),
+
+    tool(
+      "suggest_sprints_for_action",
+      "Suggest sprints whose date range contains the given due date. Helps assign actions to the right sprint.",
+      {
+        dueDate: z.string().describe("Due date in ISO format (e.g. '2026-03-15')"),
+      },
+      async (args) => {
+        const matching = findMatchingSprints(store, args.dueDate);
+        if (matching.length === 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `No sprints found containing dueDate ${args.dueDate}.`,
+              },
+            ],
+          };
+        }
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(matching, null, 2),
+            },
+          ],
+        };
+      },
+      { annotations: { readOnlyHint: true } },
     ),
   ];
 }

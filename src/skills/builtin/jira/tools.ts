@@ -90,7 +90,7 @@ export function createJiraTools(
           content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -123,7 +123,7 @@ export function createJiraTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     // --- Jira → Local tools ---

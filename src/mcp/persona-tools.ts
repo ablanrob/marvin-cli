@@ -84,7 +84,7 @@ export function createPersonaTools(
           content: [{ type: "text" as const, text: guidance }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
   ];
 }

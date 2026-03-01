@@ -3,6 +3,9 @@ import type { Document } from "../storage/types.js";
 import { collectGarMetrics } from "../reports/gar/collector.js";
 import { evaluateGar } from "../reports/gar/evaluator.js";
 import type { GarReport } from "../reports/gar/types.js";
+import { collectHealthMetrics } from "../reports/health/collector.js";
+import { evaluateHealth } from "../reports/health/evaluator.js";
+import type { HealthReport } from "../reports/health/types.js";
 
 export interface TypeSummary {
   type: string;
@@ -134,4 +137,60 @@ export function getBoardData(
   }));
 
   return { columns, type, types };
+}
+
+export function getHealthData(store: DocumentStore, projectName: string): HealthReport {
+  const metrics = collectHealthMetrics(store);
+  return evaluateHealth(projectName, metrics);
+}
+
+export interface DiagramDataResult {
+  sprints: { id: string; title: string; status: string; startDate?: string; endDate?: string; linkedEpics: string[] }[];
+  epics: { id: string; title: string; status: string; linkedFeature?: string }[];
+  features: { id: string; title: string; status: string }[];
+  statusCounts: Record<string, number>;
+}
+
+export function getDiagramData(store: DocumentStore): DiagramDataResult {
+  const allDocs = store.list();
+  const sprints: DiagramDataResult["sprints"] = [];
+  const epics: DiagramDataResult["epics"] = [];
+  const features: DiagramDataResult["features"] = [];
+  const statusCounts: Record<string, number> = {};
+
+  for (const doc of allDocs) {
+    const fm = doc.frontmatter;
+    const status = fm.status.toLowerCase();
+    statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+
+    switch (fm.type) {
+      case "sprint":
+        sprints.push({
+          id: fm.id,
+          title: fm.title,
+          status: fm.status,
+          startDate: fm.startDate as string | undefined,
+          endDate: fm.endDate as string | undefined,
+          linkedEpics: (fm.linkedEpics as string[]) ?? [],
+        });
+        break;
+      case "epic":
+        epics.push({
+          id: fm.id,
+          title: fm.title,
+          status: fm.status,
+          linkedFeature: fm.linkedFeature as string | undefined,
+        });
+        break;
+      case "feature":
+        features.push({
+          id: fm.id,
+          title: fm.title,
+          status: fm.status,
+        });
+        break;
+    }
+  }
+
+  return { sprints, epics, features, statusCounts };
 }

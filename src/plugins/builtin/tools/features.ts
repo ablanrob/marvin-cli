@@ -29,7 +29,7 @@ export function createFeatureTools(
           content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -57,7 +57,7 @@ export function createFeatureTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(

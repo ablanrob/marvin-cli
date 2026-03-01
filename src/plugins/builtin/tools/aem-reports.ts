@@ -59,7 +59,7 @@ export function createAemReportTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -120,7 +120,7 @@ export function createAemReportTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -180,7 +180,7 @@ export function createAemReportTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
   ];
 }

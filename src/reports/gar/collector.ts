@@ -10,9 +10,22 @@ export function collectGarMetrics(store: DocumentStore): GarMetrics {
   const blockedItems = allDocs.filter((d) =>
     d.frontmatter.tags?.includes("blocked"),
   );
-  const overdueItems = allDocs.filter((d) =>
+  const tagOverdueItems = allDocs.filter((d) =>
     d.frontmatter.tags?.includes("overdue"),
   );
+
+  // Date-based overdue: open actions with dueDate in the past
+  const today = new Date().toISOString().slice(0, 10);
+  const dateOverdueActions = openActions.filter((d) => {
+    const dueDate = d.frontmatter.dueDate;
+    return typeof dueDate === "string" && dueDate < today;
+  });
+
+  // Merge tag-based and date-based overdue with dedup-by-id
+  const overdueItems = [...tagOverdueItems, ...dateOverdueActions].filter(
+    (d, i, arr) => arr.findIndex((x) => x.frontmatter.id === d.frontmatter.id) === i,
+  );
+
   const openQuestions = store.list({ type: "question", status: "open" });
   const riskItems = allDocs.filter((d) =>
     d.frontmatter.tags?.includes("risk"),

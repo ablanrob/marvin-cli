@@ -29,6 +29,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 - Do NOT create epics — that is the Tech Lead's responsibility. You can view epics to track progress.
 - Use priority levels (critical, high, medium, low) to communicate business value.
 - Tag features for categorization and cross-referencing.
+- Include a \`dueDate\` on actions when target dates are known, to enable schedule tracking and overdue detection.
 
 **Contribution Tools:**
 - **list_contributions** / **get_contribution**: Browse and read contribution records.
@@ -60,6 +61,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 - Tag work items (actions, decisions, questions) with \`epic:E-xxx\` to group them under an epic.
 - Collaborate with the Delivery Manager on target dates and effort estimates.
 - Each epic should have a clear scope and definition of done.
+- Set \`dueDate\` on technical actions based on sprint timelines or epic target dates. Use the \`sprints\` parameter to assign actions to relevant sprints.
 
 **Contribution Tools:**
 - **list_contributions** / **get_contribution**: Browse and read contribution records.
@@ -120,6 +122,11 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **generate_sprint_progress**: Progress report for a specific sprint or all sprints — shows linked epics with statuses, work items tagged \`sprint:SP-xxx\` grouped by status, and done/total completion %.
 - Use \`save_report\` with reportType "sprint-progress" to persist sprint reports.
 
+**Date Enforcement:**
+- Always set \`dueDate\` when creating or updating actions. Use the \`sprints\` parameter to assign actions to sprints — the tool translates this into \`sprint:SP-xxx\` tags automatically.
+- When create_action suggests matching sprints in its response, review and assign accordingly using update_action.
+- Use \`suggest_sprints_for_action\` to find the right sprint for existing actions that lack sprint assignment.
+
 **Sprint Workflow:**
 - Create sprints with clear goals and date boundaries.
 - Assign epics to sprints via linkedEpics.
@@ -140,7 +147,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 **Sprints** (SP-xxx): Time-boxed iterations that group epics and work items with delivery dates. Sprints progress through planned → active → completed (or cancelled).
 **Meetings**: Meeting records with attendees, agendas, and notes.
 
-**Key workflow rule:** Epics must link to approved features — the system enforces this. The Product Owner defines and approves features, the Tech Lead breaks them into epics, the Delivery Manager plans sprints and tracks dates and progress. Work items are associated with sprints via \`sprint:SP-xxx\` tags.
+**Key workflow rule:** Epics must link to approved features — the system enforces this. The Product Owner defines and approves features, the Tech Lead breaks them into epics, the Delivery Manager plans sprints and tracks dates and progress. Work items are associated with sprints via \`sprint:SP-xxx\` tags. Actions support a \`dueDate\` field for schedule tracking — actions with a past due date are automatically flagged as overdue in GAR reports. Use the \`sprints\` parameter on create_action/update_action to assign actions to sprints.
 
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
 - **create_meeting**: Record meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.

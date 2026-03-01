@@ -1,19 +1,52 @@
-import type { OverviewData } from "../../data.js";
+import type { OverviewData, DiagramDataResult } from "../../data.js";
+import type { NavGroup } from "../layout.js";
 import { escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
+import { buildTimelineGantt, buildArtifactFlowchart } from "../mermaid.js";
 
-export function overviewPage(data: OverviewData): string {
-  const cards = data.types
-    .map(
-      (t) => `
+function renderCard(t: { type: string; total: number; open: number }): string {
+  return `
       <div class="card">
         <a href="/docs/${t.type}">
           <div class="card-label">${escapeHtml(typeLabel(t.type))}s</div>
           <div class="card-value">${t.total}</div>
           ${t.open > 0 ? `<div class="card-sub">${t.open} open</div>` : `<div class="card-sub">none open</div>`}
         </a>
-      </div>`,
-    )
+      </div>`;
+}
+
+export function overviewPage(data: OverviewData, diagrams: DiagramDataResult, navGroups: NavGroup[]): string {
+  const typeMap = new Map(data.types.map((t) => [t.type, t]));
+  const placed = new Set<string>();
+
+  // Build grouped card sections from navGroups
+  const groupSections = navGroups
+    .map((group) => {
+      const groupCards = group.types
+        .filter((type) => typeMap.has(type))
+        .map((type) => {
+          placed.add(type);
+          return renderCard(typeMap.get(type)!);
+        });
+      if (groupCards.length === 0) return "";
+      return `
+      <div class="card-group">
+        <div class="card-group-label">${escapeHtml(group.label)}</div>
+        <div class="cards">${groupCards.join("\n")}</div>
+      </div>`;
+    })
+    .filter(Boolean)
     .join("\n");
+
+  // Any types not covered by navGroups (shouldn't happen, but defensive)
+  const ungrouped = data.types.filter((t) => !placed.has(t.type));
+  const ungroupedSection =
+    ungrouped.length > 0
+      ? `
+      <div class="card-group">
+        <div class="card-group-label">Other</div>
+        <div class="cards">${ungrouped.map(renderCard).join("\n")}</div>
+      </div>`
+      : "";
 
   const rows = data.recent
     .map(
@@ -33,9 +66,14 @@ export function overviewPage(data: OverviewData): string {
       <h2>Project Overview</h2>
     </div>
 
-    <div class="cards">
-      ${cards}
-    </div>
+    ${groupSections}
+    ${ungroupedSection}
+
+    <div class="section-title">Project Timeline</div>
+    ${buildTimelineGantt(diagrams)}
+
+    <div class="section-title">Artifact Relationships</div>
+    ${buildArtifactFlowchart(diagrams)}
 
     <div class="section-title">Recent Activity</div>
     ${

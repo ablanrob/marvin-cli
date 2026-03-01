@@ -6,6 +6,7 @@ import {
   getDocumentDetail,
   getGarData,
   getBoardData,
+  getDiagramData,
 } from "./data.js";
 import { layout, type NavGroup } from "./templates/layout.js";
 import { renderStyles } from "./templates/styles.js";
@@ -13,7 +14,10 @@ import { overviewPage } from "./templates/pages/overview.js";
 import { documentsPage } from "./templates/pages/documents.js";
 import { documentDetailPage } from "./templates/pages/document-detail.js";
 import { garPage } from "./templates/pages/gar.js";
+import { healthPage } from "./templates/pages/health.js";
 import { boardPage } from "./templates/pages/board.js";
+import { collectHealthMetrics } from "../reports/health/collector.js";
+import { evaluateHealth } from "../reports/health/evaluator.js";
 
 export function handleRequest(
   req: IncomingMessage,
@@ -40,7 +44,8 @@ export function handleRequest(
     // GET /
     if (pathname === "/") {
       const data = getOverviewData(store);
-      const body = overviewPage(data);
+      const diagrams = getDiagramData(store);
+      const body = overviewPage(data, diagrams, navGroups);
       respond(res, layout({ title: "Overview", activePath: "/", projectName, navGroups }, body));
       return;
     }
@@ -50,6 +55,15 @@ export function handleRequest(
       const report = getGarData(store, projectName);
       const body = garPage(report);
       respond(res, layout({ title: "GAR Report", activePath: "/gar", projectName, navGroups }, body));
+      return;
+    }
+
+    // GET /health
+    if (pathname === "/health") {
+      const healthMetrics = collectHealthMetrics(store);
+      const report = evaluateHealth(projectName, healthMetrics);
+      const body = healthPage(report, healthMetrics);
+      respond(res, layout({ title: "Health Check", activePath: "/health", projectName, navGroups }, body));
       return;
     }
 

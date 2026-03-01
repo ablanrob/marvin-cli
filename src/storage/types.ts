@@ -18,6 +18,7 @@ export interface DocumentFrontmatter {
   owner?: string;
   priority?: string;
   tags?: string[];
+  dueDate?: string;
   source?: string;
   [key: string]: unknown;
 }

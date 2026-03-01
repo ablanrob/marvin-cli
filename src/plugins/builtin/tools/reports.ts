@@ -3,6 +3,8 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../../storage/store.js";
 import { collectGarMetrics } from "../../../reports/gar/collector.js";
 import { evaluateGar } from "../../../reports/gar/evaluator.js";
+import { collectHealthMetrics } from "../../../reports/health/collector.js";
+import { evaluateHealth } from "../../../reports/health/evaluator.js";
 
 export function createReportTools(
   store: DocumentStore,
@@ -26,6 +28,7 @@ export function createReportTools(
             title: d.frontmatter.title,
             owner: d.frontmatter.owner,
             priority: d.frontmatter.priority,
+            dueDate: d.frontmatter.dueDate,
           })),
           completedActions: completedActions.map((d) => ({
             id: d.frontmatter.id,
@@ -45,7 +48,7 @@ export function createReportTools(
           content: [{ type: "text" as const, text: JSON.stringify(report, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -96,7 +99,7 @@ export function createReportTools(
           content: [{ type: "text" as const, text: JSON.stringify(register, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -111,7 +114,7 @@ export function createReportTools(
           content: [{ type: "text" as const, text: JSON.stringify(report, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -207,7 +210,7 @@ export function createReportTools(
           ],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -224,7 +227,7 @@ export function createReportTools(
           .filter((s) => !args.sprint || s.frontmatter.id === args.sprint)
           .map((sprintDoc) => {
             const sprintId = sprintDoc.frontmatter.id;
-            const linkedEpicIds: string[] = sprintDoc.frontmatter.linkedEpics ?? [];
+            const linkedEpicIds: string[] = (sprintDoc.frontmatter.linkedEpics as string[]) ?? [];
 
             // Linked epics with their statuses
             const linkedEpics = linkedEpicIds.map((epicId) => {
@@ -272,6 +275,7 @@ export function createReportTools(
                   title: d.frontmatter.title,
                   type: d.frontmatter.type,
                   status: d.frontmatter.status,
+                  dueDate: d.frontmatter.dueDate,
                 })),
               },
             };
@@ -281,7 +285,7 @@ export function createReportTools(
           content: [{ type: "text" as const, text: JSON.stringify({ sprints }, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
@@ -326,7 +330,22 @@ export function createReportTools(
           content: [{ type: "text" as const, text: JSON.stringify({ features }, null, 2) }],
         };
       },
-      { annotations: { readOnly: true } },
+      { annotations: { readOnlyHint: true } },
+    ),
+
+    tool(
+      "generate_health_report",
+      "Generate a governance health check report covering artifact completeness and process health metrics",
+      {},
+      async () => {
+        const metrics = collectHealthMetrics(store);
+        const report = evaluateHealth("project", metrics);
+
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(report, null, 2) }],
+        };
+      },
+      { annotations: { readOnlyHint: true } },
     ),
 
     tool(
