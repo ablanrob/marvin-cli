@@ -14,8 +14,10 @@ import { createSourceTools } from "../agent/tools/sources.js";
 import { createSessionTools } from "../agent/tools/sessions.js";
 import { SessionStore } from "../storage/session-store.js";
 import { resolvePlugin, getPluginTools } from "../plugins/registry.js";
-import { loadAllSkills, getSkillTools } from "../skills/registry.js";
+import { loadAllSkills, getSkillTools, collectSkillRegistrations } from "../skills/registry.js";
 import { createSkillActionTools } from "../skills/action-tools.js";
+import { createWebTools } from "../agent/tools/web.js";
+import { buildNavGroups } from "../web/server.js";
 import { PersonaContextManager } from "./persona-context.js";
 import { createPersonaTools } from "./persona-tools.js";
 import { wrapToolsWithPersonaValidation } from "./tool-wrapper.js";
@@ -50,6 +52,13 @@ export function collectTools(marvinDir: string): SdkMcpToolDefinition<any>[] {
   const projectRoot = path.dirname(marvinDir);
   const actionTools = createSkillActionTools(skillsWithActions, { store, marvinDir, projectRoot });
 
+  const allSkillRegs = collectSkillRegistrations(allSkillIds, allSkills);
+  const navGroups = buildNavGroups({
+    pluginRegs: registrations,
+    skillRegs: allSkillRegs,
+    pluginName: plugin?.name,
+  });
+
   return [
     ...createDecisionTools(store),
     ...createActionTools(store),
@@ -57,6 +66,7 @@ export function collectTools(marvinDir: string): SdkMcpToolDefinition<any>[] {
     ...createDocumentTools(store),
     ...(manifest ? createSourceTools(manifest) : []),
     ...createSessionTools(sessionStore),
+    ...createWebTools(store, config.name, navGroups),
     ...pluginTools,
     ...codeSkillTools,
     ...actionTools,
