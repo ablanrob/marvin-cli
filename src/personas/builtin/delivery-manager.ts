@@ -38,6 +38,6 @@ export const deliveryManager: PersonaDefinition = {
     "Epic scheduling and tracking",
     "Sprint planning and tracking",
   ],
-  documentTypes: ["action", "decision", "meeting", "question", "feature", "epic", "sprint"],
+  documentTypes: ["action", "decision", "meeting", "question", "feature", "epic", "task", "sprint"],
   contributionTypes: ["risk-finding", "blocker-report", "dependency-update", "status-assessment"],
 };

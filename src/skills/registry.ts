@@ -9,10 +9,12 @@ import type { DocumentTypeRegistration } from "../storage/types.js";
 import type { SkillDefinition, SkillInfo } from "./types.js";
 import { governanceReviewSkill } from "./builtin/governance-review.js";
 import { jiraSkill } from "./builtin/jira/index.js";
+import { prdGeneratorSkill } from "./builtin/prd-generator/index.js";
 
 const BUILTIN_SKILLS: Record<string, SkillDefinition> = {
   "governance-review": governanceReviewSkill,
   "jira": jiraSkill,
+  "prd-generator": prdGeneratorSkill,
 };
 
 const GOVERNANCE_TOOL_NAMES = [

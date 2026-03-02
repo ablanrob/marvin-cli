@@ -7,7 +7,7 @@ export const genericAgilePlugin: MarvinPlugin = {
   description:
     "Default methodology plugin providing standard agile governance patterns for decisions, actions, and questions.",
   version: "0.1.0",
-  documentTypes: ["decision", "action", "question", "meeting", "report", "feature", "epic", "contribution", "sprint"],
+  documentTypes: ["decision", "action", "question", "meeting", "report", "feature", "epic", "contribution", "sprint", "task"],
   documentTypeRegistrations: [...COMMON_REGISTRATIONS],
   tools: (store) => [...createCommonTools(store)],
   promptFragments: {
@@ -47,6 +47,11 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **create_epic**: Create implementation epics linked to approved features. The system enforces that the linked feature must exist and be approved — if it's still "draft", ask the Product Owner to approve it first.
 - **update_epic**: Update epic status (planned → in-progress → done), owner, and other fields.
 
+**Task Tools:**
+- **list_tasks** / **get_task**: Browse and read implementation tasks.
+- **create_task**: Create implementation tasks linked to epics. Linked epics are soft-validated (warns if not found, does not block). Tasks auto-generate \`epic:E-xxx\` tags. Default status: "backlog".
+- **update_task**: Update task status (backlog → ready → in-progress → review → done), acceptance criteria, technical notes, complexity, priority, and estimated points.
+
 **Feature Tools (read-only for awareness):**
 - **list_features** / **get_feature**: View features to understand what needs to be broken into epics.
 
@@ -58,6 +63,7 @@ export const genericAgilePlugin: MarvinPlugin = {
 
 **Key Workflow Rules:**
 - Only create epics against approved features — create_epic enforces this.
+- Break epics into tasks (T-xxx) with clear acceptance criteria and complexity estimates.
 - Tag work items (actions, decisions, questions) with \`epic:E-xxx\` to group them under an epic.
 - Collaborate with the Delivery Manager on target dates and effort estimates.
 - Each epic should have a clear scope and definition of done.
@@ -93,6 +99,9 @@ export const genericAgilePlugin: MarvinPlugin = {
 **Epic Tools (scheduling focus):**
 - **list_epics** / **get_epic**: View epics and their current status.
 - **update_epic**: Set targetDate and estimatedEffort on epics. Flag epics linked to deferred features.
+
+**Task Tools (read-only for tracking):**
+- **list_tasks** / **get_task**: View tasks and their statuses. Filter by linkedEpic to see implementation breakdown.
 
 **Feature Tools (tracking focus):**
 - **list_features** / **get_feature**: View features and their priorities.
@@ -140,14 +149,15 @@ export const genericAgilePlugin: MarvinPlugin = {
 - Present a structured sprint proposal: title, goal, suggested dates, selected epics with rationale for each, excluded epics with reason, and identified risks.
 - After user confirmation, use **create_sprint** with the agreed epics to persist the sprint.`,
 
-    "*": `You have access to feature, epic, sprint, and meeting tools for project coordination:
+    "*": `You have access to feature, epic, task, sprint, and meeting tools for project coordination:
 
 **Features** (F-xxx): Product capabilities defined by the Product Owner. Features progress through draft → approved → done.
 **Epics** (E-xxx): Implementation work packages created by the Tech Lead, linked to approved features. Epics progress through planned → in-progress → done.
+**Tasks** (T-xxx): Concrete implementation items created by the Tech Lead, linked to epics. Tasks progress through backlog → ready → in-progress → review → done.
 **Sprints** (SP-xxx): Time-boxed iterations that group epics and work items with delivery dates. Sprints progress through planned → active → completed (or cancelled).
 **Meetings**: Meeting records with attendees, agendas, and notes.
 
-**Key workflow rule:** Epics must link to approved features — the system enforces this. The Product Owner defines and approves features, the Tech Lead breaks them into epics, the Delivery Manager plans sprints and tracks dates and progress. Work items are associated with sprints via \`sprint:SP-xxx\` tags. Actions support a \`dueDate\` field for schedule tracking — actions with a past due date are automatically flagged as overdue in GAR reports. Use the \`sprints\` parameter on create_action/update_action to assign actions to sprints.
+**Key workflow rule:** Epics must link to approved features — the system enforces this. The Product Owner defines and approves features, the Tech Lead breaks them into epics and tasks, the Delivery Manager plans sprints and tracks dates and progress. Work items are associated with sprints via \`sprint:SP-xxx\` tags. Actions support a \`dueDate\` field for schedule tracking — actions with a past due date are automatically flagged as overdue in GAR reports. Use the \`sprints\` parameter on create_action/update_action to assign actions to sprints.
 
 - **list_meetings** / **get_meeting**: Browse and read meeting records.
 - **create_meeting**: Record meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.
