@@ -84,7 +84,11 @@ describe("getPluginTools", () => {
       expect(toolNames).toContain("generate_sprint_progress");
       expect(toolNames).toContain("gather_sprint_planning_context");
       expect(toolNames).toContain("generate_health_report");
-      expect(tools).toHaveLength(30);
+      expect(toolNames).toContain("list_tasks");
+      expect(toolNames).toContain("get_task");
+      expect(toolNames).toContain("create_task");
+      expect(toolNames).toContain("update_task");
+      expect(tools).toHaveLength(34);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

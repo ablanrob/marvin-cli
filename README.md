@@ -1,6 +1,6 @@
 # Marvin CLI
 
-AI-powered product development assistant. Marvin provides three expert personas — **Product Owner**, **Delivery Manager**, and **Technical Lead** — that help teams manage features, epics, sprints, decisions, actions, questions, meetings, and reports through an interactive CLI backed by Claude.
+AI-powered product development assistant. Marvin provides three expert personas — **Product Owner**, **Delivery Manager**, and **Technical Lead** — that help teams manage features, epics, tasks, sprints, decisions, actions, questions, meetings, and reports through an interactive CLI backed by Claude.
 
 ## Quick Start
 
@@ -22,7 +22,7 @@ npx tsx bin/marvin.ts chat --as tl     # Technical Lead
 
 ## How It Works
 
-Marvin stores all project governance data as **Markdown files with YAML frontmatter** inside a `.marvin/` directory. Each artifact gets its own file with an auto-incrementing ID (`F-001`, `E-001`, `SP-001`, `D-001`, `A-002`, `Q-003`). This makes everything human-readable, Git-friendly, and Obsidian-compatible.
+Marvin stores all project governance data as **Markdown files with YAML frontmatter** inside a `.marvin/` directory. Each artifact gets its own file with an auto-incrementing ID (`F-001`, `E-001`, `T-001`, `SP-001`, `D-001`, `A-002`, `Q-003`). This makes everything human-readable, Git-friendly, and Obsidian-compatible.
 
 When you start a chat session, Marvin:
 
@@ -43,6 +43,7 @@ When you start a chat session, Marvin:
 └── docs/
     ├── features/              # F-001.md, F-002.md, ...
     ├── epics/                 # E-001.md, E-002.md, ...
+    ├── tasks/                 # T-001.md, T-002.md, ...
     ├── sprints/               # SP-001.md, SP-002.md, ...
     ├── decisions/             # D-001.md, D-002.md, ...
     ├── actions/               # A-001.md, A-002.md, ...
@@ -50,6 +51,7 @@ When you start a chat session, Marvin:
     ├── meetings/              # 2026-02-08-kickoff.md, ...
     ├── reports/               # R-001.md, R-002.md, ...
     ├── contributions/         # C-001.md, C-002.md, ...
+    ├── prds/                  # PRD-001.md, PRD-002.md, ... (PRD Generator skill)
     ├── jira-issues/           # JI-001.md, JI-002.md, ... (Jira skill)
     ├── use-cases/             # UC-001.md, UC-002.md, ... (SAP AEM)
     ├── tech-assessments/      # TA-001.md, TA-002.md, ... (SAP AEM)
@@ -100,34 +102,47 @@ When you start a chat session, Marvin:
 |------------|-----------|-------|
 | `po` | Product Owner | Product vision, feature definition and prioritization, stakeholder needs, acceptance criteria |
 | `dm` | Delivery Manager | Project delivery, sprint planning and tracking, epic scheduling, risk management, governance, meeting facilitation |
-| `tl` | Technical Lead | Architecture, epic creation and scoping, sprint scoping and technical execution, code quality, technical decisions, implementation guidance |
+| `tl` | Technical Lead | Architecture, epic creation and scoping, task creation and breakdown, sprint scoping and technical execution, code quality, technical decisions, implementation guidance |
 
-Each persona has a tuned system prompt that shapes how Claude approaches your project. The agent has access to governance tools for managing features, epics, sprints, decisions, actions, questions, meetings, and reports — plus methodology-specific tools when a plugin is active.
+Each persona has a tuned system prompt that shapes how Claude approaches your project. The agent has access to governance tools for managing features, epics, tasks, sprints, decisions, actions, questions, meetings, and reports — plus methodology-specific tools when a plugin is active.
 
-## Feature → Epic → Sprint Workflow
+## Feature → Epic → Task → Sprint Workflow
 
 Marvin enforces a structured product development workflow:
 
 1. **Product Owner** defines features (`F-xxx`) as `draft`, then approves them when requirements are clear
 2. **Tech Lead** breaks approved features into implementation epics (`E-xxx`) — the system **enforces** that epics can only be created against approved features. An epic can link to **one or more features** (e.g. a cross-cutting epic spanning auth and profiles)
-3. **Delivery Manager** creates sprints (`SP-xxx`) with goals and date boundaries, assigns epics to sprints, and tracks progress
+3. **Tech Lead** breaks epics into implementation tasks (`T-xxx`) with acceptance criteria, complexity estimates, and technical notes — tasks use **soft validation** (warns if linked epic not found, but doesn't block creation)
+4. **Delivery Manager** creates sprints (`SP-xxx`) with goals and date boundaries, assigns epics to sprints, and tracks progress
 
 ```
-Feature (PO)          Epic (TL)                       Sprint (DM)
-┌──────────┐    ┌────────────────────────┐    ┌──────────────────────┐
-│ F-001    │───▶│ E-001                  │───▶│ SP-001               │
-│ approved │    │ linked: [F-001]        │    │ linkedEpics: [E-001]  │
-└──────────┘    ├────────────────────────┤    │ goal: "Deliver auth"  │
-                │ E-002                  │    │ 2026-03-01..03-14     │
-┌──────────┐───▶│ linked: [F-001, F-002] │    └──────────────────────┘
-│ F-002    │    └────────────────────────┘             │
-│ approved │                                  ┌────────┴─────────────┐
-└──────────┘                                  │ A-001 (sprint:SP-001) │
-                                              │ D-003 (sprint:SP-001) │
-                                              └──────────────────────┘
+Feature (PO)          Epic (TL)              Task (TL)               Sprint (DM)
+┌──────────┐    ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────────┐
+│ F-001    │───▶│ E-001            │───▶│ T-001            │    │ SP-001               │
+│ approved │    │ linked: [F-001]  │    │ linked: [E-001]  │    │ linkedEpics: [E-001]  │
+└──────────┘    ├──────────────────┤    ├──────────────────┤    │ goal: "Deliver auth"  │
+                │ E-002            │    │ T-002            │    │ 2026-03-01..03-14     │
+┌──────────┐───▶│ linked: [F-001,  │    │ linked: [E-001]  │    └──────────────────────┘
+│ F-002    │    │         F-002]   │    └──────────────────┘
+│ approved │    └──────────────────┘
+└──────────┘
 ```
 
 Epics store `linkedFeature` as an array (e.g. `["F-001", "F-002"]`). Legacy files with a single string value are normalized to an array on read for backwards compatibility. Multi-linked epics appear in progress reports under each linked feature, and feature tags (`feature:F-xxx`) are generated for all linked features.
+
+### Tasks
+
+Tasks (`T-xxx`) are concrete implementation items that break down an epic's scope:
+
+- `linkedEpic` — one or more epic IDs (e.g. `["E-001"]`); auto-generates `epic:E-xxx` tags
+- `status` — `backlog` → `ready` → `in-progress` → `review` → `done`
+- `acceptanceCriteria` — what "done" looks like for this task
+- `technicalNotes` — implementation details and technical context
+- `complexity` — `trivial`, `simple`, `moderate`, `complex`, `very-complex`
+- `estimatedPoints` — story point estimate
+- `priority` — `critical`, `high`, `medium`, `low`
+
+Tasks use **soft validation** for linked epics — if the epic doesn't exist or isn't the right type, the tool warns but still creates the task. This keeps tasks operational without blocking on governance state.
 
 **Sprints** are time-boxed iterations with:
 - `goal` — what the sprint aims to deliver
@@ -279,7 +294,7 @@ Marvin supports pluggable methodologies. Choose one during `marvin init`:
 
 ### Generic Agile (default)
 
-Standard agile governance with features, epics, sprints, decisions, actions, questions, meetings, and reports.
+Standard agile governance with features, epics, tasks, sprints, decisions, actions, questions, meetings, and reports.
 
 ### SAP Application Extension Methodology (SAP AEM)
 
@@ -296,7 +311,7 @@ A 3-phase methodology for building extensions on SAP BTP:
 ```
 Layer 1 — Core:          decisions, actions, questions     (always available)
 Layer 2 — Common:        meetings, reports, features, epics, (shared across methodologies)
-                         sprints, contributions
+                         tasks, sprints, contributions
 Layer 3 — Methodology:   use-cases, tech-assessments,       (sap-aem specific)
                          extension-designs, phase management
 ```
@@ -369,6 +384,34 @@ marvin skills migrate    # Converts .yaml files to SKILL.md directories
 
 Built-in skill that enables DM and PO personas to review all open governance items and produce structured summaries with recommendations. Reviews open decisions, actions, and questions for age, ownership, priority, and blockers.
 
+### PRD Generator
+
+Generate Product Requirements Documents from governance artifacts for consumption by Claude TaskMaster or Claude Code.
+
+**Enabling the skill:**
+
+```yaml
+skills:
+  tech-lead: [prd-generator]
+  delivery-manager: [prd-generator]
+  product-owner: [prd-generator]
+```
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `gather_prd_context` | Aggregate features, epics, tasks, decisions, questions, and actions into structured JSON |
+| `generate_prd` | Generate a formatted PRD and save it as `PRD-xxx`. Supports `taskmaster` and `claude-code` formats |
+| `export_prd` | Export a PRD document to a file path for external use |
+
+**Formats:**
+
+- **TaskMaster** (`taskmaster`) — Structured PRD matching Claude TaskMaster's `parse_prd` expectations: project overview, goals, features with epics and tasks, technical considerations from decisions and open questions, and implementation priorities ordered by feature priority
+- **Claude Code** (`claude-code`) — Implementation-oriented PRD with architecture decisions, phased implementation plan with task checklists (acceptance criteria, technical notes), and open questions
+
+Both formats can be scoped to a single feature using the `focusFeature` parameter. After generating, use `export_prd` to write the content to a file (e.g. `.taskmaster/docs/prd.txt` for TaskMaster).
+
 ### Jira Integration
 
 Bidirectional sync between Marvin artifacts and Jira issues. Imported issues are stored locally as `JI-xxx` documents in `.marvin/docs/jira-issues/`.
@@ -398,14 +441,14 @@ export JIRA_API_TOKEN=your-api-token    # Generate at https://id.atlassian.com/m
 | `get_jira_issue` | local read | Get a JI-xxx by local ID or Jira key |
 | `pull_jira_issue` | Jira → local | Fetch one issue by key, create/update local JI-xxx |
 | `pull_jira_issues_jql` | Jira → local | Bulk fetch via JQL query, create/update local JI-xxx |
-| `push_artifact_to_jira` | local → Jira | Create a Jira issue from any Marvin artifact (D/A/Q/F/E) |
+| `push_artifact_to_jira` | local → Jira | Create a Jira issue from any Marvin artifact (D/A/Q/F/E/T) |
 | `sync_jira_issue` | bidirectional | Push local changes to Jira, pull latest status/assignee/labels back |
 | `link_artifact_to_jira` | local only | Link a Marvin artifact to an existing JI-xxx |
 
 **How each persona uses it:**
 
 - **Product Owner** — Pull stakeholder-reported issues for triage, push approved features as Stories, link decisions to Jira issues for audit trail
-- **Tech Lead** — Pull technical issues for sprint planning, push epics for cross-team visibility, bidirectional sync to keep governance aligned
+- **Tech Lead** — Pull technical issues for sprint planning, push epics and tasks for cross-team visibility, bidirectional sync to keep governance aligned
 - **Delivery Manager** — Pull sprint issues for progress tracking, push actions for stakeholder visibility, use JQL queries for reporting
 
 Tools gracefully handle missing Jira credentials — local read tools (`list_jira_issues`, `get_jira_issue`, `link_artifact_to_jira`) always work, while API-calling tools return a helpful error message asking you to set the environment variables.
@@ -670,7 +713,8 @@ src/skills/                → Skill system (composable capabilities)
   ├── registry.ts          → Skill loading, resolution, tool/prompt collection
   └── builtin/
       ├── governance-review.ts → Governance review skill
-      └── jira/            → Jira integration skill (client, tools, definition)
+      ├── jira/            → Jira integration skill (client, tools, definition)
+      └── prd-generator/   → PRD generation skill (tools, definition)
 src/git/                   → Git sync (simple-git wrapper for .marvin/)
 ```
 

@@ -8,6 +8,7 @@ import { createEpicTools } from "./builtin/tools/epics.js";
 import { createContributionTools } from "./builtin/tools/contributions.js";
 import { createSprintTools } from "./builtin/tools/sprints.js";
 import { createSprintPlanningTools } from "./builtin/tools/sprint-planning.js";
+import { createTaskTools } from "./builtin/tools/tasks.js";
 
 export const COMMON_REGISTRATIONS: DocumentTypeRegistration[] = [
   { type: "meeting", dirName: "meetings", idPrefix: "M" },
@@ -16,6 +17,7 @@ export const COMMON_REGISTRATIONS: DocumentTypeRegistration[] = [
   { type: "epic", dirName: "epics", idPrefix: "E" },
   { type: "contribution", dirName: "contributions", idPrefix: "C" },
   { type: "sprint", dirName: "sprints", idPrefix: "SP" },
+  { type: "task", dirName: "tasks", idPrefix: "T" },
 ];
 
 export function createCommonTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
@@ -27,5 +29,6 @@ export function createCommonTools(store: DocumentStore): SdkMcpToolDefinition<an
     ...createContributionTools(store),
     ...createSprintTools(store),
     ...createSprintPlanningTools(store),
+    ...createTaskTools(store),
   ];
 }

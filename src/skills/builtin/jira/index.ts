@@ -33,13 +33,13 @@ export const jiraSkill: SkillDefinition = {
 **Available tools:**
 - \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues
 - \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
-- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, action, epic, etc.)
+- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, action, epic, task, etc.)
 - \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
 - \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx
 
 **As Tech Lead, use Jira integration to:**
 - Pull technical issues and bugs for sprint planning and estimation
-- Push epics and technical decisions to Jira for cross-team visibility
+- Push epics, tasks, and technical decisions to Jira for cross-team visibility
 - Bidirectional sync to keep local governance and Jira in alignment
 - Use JQL queries to track technical debt (e.g. \`labels = "tech-debt" AND status != "Done"\`)`,
 
@@ -54,7 +54,7 @@ export const jiraSkill: SkillDefinition = {
 
 **As Delivery Manager, use Jira integration to:**
 - Pull sprint issues for tracking progress and blockers
-- Push actions and decisions to Jira for stakeholder visibility
+- Push actions, decisions, and tasks to Jira for stakeholder visibility
 - Use JQL queries for reporting (e.g. \`sprint in openSprints() AND assignee = currentUser()\`)
 - Sync status between Marvin governance items and Jira issues`,
   },
