@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
+import { normalizeLinkedFeatures } from "./epic-utils.js";
 
 const PRIORITY_ORDER: Record<string, number> = {
   critical: 0,
@@ -42,7 +43,9 @@ export function createSprintPlanningTools(
           .filter((f) => f.frontmatter.status === "approved")
           .sort((a, b) => priorityRank(a.frontmatter.priority) - priorityRank(b.frontmatter.priority))
           .map((f) => {
-            const linkedEpics = epics.filter((e) => e.frontmatter.linkedFeature === f.frontmatter.id);
+            const linkedEpics = epics.filter((e) =>
+              normalizeLinkedFeatures(e.frontmatter.linkedFeature).includes(f.frontmatter.id),
+            );
             const epicsByStatus: Record<string, number> = {};
             for (const e of linkedEpics) {
               epicsByStatus[e.frontmatter.status] = (epicsByStatus[e.frontmatter.status] ?? 0) + 1;
@@ -71,26 +74,31 @@ export function createSprintPlanningTools(
         );
 
         if (args.focusFeature) {
-          backlogEpics = backlogEpics.filter(
-            (e) => e.frontmatter.linkedFeature === args.focusFeature,
+          backlogEpics = backlogEpics.filter((e) =>
+            normalizeLinkedFeatures(e.frontmatter.linkedFeature).includes(args.focusFeature!),
           );
         }
 
         const backlog = backlogEpics
           .sort((a, b) => {
-            const fa = featureMap.get(a.frontmatter.linkedFeature as string);
-            const fb = featureMap.get(b.frontmatter.linkedFeature as string);
-            return priorityRank(fa?.frontmatter.priority) - priorityRank(fb?.frontmatter.priority);
+            const aFeatures = normalizeLinkedFeatures(a.frontmatter.linkedFeature);
+            const bFeatures = normalizeLinkedFeatures(b.frontmatter.linkedFeature);
+            const aRank = Math.min(...aFeatures.map((id) => priorityRank(featureMap.get(id)?.frontmatter.priority)), 99);
+            const bRank = Math.min(...bFeatures.map((id) => priorityRank(featureMap.get(id)?.frontmatter.priority)), 99);
+            return aRank - bRank;
           })
           .map((e) => {
-            const parent = featureMap.get(e.frontmatter.linkedFeature as string);
+            const linkedFeatures = normalizeLinkedFeatures(e.frontmatter.linkedFeature);
+            const parents = linkedFeatures
+              .map((id) => featureMap.get(id))
+              .filter(Boolean);
             return {
               id: e.frontmatter.id,
               title: e.frontmatter.title,
               status: e.frontmatter.status,
-              linkedFeature: e.frontmatter.linkedFeature,
-              featureTitle: parent?.frontmatter.title ?? null,
-              featurePriority: parent?.frontmatter.priority ?? null,
+              linkedFeature: linkedFeatures,
+              featureTitle: parents.map((p) => p!.frontmatter.title).join(", ") || null,
+              featurePriority: parents.map((p) => p!.frontmatter.priority).join(", ") || null,
               estimatedEffort: e.frontmatter.estimatedEffort ?? null,
               targetDate: e.frontmatter.targetDate ?? null,
             };
@@ -211,8 +219,8 @@ export function createSprintPlanningTools(
             // Past targetDate
             if (e.frontmatter.targetDate && e.frontmatter.targetDate < now) return true;
             // Linked to deferred feature
-            const parent = featureMap.get(e.frontmatter.linkedFeature as string);
-            if (parent?.frontmatter.status === "deferred") return true;
+            const linkedIds = normalizeLinkedFeatures(e.frontmatter.linkedFeature);
+            if (linkedIds.some((id) => featureMap.get(id)?.frontmatter.status === "deferred")) return true;
             return false;
           })
           .map((e) => ({

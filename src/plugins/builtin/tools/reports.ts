@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
+import { normalizeLinkedFeatures } from "./epic-utils.js";
 import { collectGarMetrics } from "../../../reports/gar/collector.js";
 import { evaluateGar } from "../../../reports/gar/evaluator.js";
 import { collectHealthMetrics } from "../../../reports/health/collector.js";
@@ -150,7 +151,7 @@ export function createReportTools(
               id: epicDoc.frontmatter.id,
               title: epicDoc.frontmatter.title,
               status: epicDoc.frontmatter.status,
-              linkedFeature: epicDoc.frontmatter.linkedFeature,
+              linkedFeature: normalizeLinkedFeatures(epicDoc.frontmatter.linkedFeature),
               targetDate: epicDoc.frontmatter.targetDate,
               estimatedEffort: epicDoc.frontmatter.estimatedEffort,
               workItems: {
@@ -304,8 +305,8 @@ export function createReportTools(
         const features = featureDocs
           .filter((f) => !args.feature || f.frontmatter.id === args.feature)
           .map((f) => {
-            const linkedEpics = epicDocs.filter(
-              (e) => e.frontmatter.linkedFeature === f.frontmatter.id,
+            const linkedEpics = epicDocs.filter((e) =>
+              normalizeLinkedFeatures(e.frontmatter.linkedFeature).includes(f.frontmatter.id),
             );
             const byStatus: Record<string, number> = {};
             for (const e of linkedEpics) {
