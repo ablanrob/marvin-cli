@@ -1,4 +1,5 @@
 import type { Document } from "../../storage/types.js";
+import { normalizeLinkedFeatures } from "../../plugins/builtin/tools/epic-utils.js";
 
 /** Sanitize a string for use in Mermaid labels — strip quotes and limit length */
 function sanitize(text: string, maxLen = 40): string {
@@ -29,7 +30,7 @@ export interface EpicData {
   id: string;
   title: string;
   status: string;
-  linkedFeature?: string;
+  linkedFeature: string[];
 }
 
 export interface FeatureData {
@@ -94,8 +95,8 @@ export function buildArtifactFlowchart(data: DiagramData): string {
 
   // Feature -> Epic edges
   for (const epic of data.epics) {
-    if (epic.linkedFeature) {
-      const feature = data.features.find((f) => f.id === epic.linkedFeature);
+    for (const featureId of epic.linkedFeature) {
+      const feature = data.features.find((f) => f.id === featureId);
       if (feature) {
         const fNode = feature.id.replace(/-/g, "_");
         const eNode = epic.id.replace(/-/g, "_");
@@ -227,7 +228,7 @@ export function extractDiagramData(docs: Document[]): DiagramData {
           id: fm.id,
           title: fm.title,
           status: fm.status,
-          linkedFeature: fm.linkedFeature as string | undefined,
+          linkedFeature: normalizeLinkedFeatures(fm.linkedFeature),
         });
         break;
       case "feature":

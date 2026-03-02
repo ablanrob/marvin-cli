@@ -100,6 +100,20 @@ describe("Sprint Planning Tools", () => {
     expect(data.backlog[0].featureTitle).toBe("Feature A");
   });
 
+  it("focusFeature includes multi-linked epics", async () => {
+    store.create("feature", { title: "Feature A", status: "approved", priority: "high" });
+    store.create("feature", { title: "Feature B", status: "approved", priority: "medium" });
+    store.create("epic", { title: "Epic AB", status: "planned", linkedFeature: ["F-001", "F-002"] });
+    store.create("epic", { title: "Epic B only", status: "planned", linkedFeature: "F-002" });
+
+    const result = await gather({ focusFeature: "F-001" });
+    const data = JSON.parse(result.content[0].text);
+
+    expect(data.backlog).toHaveLength(1);
+    expect(data.backlog[0].title).toBe("Epic AB");
+    expect(data.backlog[0].linkedFeature).toEqual(["F-001", "F-002"]);
+  });
+
   it("populates active sprint with completion %", async () => {
     store.create("feature", { title: "Feature A", status: "approved" });
     store.create("epic", { title: "Epic 1", status: "in-progress", linkedFeature: "F-001" });

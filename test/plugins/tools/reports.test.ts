@@ -142,7 +142,7 @@ describe("Report Tools", () => {
       store.create("epic", {
         title: "Auth Epic",
         status: "planned",
-        linkedFeature: "F-001",
+        linkedFeature: ["F-001"],
         tags: ["feature:F-001"],
       });
       // Tag an action with the epic ID
@@ -154,7 +154,7 @@ describe("Report Tools", () => {
       expect(epics).toHaveLength(1);
       expect(epics[0].id).toBe("E-001");
       expect(epics[0].title).toBe("Auth Epic");
-      expect(epics[0].linkedFeature).toBe("F-001");
+      expect(epics[0].linkedFeature).toEqual(["F-001"]);
       expect(epics[0].workItems.total).toBe(1);
       expect(epics[0].workItems.items[0].title).toBe("Setup OAuth");
     });
@@ -167,13 +167,13 @@ describe("Report Tools", () => {
       store.create("epic", {
         title: "Auth Epic 1",
         status: "planned",
-        linkedFeature: "F-001",
+        linkedFeature: ["F-001"],
         tags: ["feature:F-001"],
       });
       store.create("epic", {
         title: "Auth Epic 2",
         status: "in-progress",
-        linkedFeature: "F-001",
+        linkedFeature: ["F-001"],
         tags: ["feature:F-001"],
       });
 
@@ -190,6 +190,28 @@ describe("Report Tools", () => {
 
       const search = features.find((f: any) => f.id === "F-002");
       expect(search.epics.total).toBe(0);
+    });
+
+    it("should show multi-linked epic under both features", async () => {
+      store.create("feature", { title: "Auth Feature", status: "approved" });
+      store.create("feature", { title: "Profile Feature", status: "approved" });
+      store.create("epic", {
+        title: "Shared Epic",
+        status: "planned",
+        linkedFeature: ["F-001", "F-002"],
+        tags: ["feature:F-001", "feature:F-002"],
+      });
+
+      const result = await tools.generate_feature_progress({});
+      const { features } = JSON.parse(result.content[0].text);
+
+      const auth = features.find((f: any) => f.id === "F-001");
+      expect(auth.epics.total).toBe(1);
+      expect(auth.epics.items[0].title).toBe("Shared Epic");
+
+      const profile = features.find((f: any) => f.id === "F-002");
+      expect(profile.epics.total).toBe(1);
+      expect(profile.epics.items[0].title).toBe("Shared Epic");
     });
 
     it("should filter by specific feature", async () => {

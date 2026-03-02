@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
+import { normalizeLinkedFeatures, generateFeatureTags } from "./epic-utils.js";
 
 export function createEpicTools(
   store: DocumentStore,
@@ -22,15 +23,15 @@ export function createEpicTools(
       async (args) => {
         let docs = store.list({ type: "epic", status: args.status });
         if (args.linkedFeature) {
-          docs = docs.filter(
-            (d) => d.frontmatter.linkedFeature === args.linkedFeature,
+          docs = docs.filter((d) =>
+            normalizeLinkedFeatures(d.frontmatter.linkedFeature).includes(args.linkedFeature!),
           );
         }
         const summary = docs.map((d) => ({
           id: d.frontmatter.id,
           title: d.frontmatter.title,
           status: d.frontmatter.status,
-          linkedFeature: d.frontmatter.linkedFeature,
+          linkedFeature: normalizeLinkedFeatures(d.frontmatter.linkedFeature),
           owner: d.frontmatter.owner,
           targetDate: d.frontmatter.targetDate,
           estimatedEffort: d.frontmatter.estimatedEffort,
@@ -73,11 +74,11 @@ export function createEpicTools(
 
     tool(
       "create_epic",
-      "Create a new epic linked to an approved feature. The linked feature must exist and be approved.",
+      "Create a new epic linked to one or more approved features. All linked features must exist and be approved.",
       {
         title: z.string().describe("Epic title"),
         content: z.string().describe("Epic description and scope"),
-        linkedFeature: z.string().describe("Feature ID to link this epic to (e.g. 'F-001')"),
+        linkedFeature: z.union([z.string(), z.array(z.string())]).describe("Feature ID(s) to link this epic to (e.g. 'F-001' or ['F-001', 'F-002'])"),
         status: z
           .enum(["planned", "in-progress", "done"])
           .optional()
@@ -88,47 +89,51 @@ export function createEpicTools(
         tags: z.array(z.string()).optional().describe("Additional tags"),
       },
       async (args) => {
-        // Hard validation: linked feature must exist and be approved
-        const feature = store.get(args.linkedFeature);
-        if (!feature) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Feature ${args.linkedFeature} not found`,
-              },
-            ],
-            isError: true,
-          };
-        }
-        if (feature.frontmatter.type !== "feature") {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `${args.linkedFeature} is a ${feature.frontmatter.type}, not a feature`,
-              },
-            ],
-            isError: true,
-          };
-        }
-        if (feature.frontmatter.status !== "approved") {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Feature ${args.linkedFeature} has status '${feature.frontmatter.status}'. Only approved features can have epics. Ask the Product Owner to approve it first.`,
-              },
-            ],
-            isError: true,
-          };
+        const linkedFeatures = normalizeLinkedFeatures(args.linkedFeature);
+
+        // Hard validation: all linked features must exist and be approved
+        for (const featureId of linkedFeatures) {
+          const feature = store.get(featureId);
+          if (!feature) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Feature ${featureId} not found`,
+                },
+              ],
+              isError: true,
+            };
+          }
+          if (feature.frontmatter.type !== "feature") {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `${featureId} is a ${feature.frontmatter.type}, not a feature`,
+                },
+              ],
+              isError: true,
+            };
+          }
+          if (feature.frontmatter.status !== "approved") {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Feature ${featureId} has status '${feature.frontmatter.status}'. Only approved features can have epics. Ask the Product Owner to approve it first.`,
+                },
+              ],
+              isError: true,
+            };
+          }
         }
 
         const frontmatter: Record<string, unknown> = {
           title: args.title,
           status: args.status ?? "planned",
-          linkedFeature: args.linkedFeature,
-          tags: [`feature:${args.linkedFeature}`, ...(args.tags ?? [])],
+          linkedFeature: linkedFeatures,
+          tags: [...generateFeatureTags(linkedFeatures), ...(args.tags ?? [])],
         };
         if (args.owner) frontmatter.owner = args.owner;
         if (args.targetDate) frontmatter.targetDate = args.targetDate;
@@ -139,7 +144,7 @@ export function createEpicTools(
           content: [
             {
               type: "text" as const,
-              text: `Created epic ${doc.frontmatter.id}: ${doc.frontmatter.title} (linked to ${args.linkedFeature})`,
+              text: `Created epic ${doc.frontmatter.id}: ${doc.frontmatter.title} (linked to ${linkedFeatures.join(", ")})`,
             },
           ],
         };
@@ -148,7 +153,7 @@ export function createEpicTools(
 
     tool(
       "update_epic",
-      "Update an existing epic. The linked feature cannot be changed.",
+      "Update an existing epic, including its linked features.",
       {
         id: z.string().describe("Epic ID to update"),
         title: z.string().optional().describe("New title"),
@@ -160,10 +165,55 @@ export function createEpicTools(
         owner: z.string().optional().describe("New owner"),
         targetDate: z.string().optional().describe("New target date"),
         estimatedEffort: z.string().optional().describe("New estimated effort"),
+        linkedFeature: z.union([z.string(), z.array(z.string())]).optional().describe("New linked feature ID(s)"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
-        const { id, content, ...updates } = args;
+        const { id, content, linkedFeature: rawLinkedFeature, tags: userTags, ...updates } = args;
+
+        // If linkedFeature is being changed, validate all new features
+        if (rawLinkedFeature !== undefined) {
+          const linkedFeatures = normalizeLinkedFeatures(rawLinkedFeature);
+          for (const featureId of linkedFeatures) {
+            const feature = store.get(featureId);
+            if (!feature) {
+              return {
+                content: [
+                  { type: "text" as const, text: `Feature ${featureId} not found` },
+                ],
+                isError: true,
+              };
+            }
+            if (feature.frontmatter.type !== "feature") {
+              return {
+                content: [
+                  { type: "text" as const, text: `${featureId} is a ${feature.frontmatter.type}, not a feature` },
+                ],
+                isError: true,
+              };
+            }
+            if (feature.frontmatter.status !== "approved") {
+              return {
+                content: [
+                  { type: "text" as const, text: `Feature ${featureId} has status '${feature.frontmatter.status}'. Only approved features can have epics. Ask the Product Owner to approve it first.` },
+                ],
+                isError: true,
+              };
+            }
+          }
+
+          (updates as Record<string, unknown>).linkedFeature = linkedFeatures;
+
+          // Regenerate tags: replace feature:* tags, preserve non-feature tags
+          const existingDoc = store.get(id);
+          const existingTags: string[] = existingDoc?.frontmatter.tags ?? [];
+          const nonFeatureTags = existingTags.filter((t) => !t.startsWith("feature:"));
+          const baseTags = userTags ?? nonFeatureTags;
+          (updates as Record<string, unknown>).tags = [...generateFeatureTags(linkedFeatures), ...baseTags];
+        } else if (userTags !== undefined) {
+          (updates as Record<string, unknown>).tags = userTags;
+        }
+
         const doc = store.update(id, updates, content);
         return {
           content: [

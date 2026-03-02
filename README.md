@@ -109,23 +109,25 @@ Each persona has a tuned system prompt that shapes how Claude approaches your pr
 Marvin enforces a structured product development workflow:
 
 1. **Product Owner** defines features (`F-xxx`) as `draft`, then approves them when requirements are clear
-2. **Tech Lead** breaks approved features into implementation epics (`E-xxx`) — the system **enforces** that epics can only be created against approved features
+2. **Tech Lead** breaks approved features into implementation epics (`E-xxx`) — the system **enforces** that epics can only be created against approved features. An epic can link to **one or more features** (e.g. a cross-cutting epic spanning auth and profiles)
 3. **Delivery Manager** creates sprints (`SP-xxx`) with goals and date boundaries, assigns epics to sprints, and tracks progress
 
 ```
-Feature (PO)          Epic (TL)              Sprint (DM)
-┌──────────┐    ┌──────────────┐    ┌──────────────────────┐
-│ F-001    │───▶│ E-001        │───▶│ SP-001               │
-│ approved │    │ linked: F-001│    │ linkedEpics: [E-001]  │
-└──────────┘    ├──────────────┤    │ goal: "Deliver auth"  │
-                │ E-002        │    │ 2026-03-01..03-14     │
-                │ linked: F-001│    └──────────────────────┘
-                └──────────────┘             │
-                                    ┌────────┴─────────────┐
-                                    │ A-001 (sprint:SP-001) │
-                                    │ D-003 (sprint:SP-001) │
-                                    └──────────────────────┘
+Feature (PO)          Epic (TL)                       Sprint (DM)
+┌──────────┐    ┌────────────────────────┐    ┌──────────────────────┐
+│ F-001    │───▶│ E-001                  │───▶│ SP-001               │
+│ approved │    │ linked: [F-001]        │    │ linkedEpics: [E-001]  │
+└──────────┘    ├────────────────────────┤    │ goal: "Deliver auth"  │
+                │ E-002                  │    │ 2026-03-01..03-14     │
+┌──────────┐───▶│ linked: [F-001, F-002] │    └──────────────────────┘
+│ F-002    │    └────────────────────────┘             │
+│ approved │                                  ┌────────┴─────────────┐
+└──────────┘                                  │ A-001 (sprint:SP-001) │
+                                              │ D-003 (sprint:SP-001) │
+                                              └──────────────────────┘
 ```
+
+Epics store `linkedFeature` as an array (e.g. `["F-001", "F-002"]`). Legacy files with a single string value are normalized to an array on read for backwards compatibility. Multi-linked epics appear in progress reports under each linked feature, and feature tags (`feature:F-xxx`) are generated for all linked features.
 
 **Sprints** are time-boxed iterations with:
 - `goal` — what the sprint aims to deliver

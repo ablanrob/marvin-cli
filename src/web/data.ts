@@ -1,5 +1,6 @@
 import type { DocumentStore } from "../storage/store.js";
 import type { Document } from "../storage/types.js";
+import { normalizeLinkedFeatures } from "../plugins/builtin/tools/epic-utils.js";
 import { collectGarMetrics } from "../reports/gar/collector.js";
 import { evaluateGar } from "../reports/gar/evaluator.js";
 import type { GarReport } from "../reports/gar/types.js";
@@ -146,7 +147,7 @@ export function getHealthData(store: DocumentStore, projectName: string): Health
 
 export interface DiagramDataResult {
   sprints: { id: string; title: string; status: string; startDate?: string; endDate?: string; linkedEpics: string[] }[];
-  epics: { id: string; title: string; status: string; linkedFeature?: string }[];
+  epics: { id: string; title: string; status: string; linkedFeature: string[] }[];
   features: { id: string; title: string; status: string }[];
   statusCounts: Record<string, number>;
 }
@@ -179,7 +180,7 @@ export function getDiagramData(store: DocumentStore): DiagramDataResult {
           id: fm.id,
           title: fm.title,
           status: fm.status,
-          linkedFeature: fm.linkedFeature as string | undefined,
+          linkedFeature: normalizeLinkedFeatures(fm.linkedFeature),
         });
         break;
       case "feature":

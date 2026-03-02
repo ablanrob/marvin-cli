@@ -92,7 +92,7 @@ describe("Epic Tools", () => {
       expect(result.content[0].text).toContain("approved");
     });
 
-    it("should succeed when feature is approved", async () => {
+    it("should succeed when feature is approved (single string)", async () => {
       await featureTools.create_feature({
         title: "Auth Feature",
         content: "OAuth2 login.",
@@ -111,9 +111,56 @@ describe("Epic Tools", () => {
       const doc = store.get("E-001");
       expect(doc).toBeDefined();
       expect(doc!.frontmatter.type).toBe("epic");
-      expect(doc!.frontmatter.linkedFeature).toBe("F-001");
+      expect(doc!.frontmatter.linkedFeature).toEqual(["F-001"]);
       expect(doc!.frontmatter.tags).toContain("feature:F-001");
       expect(doc!.frontmatter.status).toBe("planned");
+    });
+
+    it("should succeed with multiple approved features", async () => {
+      await featureTools.create_feature({
+        title: "Auth Feature",
+        content: "OAuth2 login.",
+        status: "approved",
+      });
+      await featureTools.create_feature({
+        title: "Profile Feature",
+        content: "User profiles.",
+        status: "approved",
+      });
+
+      const result = await epicTools.create_epic({
+        title: "User System Epic",
+        content: "Implement auth + profiles.",
+        linkedFeature: ["F-001", "F-002"],
+      });
+      expect(result.isError).toBeUndefined();
+      expect(result.content[0].text).toContain("linked to F-001, F-002");
+
+      const doc = store.get("E-001");
+      expect(doc!.frontmatter.linkedFeature).toEqual(["F-001", "F-002"]);
+      expect(doc!.frontmatter.tags).toContain("feature:F-001");
+      expect(doc!.frontmatter.tags).toContain("feature:F-002");
+    });
+
+    it("should reject if any feature in array is not approved", async () => {
+      await featureTools.create_feature({
+        title: "Auth Feature",
+        content: "OAuth2 login.",
+        status: "approved",
+      });
+      await featureTools.create_feature({
+        title: "Draft Feature",
+        content: "Not ready.",
+      });
+
+      const result = await epicTools.create_epic({
+        title: "Mixed Epic",
+        content: "Mixed features.",
+        linkedFeature: ["F-001", "F-002"],
+      });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("F-002");
+      expect(result.content[0].text).toContain("draft");
     });
 
     it("should preserve optional fields", async () => {
@@ -172,10 +219,11 @@ describe("Epic Tools", () => {
       });
     });
 
-    it("should list all epics", async () => {
+    it("should list all epics with linkedFeature as array", async () => {
       const result = await epicTools.list_epics({});
       const list = JSON.parse(result.content[0].text);
       expect(list).toHaveLength(3);
+      expect(list[0].linkedFeature).toEqual(["F-001"]);
     });
 
     it("should filter by status", async () => {
@@ -188,6 +236,22 @@ describe("Epic Tools", () => {
       const result = await epicTools.list_epics({ linkedFeature: "F-001" });
       const list = JSON.parse(result.content[0].text);
       expect(list).toHaveLength(2);
+    });
+
+    it("should filter by linkedFeature matching multi-linked epics", async () => {
+      await epicTools.create_epic({
+        title: "Epic 4 Multi",
+        content: "E4",
+        linkedFeature: ["F-001", "F-002"],
+      });
+
+      const resultA = await epicTools.list_epics({ linkedFeature: "F-001" });
+      const listA = JSON.parse(resultA.content[0].text);
+      expect(listA).toHaveLength(3); // E-001, E-002, E-004
+
+      const resultB = await epicTools.list_epics({ linkedFeature: "F-002" });
+      const listB = JSON.parse(resultB.content[0].text);
+      expect(listB).toHaveLength(2); // E-003, E-004
     });
   });
 
@@ -215,6 +279,59 @@ describe("Epic Tools", () => {
       expect(doc!.frontmatter.status).toBe("in-progress");
       expect(doc!.frontmatter.targetDate).toBe("2026-04-01");
     });
+
+    it("should update linkedFeature to new features", async () => {
+      await featureTools.create_feature({
+        title: "Feature A",
+        content: "A",
+        status: "approved",
+      });
+      await featureTools.create_feature({
+        title: "Feature B",
+        content: "B",
+        status: "approved",
+      });
+      await epicTools.create_epic({
+        title: "Epic",
+        content: "E",
+        linkedFeature: "F-001",
+      });
+
+      const result = await epicTools.update_epic({
+        id: "E-001",
+        linkedFeature: ["F-001", "F-002"],
+      });
+      expect(result.content[0].text).toContain("Updated epic E-001");
+
+      const doc = store.get("E-001");
+      expect(doc!.frontmatter.linkedFeature).toEqual(["F-001", "F-002"]);
+      expect(doc!.frontmatter.tags).toContain("feature:F-001");
+      expect(doc!.frontmatter.tags).toContain("feature:F-002");
+    });
+
+    it("should reject update if new linkedFeature is not approved", async () => {
+      await featureTools.create_feature({
+        title: "Feature A",
+        content: "A",
+        status: "approved",
+      });
+      await featureTools.create_feature({
+        title: "Feature B",
+        content: "B",
+      });
+      await epicTools.create_epic({
+        title: "Epic",
+        content: "E",
+        linkedFeature: "F-001",
+      });
+
+      const result = await epicTools.update_epic({
+        id: "E-001",
+        linkedFeature: ["F-001", "F-002"],
+      });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("F-002");
+    });
   });
 
   describe("update_epic tags", () => {
@@ -239,6 +356,22 @@ describe("Epic Tools", () => {
       const after = store.get("E-001");
       expect(after!.frontmatter.tags).toEqual(["feature:F-001", "risk-mitigated"]);
       expect(after!.frontmatter.tags).not.toContain("risk");
+    });
+  });
+
+  describe("legacy single-string normalization", () => {
+    it("should normalize legacy single-string linkedFeature on list", async () => {
+      // Directly create an epic with a single-string linkedFeature (legacy format)
+      store.create("epic", {
+        title: "Legacy Epic",
+        status: "planned",
+        linkedFeature: "F-001",
+        tags: ["feature:F-001"],
+      }, "Legacy content");
+
+      const result = await epicTools.list_epics({});
+      const list = JSON.parse(result.content[0].text);
+      expect(list[0].linkedFeature).toEqual(["F-001"]);
     });
   });
 
