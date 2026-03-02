@@ -375,6 +375,54 @@ describe("Epic Tools", () => {
     });
   });
 
+  describe("JSON-stringified array coercion", () => {
+    beforeEach(async () => {
+      await featureTools.create_feature({ title: "FA", content: "A", status: "approved" });
+      await featureTools.create_feature({ title: "FB", content: "B", status: "approved" });
+    });
+
+    it("should accept a JSON-stringified array for create_epic", async () => {
+      const result = await epicTools.create_epic({
+        title: "Stringified Epic",
+        content: "Test",
+        linkedFeature: '["F-001","F-002"]',
+      });
+      expect(result.isError).toBeUndefined();
+
+      const doc = store.get("E-001");
+      expect(doc!.frontmatter.linkedFeature).toEqual(["F-001", "F-002"]);
+    });
+
+    it("should accept a JSON-stringified array for update_epic", async () => {
+      await epicTools.create_epic({
+        title: "Epic",
+        content: "E",
+        linkedFeature: ["F-001"],
+      });
+
+      const result = await epicTools.update_epic({
+        id: "E-001",
+        linkedFeature: '["F-001","F-002"]',
+      });
+      expect(result.isError).toBeUndefined();
+
+      const doc = store.get("E-001");
+      expect(doc!.frontmatter.linkedFeature).toEqual(["F-001", "F-002"]);
+    });
+
+    it("should coerce a bare string to a single-element array", async () => {
+      const result = await epicTools.create_epic({
+        title: "Bare String Epic",
+        content: "Test",
+        linkedFeature: "F-001",
+      });
+      expect(result.isError).toBeUndefined();
+
+      const doc = store.get("E-001");
+      expect(doc!.frontmatter.linkedFeature).toEqual(["F-001"]);
+    });
+  });
+
   it("should return error for non-existent epic", async () => {
     const result = await epicTools.get_epic({ id: "E-999" });
     expect(result.isError).toBe(true);

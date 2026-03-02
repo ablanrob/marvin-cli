@@ -3,6 +3,26 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../../storage/store.js";
 import { normalizeLinkedFeatures, generateFeatureTags } from "./epic-utils.js";
 
+/**
+ * Schema that advertises `type: array` but also accepts a JSON-stringified
+ * array or a bare string (coerced to `[value]`).  Claude sometimes serializes
+ * arrays as strings when calling MCP tools — z.preprocess handles that before
+ * Zod validation runs, while the JSON Schema output stays `{ type: "array" }`.
+ */
+const linkedFeatureArray = z.preprocess(
+  (val) => {
+    if (typeof val === "string") {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed;
+      } catch { /* not JSON — treat as single ID */ }
+      return [val];
+    }
+    return val;
+  },
+  z.array(z.string()),
+);
+
 export function createEpicTools(
   store: DocumentStore,
 ): SdkMcpToolDefinition<any>[] {
@@ -78,7 +98,7 @@ export function createEpicTools(
       {
         title: z.string().describe("Epic title"),
         content: z.string().describe("Epic description and scope"),
-        linkedFeature: z.array(z.string()).describe("Feature ID(s) to link this epic to (e.g. ['F-001'] or ['F-001', 'F-002'])"),
+        linkedFeature: linkedFeatureArray.describe("Feature ID(s) to link this epic to (e.g. ['F-001'] or ['F-001', 'F-002'])"),
         status: z
           .enum(["planned", "in-progress", "done"])
           .optional()
@@ -165,7 +185,7 @@ export function createEpicTools(
         owner: z.string().optional().describe("New owner"),
         targetDate: z.string().optional().describe("New target date"),
         estimatedEffort: z.string().optional().describe("New estimated effort"),
-        linkedFeature: z.array(z.string()).optional().describe("New linked feature ID(s)"),
+        linkedFeature: linkedFeatureArray.optional().describe("New linked feature ID(s)"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
