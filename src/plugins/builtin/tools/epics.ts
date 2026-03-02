@@ -78,7 +78,7 @@ export function createEpicTools(
       {
         title: z.string().describe("Epic title"),
         content: z.string().describe("Epic description and scope"),
-        linkedFeature: z.union([z.string(), z.array(z.string())]).describe("Feature ID(s) to link this epic to (e.g. 'F-001' or ['F-001', 'F-002'])"),
+        linkedFeature: z.array(z.string()).describe("Feature ID(s) to link this epic to (e.g. ['F-001'] or ['F-001', 'F-002'])"),
         status: z
           .enum(["planned", "in-progress", "done"])
           .optional()
@@ -165,7 +165,7 @@ export function createEpicTools(
         owner: z.string().optional().describe("New owner"),
         targetDate: z.string().optional().describe("New target date"),
         estimatedEffort: z.string().optional().describe("New estimated effort"),
-        linkedFeature: z.union([z.string(), z.array(z.string())]).optional().describe("New linked feature ID(s)"),
+        linkedFeature: z.array(z.string()).optional().describe("New linked feature ID(s)"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
