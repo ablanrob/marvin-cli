@@ -8,6 +8,7 @@ import {
   getBoardData,
   getDiagramData,
   getUpcomingData,
+  getSprintSummaryData,
 } from "./data.js";
 import { layout, type NavGroup } from "./templates/layout.js";
 import { renderStyles } from "./templates/styles.js";
@@ -19,8 +20,18 @@ import { healthPage } from "./templates/pages/health.js";
 import { boardPage } from "./templates/pages/board.js";
 import { timelinePage } from "./templates/pages/timeline.js";
 import { upcomingPage } from "./templates/pages/upcoming.js";
+import { sprintSummaryPage } from "./templates/pages/sprint-summary.js";
 import { collectHealthMetrics } from "../reports/health/collector.js";
 import { evaluateHealth } from "../reports/health/evaluator.js";
+import { generateSprintSummary } from "../reports/sprint-summary/generator.js";
+import { renderMarkdown } from "./templates/layout.js";
+
+interface CachedSummary {
+  html: string;
+  generatedAt: string;
+}
+
+const sprintSummaryCache = new Map<string, CachedSummary>();
 
 export function handleRequest(
   req: IncomingMessage,
@@ -83,6 +94,44 @@ export function handleRequest(
       const data = getUpcomingData(store);
       const body = upcomingPage(data);
       respond(res, layout({ title: "Upcoming", activePath: "/upcoming", projectName, navGroups }, body));
+      return;
+    }
+
+    // GET /sprint-summary
+    if (pathname === "/sprint-summary" && req.method === "GET") {
+      const sprintId = parsed.searchParams.get("sprint") ?? undefined;
+      const data = getSprintSummaryData(store, sprintId);
+      const cached = data ? sprintSummaryCache.get(data.sprint.id) : undefined;
+      const body = sprintSummaryPage(data, cached ? { html: cached.html, generatedAt: cached.generatedAt } : undefined);
+      respond(res, layout({ title: "Sprint Summary", activePath: "/sprint-summary", projectName, navGroups }, body));
+      return;
+    }
+
+    // POST /api/sprint-summary
+    if (pathname === "/api/sprint-summary" && req.method === "POST") {
+      let bodyStr = "";
+      req.on("data", (chunk) => { bodyStr += chunk; });
+      req.on("end", async () => {
+        try {
+          const { sprintId } = JSON.parse(bodyStr || "{}");
+          const data = getSprintSummaryData(store, sprintId);
+          if (!data) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Sprint not found" }));
+            return;
+          }
+          const summary = await generateSprintSummary(data);
+          const html = renderMarkdown(summary);
+          const generatedAt = new Date().toISOString();
+          sprintSummaryCache.set(data.sprint.id, { html, generatedAt });
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ summary, html, generatedAt }));
+        } catch (err) {
+          console.error("[marvin web] Sprint summary generation error:", err);
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Failed to generate summary" }));
+        }
+      });
       return;
     }
 

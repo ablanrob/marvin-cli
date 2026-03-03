@@ -9,6 +9,8 @@ import type { GarReport } from "../reports/gar/types.js";
 import { collectHealthMetrics } from "../reports/health/collector.js";
 import { evaluateHealth } from "../reports/health/evaluator.js";
 import type { HealthReport } from "../reports/health/types.js";
+import { collectSprintSummaryData } from "../reports/sprint-summary/collector.js";
+import type { SprintSummaryData } from "../reports/sprint-summary/types.js";
 
 export interface TypeSummary {
   type: string;
@@ -498,4 +500,11 @@ export function getUpcomingData(store: DocumentStore): UpcomingData {
     .slice(0, 15);
 
   return { dueSoonActions, dueSoonSprintTasks, trending };
+}
+
+export function getSprintSummaryData(
+  store: DocumentStore,
+  sprintId?: string,
+): SprintSummaryData | null {
+  return collectSprintSummaryData(store, sprintId);
 }

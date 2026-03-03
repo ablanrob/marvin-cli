@@ -23,7 +23,7 @@ import {
 import { importCommand } from "./commands/import.js";
 import { analyzeCommand } from "./commands/analyze.js";
 import { contributeCommand } from "./commands/contribute.js";
-import { garReportCommand, healthReportCommand } from "./commands/report.js";
+import { garReportCommand, healthReportCommand, sprintSummaryCommand } from "./commands/report.js";
 import { webCommand } from "./commands/web.js";
 import { generateClaudeMdCommand } from "./commands/generate.js";
 
@@ -241,6 +241,15 @@ export function createProgram(): Command {
     )
     .action(async (options) => {
       await healthReportCommand(options);
+    });
+
+  reportCmd
+    .command("sprint-summary")
+    .description("Generate an AI-powered sprint summary narrative")
+    .option("--sprint <id>", "Sprint ID (defaults to active sprint)")
+    .option("--save", "Save the summary as a report document")
+    .action(async (options) => {
+      await sprintSummaryCommand(options);
     });
 
   program

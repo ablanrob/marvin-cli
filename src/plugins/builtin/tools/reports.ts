@@ -6,6 +6,8 @@ import { collectGarMetrics } from "../../../reports/gar/collector.js";
 import { evaluateGar } from "../../../reports/gar/evaluator.js";
 import { collectHealthMetrics } from "../../../reports/health/collector.js";
 import { evaluateHealth } from "../../../reports/health/evaluator.js";
+import { collectSprintSummaryData } from "../../../reports/sprint-summary/collector.js";
+import { generateSprintSummary } from "../../../reports/sprint-summary/generator.js";
 
 export function createReportTools(
   store: DocumentStore,
@@ -347,6 +349,29 @@ export function createReportTools(
 
         return {
           content: [{ type: "text" as const, text: JSON.stringify(report, null, 2) }],
+        };
+      },
+      { annotations: { readOnlyHint: true } },
+    ),
+
+    tool(
+      "generate_sprint_summary",
+      "Generate an AI-powered narrative summary of a sprint's progress, health, achievements, risks, and projected outcome",
+      {
+        sprint: z.string().optional().describe("Sprint ID (e.g. 'SP-001'). Omit for the active sprint."),
+      },
+      async (args) => {
+        const data = collectSprintSummaryData(store, args.sprint);
+        if (!data) {
+          const msg = args.sprint
+            ? `Sprint ${args.sprint} not found.`
+            : "No active sprint found.";
+          return { content: [{ type: "text" as const, text: msg }], isError: true };
+        }
+
+        const summary = await generateSprintSummary(data);
+        return {
+          content: [{ type: "text" as const, text: summary }],
         };
       },
       { annotations: { readOnlyHint: true } },

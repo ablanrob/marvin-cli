@@ -88,7 +88,7 @@ describe("getPluginTools", () => {
       expect(toolNames).toContain("get_task");
       expect(toolNames).toContain("create_task");
       expect(toolNames).toContain("update_task");
-      expect(tools).toHaveLength(34);
+      expect(tools).toHaveLength(35);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

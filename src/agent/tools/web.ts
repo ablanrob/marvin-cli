@@ -9,6 +9,7 @@ import {
   getGarData,
   getBoardData,
   getUpcomingData,
+  getSprintSummaryData,
 } from "../../web/data.js";
 import type { NavGroup } from "../../web/templates/layout.js";
 
@@ -183,6 +184,27 @@ export function createWebTools(
       {},
       async () => {
         const data = getUpcomingData(store);
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+        };
+      },
+      { annotations: { readOnlyHint: true } },
+    ),
+
+    tool(
+      "get_dashboard_sprint_summary",
+      "Get sprint summary data for the active sprint or a specific sprint. Returns structured data about progress, epics, work items, meetings, and blockers. Works without the web server running.",
+      {
+        sprint: z.string().optional().describe("Sprint ID (e.g. 'SP-001'). Omit for the active sprint."),
+      },
+      async (args) => {
+        const data = getSprintSummaryData(store, args.sprint);
+        if (!data) {
+          const msg = args.sprint
+            ? `Sprint ${args.sprint} not found.`
+            : "No active sprint found.";
+          return { content: [{ type: "text" as const, text: msg }], isError: true };
+        }
         return {
           content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
         };
