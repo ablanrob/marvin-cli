@@ -901,6 +901,112 @@ tr:hover td {
 
 .text-dim { color: var(--text-dim); }
 
+/* Sprint Summary */
+.sprint-goal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.sprint-progress-bar {
+  position: relative;
+  height: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.sprint-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  border-radius: 12px;
+  transition: width 0.3s ease;
+}
+
+.sprint-progress-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sprint-ai-section {
+  margin-top: 2rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.sprint-ai-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.sprint-generate-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.5rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.75rem;
+  transition: background 0.15s;
+}
+
+.sprint-generate-btn:hover:not(:disabled) {
+  background: var(--accent-dim);
+}
+
+.sprint-generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sprint-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 0;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.sprint-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: sprint-spin 0.8s linear infinite;
+}
+
+@keyframes sprint-spin {
+  to { transform: rotate(360deg); }
+}
+
+.sprint-error {
+  color: var(--red);
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+}
+
+.sprint-ai-section .detail-content {
+  margin-top: 1rem;
+}
+
 /* Collapsible sections */
 .collapsible-header {
   cursor: pointer;

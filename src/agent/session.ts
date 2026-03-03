@@ -186,6 +186,7 @@ export async function startSession(options: SessionOptions): Promise<void> {
       "mcp__marvin-governance__get_dashboard_gar",
       "mcp__marvin-governance__get_dashboard_board",
       "mcp__marvin-governance__get_dashboard_upcoming",
+      "mcp__marvin-governance__get_dashboard_sprint_summary",
       ...pluginTools.map((t) => `mcp__marvin-governance__${t.name}`),
       ...codeSkillTools.map((t) => `mcp__marvin-governance__${t.name}`),
     ],
