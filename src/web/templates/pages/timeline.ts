@@ -5,7 +5,7 @@ export function timelinePage(diagrams: DiagramDataResult): string {
   return `
     <div class="page-header">
       <h2>Project Timeline</h2>
-      <div class="subtitle">Sprint schedule with linked epics</div>
+      <div class="subtitle">Epic timeline across sprints</div>
     </div>
 
     ${buildTimelineGantt(diagrams)}

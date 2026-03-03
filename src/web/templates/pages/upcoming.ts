@@ -1,5 +1,5 @@
 import type { UpcomingData, UrgencyTier } from "../../data.js";
-import { escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
 
 function urgencyBadge(tier: UrgencyTier): string {
   const labels: Record<UrgencyTier, string> = {
@@ -25,9 +25,10 @@ export function upcomingPage(data: UpcomingData): string {
   const hasTrending = data.trending.length > 0;
 
   const actionsTable = hasActions
-    ? `
-    <h3 class="section-title">Due Soon — Actions</h3>
-    <div class="table-wrap">
+    ? collapsibleSection(
+        "upcoming-actions",
+        "Due Soon — Actions",
+        `<div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -57,13 +58,16 @@ export function upcomingPage(data: UpcomingData): string {
             .join("")}
         </tbody>
       </table>
-    </div>`
+    </div>`,
+        { titleTag: "h3" },
+      )
     : "";
 
   const sprintTasksTable = hasSprintTasks
-    ? `
-    <h3 class="section-title">Due Soon — Sprint Tasks</h3>
-    <div class="table-wrap">
+    ? collapsibleSection(
+        "upcoming-sprint-tasks",
+        "Due Soon — Sprint Tasks",
+        `<div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -91,13 +95,16 @@ export function upcomingPage(data: UpcomingData): string {
             .join("")}
         </tbody>
       </table>
-    </div>`
+    </div>`,
+        { titleTag: "h3" },
+      )
     : "";
 
   const trendingTable = hasTrending
-    ? `
-    <h3 class="section-title">Trending</h3>
-    <div class="table-wrap">
+    ? collapsibleSection(
+        "upcoming-trending",
+        "Trending",
+        `<div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -127,7 +134,9 @@ export function upcomingPage(data: UpcomingData): string {
             .join("")}
         </tbody>
       </table>
-    </div>`
+    </div>`,
+        { titleTag: "h3" },
+      )
     : "";
 
   const emptyState =
