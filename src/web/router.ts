@@ -7,6 +7,7 @@ import {
   getGarData,
   getBoardData,
   getDiagramData,
+  getUpcomingData,
 } from "./data.js";
 import { layout, type NavGroup } from "./templates/layout.js";
 import { renderStyles } from "./templates/styles.js";
@@ -17,6 +18,7 @@ import { garPage } from "./templates/pages/gar.js";
 import { healthPage } from "./templates/pages/health.js";
 import { boardPage } from "./templates/pages/board.js";
 import { timelinePage } from "./templates/pages/timeline.js";
+import { upcomingPage } from "./templates/pages/upcoming.js";
 import { collectHealthMetrics } from "../reports/health/collector.js";
 import { evaluateHealth } from "../reports/health/evaluator.js";
 
@@ -73,6 +75,14 @@ export function handleRequest(
       const report = evaluateHealth(projectName, healthMetrics);
       const body = healthPage(report, healthMetrics);
       respond(res, layout({ title: "Health Check", activePath: "/health", projectName, navGroups }, body));
+      return;
+    }
+
+    // GET /upcoming
+    if (pathname === "/upcoming") {
+      const data = getUpcomingData(store);
+      const body = upcomingPage(data);
+      respond(res, layout({ title: "Upcoming", activePath: "/upcoming", projectName, navGroups }, body));
       return;
     }
 

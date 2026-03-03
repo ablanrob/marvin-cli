@@ -1,6 +1,8 @@
 import type { DocumentStore } from "../storage/store.js";
 import type { Document } from "../storage/types.js";
 import { normalizeLinkedFeatures } from "../plugins/builtin/tools/epic-utils.js";
+import { normalizeLinkedEpics } from "../plugins/builtin/tools/task-utils.js";
+import { daysBetween } from "../reports/health/collector.js";
 import { collectGarMetrics } from "../reports/gar/collector.js";
 import { evaluateGar } from "../reports/gar/evaluator.js";
 import type { GarReport } from "../reports/gar/types.js";
@@ -194,4 +196,306 @@ export function getDiagramData(store: DocumentStore): DiagramDataResult {
   }
 
   return { sprints, epics, features, statusCounts };
+}
+
+// --- Upcoming page ---
+
+export type UrgencyTier = "overdue" | "due-3d" | "due-7d" | "upcoming" | "later";
+
+export interface DueSoonAction {
+  id: string;
+  title: string;
+  status: string;
+  owner?: string;
+  dueDate: string;
+  urgency: UrgencyTier;
+  relatedTaskCount: number;
+}
+
+export interface DueSoonSprintTask {
+  id: string;
+  title: string;
+  status: string;
+  sprintId: string;
+  sprintTitle: string;
+  sprintEndDate: string;
+  urgency: UrgencyTier;
+}
+
+export interface TrendingSignal {
+  factor: string;
+  points: number;
+}
+
+export interface TrendingItem {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  score: number;
+  signals: TrendingSignal[];
+}
+
+export interface UpcomingData {
+  dueSoonActions: DueSoonAction[];
+  dueSoonSprintTasks: DueSoonSprintTask[];
+  trending: TrendingItem[];
+}
+
+function computeUrgency(dueDateStr: string, todayStr: string): UrgencyTier {
+  const due = new Date(dueDateStr).getTime();
+  const today = new Date(todayStr).getTime();
+  const diffDays = Math.floor((due - today) / 86_400_000);
+  if (diffDays < 0) return "overdue";
+  if (diffDays <= 3) return "due-3d";
+  if (diffDays <= 7) return "due-7d";
+  if (diffDays <= 14) return "upcoming";
+  return "later";
+}
+
+const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+
+export function getUpcomingData(store: DocumentStore): UpcomingData {
+  const today = new Date().toISOString().slice(0, 10);
+  const allDocs = store.list();
+
+  // Index documents by ID for cross-reference lookups
+  const docById = new Map<string, Document>();
+  for (const doc of allDocs) {
+    docById.set(doc.frontmatter.id, doc);
+  }
+
+  // --- Due Soon: Actions ---
+  const actions = allDocs.filter(
+    (d) => d.frontmatter.type === "action" && !DONE_STATUSES.has(d.frontmatter.status),
+  );
+  const actionsWithDue = actions.filter((d) => d.frontmatter.dueDate);
+
+  // Build sprint→epic→task chain for related task counts
+  const sprints = allDocs.filter((d) => d.frontmatter.type === "sprint");
+  const epics = allDocs.filter((d) => d.frontmatter.type === "epic");
+  const tasks = allDocs.filter((d) => d.frontmatter.type === "task");
+
+  // Map epic → tasks (via tags like epic:E-001)
+  const epicToTasks = new Map<string, Document[]>();
+  for (const task of tasks) {
+    const tags = (task.frontmatter.tags as string[]) ?? [];
+    for (const tag of tags) {
+      if (tag.startsWith("epic:")) {
+        const epicId = tag.slice(5);
+        if (!epicToTasks.has(epicId)) epicToTasks.set(epicId, []);
+        epicToTasks.get(epicId)!.push(task);
+      }
+    }
+  }
+
+  // Map sprint → linked tasks (via linkedEpics → tasks tagged with those epics)
+  function getSprintTasks(sprintDoc: Document): Document[] {
+    const linkedEpics = normalizeLinkedEpics(sprintDoc.frontmatter.linkedEpics);
+    const result: Document[] = [];
+    for (const epicId of linkedEpics) {
+      const epicTasks = epicToTasks.get(epicId) ?? [];
+      result.push(...epicTasks);
+    }
+    return result;
+  }
+
+  // For each action, find related tasks via sprint tags
+  function countRelatedTasks(actionDoc: Document): number {
+    const actionTags = (actionDoc.frontmatter.tags as string[]) ?? [];
+    const relatedTaskIds = new Set<string>();
+    for (const tag of actionTags) {
+      if (tag.startsWith("sprint:")) {
+        const sprintId = tag.slice(7);
+        const sprint = docById.get(sprintId);
+        if (sprint) {
+          const sprintTaskDocs = getSprintTasks(sprint);
+          for (const t of sprintTaskDocs) relatedTaskIds.add(t.frontmatter.id);
+        }
+      }
+    }
+    return relatedTaskIds.size;
+  }
+
+  const dueSoonActions: DueSoonAction[] = actionsWithDue
+    .map((d) => ({
+      id: d.frontmatter.id,
+      title: d.frontmatter.title,
+      status: d.frontmatter.status,
+      owner: d.frontmatter.owner,
+      dueDate: d.frontmatter.dueDate!,
+      urgency: computeUrgency(d.frontmatter.dueDate!, today),
+      relatedTaskCount: countRelatedTasks(d),
+    }))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  // --- Due Soon: Sprint Tasks ---
+  const todayMs = new Date(today).getTime();
+  const fourteenDaysMs = 14 * 86_400_000;
+
+  // Find sprints ending within 14 days
+  const nearSprints = sprints.filter((s) => {
+    const endDate = s.frontmatter.endDate as string | undefined;
+    if (!endDate) return false;
+    const endMs = new Date(endDate).getTime();
+    const diff = endMs - todayMs;
+    return diff >= 0 && diff <= fourteenDaysMs;
+  });
+
+  // Collect sprint tasks, deduplicate (nearest sprint end wins)
+  const taskSprintMap = new Map<string, { task: Document; sprint: Document; sprintEnd: string }>();
+  for (const sprint of nearSprints) {
+    const sprintEnd = sprint.frontmatter.endDate as string;
+    const sprintTaskDocs = getSprintTasks(sprint);
+    for (const task of sprintTaskDocs) {
+      if (DONE_STATUSES.has(task.frontmatter.status)) continue;
+      const existing = taskSprintMap.get(task.frontmatter.id);
+      if (!existing || sprintEnd < existing.sprintEnd) {
+        taskSprintMap.set(task.frontmatter.id, { task, sprint, sprintEnd });
+      }
+    }
+  }
+
+  const dueSoonSprintTasks: DueSoonSprintTask[] = [...taskSprintMap.values()]
+    .map(({ task, sprint, sprintEnd }) => ({
+      id: task.frontmatter.id,
+      title: task.frontmatter.title,
+      status: task.frontmatter.status,
+      sprintId: sprint.frontmatter.id,
+      sprintTitle: sprint.frontmatter.title,
+      sprintEndDate: sprintEnd,
+      urgency: computeUrgency(sprintEnd, today),
+    }))
+    .sort((a, b) => a.sprintEndDate.localeCompare(b.sprintEndDate));
+
+  // --- Trending ---
+  const openItems = allDocs.filter(
+    (d) =>
+      ["action", "question", "task"].includes(d.frontmatter.type) &&
+      !DONE_STATUSES.has(d.frontmatter.status),
+  );
+
+  // Pre-compute: meeting mentions in last 14 days
+  const fourteenDaysAgo = new Date(todayMs - fourteenDaysMs).toISOString().slice(0, 10);
+  const recentMeetings = allDocs.filter(
+    (d) =>
+      d.frontmatter.type === "meeting" &&
+      (d.frontmatter.updated ?? d.frontmatter.created) >= fourteenDaysAgo,
+  );
+
+  // Pre-compute: cross-reference index (how many other docs mention each ID in their content)
+  const crossRefCounts = new Map<string, number>();
+  for (const doc of allDocs) {
+    const content = doc.content ?? "";
+    for (const item of openItems) {
+      if (doc.frontmatter.id === item.frontmatter.id) continue;
+      if (content.includes(item.frontmatter.id)) {
+        crossRefCounts.set(
+          item.frontmatter.id,
+          (crossRefCounts.get(item.frontmatter.id) ?? 0) + 1,
+        );
+      }
+    }
+  }
+
+  // Active / near-starting sprints for proximity scoring
+  const activeSprints = sprints.filter((s) => {
+    const status = s.frontmatter.status;
+    if (status === "active") return true;
+    const startDate = s.frontmatter.startDate as string | undefined;
+    if (!startDate) return false;
+    const startMs = new Date(startDate).getTime();
+    const diff = startMs - todayMs;
+    return diff >= 0 && diff <= fourteenDaysMs;
+  });
+  const activeSprintIds = new Set(activeSprints.map((s) => s.frontmatter.id));
+  // Build set of epic IDs linked to active sprints
+  const activeEpicIds = new Set<string>();
+  for (const s of activeSprints) {
+    for (const epicId of normalizeLinkedEpics(s.frontmatter.linkedEpics)) {
+      activeEpicIds.add(epicId);
+    }
+  }
+
+  const trending: TrendingItem[] = openItems
+    .map((doc) => {
+      const signals: TrendingSignal[] = [];
+      let score = 0;
+
+      // Recency: max 20 pts, decay over 30 days
+      const updated = doc.frontmatter.updated ?? doc.frontmatter.created;
+      const ageDays = daysBetween(updated, today);
+      const recencyPts = Math.max(0, Math.round(20 * (1 - ageDays / 30)));
+      if (recencyPts > 0) {
+        signals.push({ factor: "recency", points: recencyPts });
+        score += recencyPts;
+      }
+
+      // Sprint proximity: max 25 pts
+      const tags = (doc.frontmatter.tags as string[]) ?? [];
+      const linkedToActiveSprint = tags.some(
+        (t) => t.startsWith("sprint:") && activeSprintIds.has(t.slice(7)),
+      );
+      const linkedToActiveEpic = tags.some(
+        (t) => t.startsWith("epic:") && activeEpicIds.has(t.slice(5)),
+      );
+      if (linkedToActiveSprint) {
+        signals.push({ factor: "sprint proximity", points: 25 });
+        score += 25;
+      } else if (linkedToActiveEpic) {
+        signals.push({ factor: "sprint proximity", points: 15 });
+        score += 15;
+      }
+
+      // Meeting mentions: max 15 pts
+      const mentionCount = recentMeetings.filter(
+        (m) => (m.content ?? "").includes(doc.frontmatter.id),
+      ).length;
+      if (mentionCount > 0) {
+        const meetingPts = Math.min(15, mentionCount * 5);
+        signals.push({ factor: "meeting mentions", points: meetingPts });
+        score += meetingPts;
+      }
+
+      // Priority: max 15 pts
+      const priority = (doc.frontmatter.priority as string)?.toLowerCase();
+      const priorityPts =
+        priority === "critical" ? 15 : priority === "high" ? 10 : priority === "medium" ? 3 : 0;
+      if (priorityPts > 0) {
+        signals.push({ factor: "priority", points: priorityPts });
+        score += priorityPts;
+      }
+
+      // Aging: max 10 pts for open questions/actions older than 14 days
+      if (["action", "question"].includes(doc.frontmatter.type)) {
+        const createdDays = daysBetween(doc.frontmatter.created, today);
+        if (createdDays >= 14) {
+          const agingPts = Math.min(10, Math.floor((createdDays - 14) / 7) * 3 + 5);
+          signals.push({ factor: "aging", points: agingPts });
+          score += agingPts;
+        }
+      }
+
+      // Cross-references: max 15 pts
+      const refs = crossRefCounts.get(doc.frontmatter.id) ?? 0;
+      if (refs > 0) {
+        const crossRefPts = Math.min(15, refs * 5);
+        signals.push({ factor: "cross-references", points: crossRefPts });
+        score += crossRefPts;
+      }
+
+      return {
+        id: doc.frontmatter.id,
+        title: doc.frontmatter.title,
+        type: doc.frontmatter.type,
+        status: doc.frontmatter.status,
+        score,
+        signals,
+      };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 15);
+
+  return { dueSoonActions, dueSoonSprintTasks, trending };
 }

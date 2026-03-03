@@ -261,13 +261,14 @@ export function buildArtifactFlowchart(data: DiagramData): string {
       var svg = document.getElementById('flow-lines');
       if (!container || !svg) return;
 
-      // Build adjacency map (bidirectional) for traversal
-      var adj = {};
+      // Build directed adjacency maps for traversal
+      var fwd = {};   // from → [to] (Feature→Epic, Epic→Sprint)
+      var bwd = {};   // to → [from] (Sprint→Epic, Epic→Feature)
       edges.forEach(function(e) {
-        if (!adj[e.from]) adj[e.from] = [];
-        if (!adj[e.to]) adj[e.to] = [];
-        adj[e.from].push(e.to);
-        adj[e.to].push(e.from);
+        if (!fwd[e.from]) fwd[e.from] = [];
+        if (!bwd[e.to]) bwd[e.to] = [];
+        fwd[e.from].push(e.to);
+        bwd[e.to].push(e.from);
       });
 
       function drawLines() {
@@ -300,14 +301,28 @@ export function buildArtifactFlowchart(data: DiagramData): string {
         });
       }
 
-      // Find all nodes reachable from a starting node
+      // Find directly related nodes via directed traversal
+      // Follows forward edges (Feature→Epic→Sprint) and backward edges
+      // (Sprint→Epic→Feature) separately to avoid sideways expansion
       function findConnected(startId) {
         var visited = {};
-        var queue = [startId];
         visited[startId] = true;
+        // Traverse forward (from→to direction)
+        var queue = [startId];
         while (queue.length) {
           var id = queue.shift();
-          (adj[id] || []).forEach(function(neighbor) {
+          (fwd[id] || []).forEach(function(neighbor) {
+            if (!visited[neighbor]) {
+              visited[neighbor] = true;
+              queue.push(neighbor);
+            }
+          });
+        }
+        // Traverse backward (to→from direction)
+        queue = [startId];
+        while (queue.length) {
+          var id = queue.shift();
+          (bwd[id] || []).forEach(function(neighbor) {
             if (!visited[neighbor]) {
               visited[neighbor] = true;
               queue.push(neighbor);

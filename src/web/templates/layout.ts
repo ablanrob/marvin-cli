@@ -175,6 +175,7 @@ interface LayoutOptions {
 export function layout(opts: LayoutOptions, body: string): string {
   const topItems = [
     { href: "/", label: "Overview" },
+    { href: "/upcoming", label: "Upcoming" },
     { href: "/timeline", label: "Timeline" },
     { href: "/board", label: "Board" },
     { href: "/gar", label: "GAR Report" },
