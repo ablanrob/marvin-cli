@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
-import { loadUserConfig } from "../../../core/config.js";
+import { loadUserConfig, type MarvinProjectConfig } from "../../../core/config.js";
 import { createJiraClient, type JiraIssue } from "./client.js";
 
 const JIRA_TYPE = "jira-issue";
@@ -52,8 +52,10 @@ function findByJiraKey(store: DocumentStore, jiraKey: string) {
 
 export function createJiraTools(
   store: DocumentStore,
+  projectConfig?: MarvinProjectConfig,
 ): SdkMcpToolDefinition<any>[] {
   const jiraUserConfig = loadUserConfig().jira;
+  const defaultProjectKey = projectConfig?.jira?.projectKey;
 
   return [
     // --- Local read tools ---
@@ -240,13 +242,26 @@ export function createJiraTools(
       "Create a Jira issue from any Marvin artifact (D/A/Q/F/E) and create a tracking JI-xxx document",
       {
         artifactId: z.string().describe("Marvin artifact ID (e.g. 'D-001', 'F-003', 'E-002')"),
-        projectKey: z.string().describe("Jira project key (e.g. 'PROJ')"),
+        projectKey: z.string().optional().describe("Jira project key (e.g. 'PROJ'). Falls back to jira.projectKey from .marvin/config.yaml if not provided."),
         issueType: z
           .enum(["Story", "Task", "Bug", "Epic"])
           .optional()
           .describe("Jira issue type (default: 'Task')"),
       },
       async (args) => {
+        const resolvedProjectKey = args.projectKey ?? defaultProjectKey;
+        if (!resolvedProjectKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "No projectKey provided and no default configured. Either pass projectKey or set jira.projectKey in .marvin/config.yaml.",
+              },
+            ],
+            isError: true,
+          };
+        }
+
         const jira = createJiraClient(jiraUserConfig);
         if (!jira) return jiraNotConfiguredError();
 
@@ -269,7 +284,7 @@ export function createJiraTools(
         ].join("\n");
 
         const jiraResult = await jira.client.createIssue({
-          project: { key: args.projectKey },
+          project: { key: resolvedProjectKey },
           summary: artifact.frontmatter.title,
           description,
           issuetype: { name: args.issueType ?? "Task" },

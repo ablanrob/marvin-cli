@@ -50,7 +50,7 @@ export async function startSession(options: SessionOptions): Promise<void> {
   // 4. Get tools (which need the store)
   const pluginTools = plugin ? getPluginTools(plugin, store, marvinDir) : [];
   const pluginPromptFragment = plugin ? getPluginPromptFragment(plugin, persona.id) : undefined;
-  const codeSkillTools = getSkillTools(skillIds, allSkills, store);
+  const codeSkillTools = getSkillTools(skillIds, allSkills, store, config.project);
   const skillAgents = getSkillAgentDefinitions(skillIds, allSkills);
   const skillPromptFragment = getSkillPromptFragment(skillIds, allSkills, persona.id);
 

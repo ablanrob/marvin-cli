@@ -389,6 +389,27 @@ describe("getSkillTools", () => {
     expect(tools[0].name).toBe("test_tool");
   });
 
+  it("should pass projectConfig through to skill tools factory", () => {
+    let receivedConfig: unknown;
+    const mockTool = { name: "test_tool", description: "test", inputSchema: {}, handler: async () => ({ content: [] }) };
+    const skills = new Map<string, SkillDefinition>();
+    skills.set("config-skill", {
+      id: "config-skill",
+      name: "Config Skill",
+      description: "A skill that receives config",
+      version: "1.0.0",
+      format: "builtin-ts",
+      tools: (_store, projectConfig) => {
+        receivedConfig = projectConfig;
+        return [mockTool as any];
+      },
+    });
+
+    const projectConfig = { name: "test-project", jira: { projectKey: "PROJ" } };
+    getSkillTools(["config-skill"], skills, {} as any, projectConfig);
+    expect(receivedConfig).toEqual(projectConfig);
+  });
+
   it("should skip unknown skill IDs", () => {
     const skills = loadAllSkills();
     const tools = getSkillTools(["nonexistent"], skills, {} as any);

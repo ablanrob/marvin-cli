@@ -6,6 +6,7 @@ import matter from "gray-matter";
 import type { AgentDefinition, SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../storage/store.js";
 import type { DocumentTypeRegistration } from "../storage/types.js";
+import type { MarvinProjectConfig } from "../core/config.js";
 import type { SkillDefinition, SkillInfo } from "./types.js";
 import { governanceReviewSkill } from "./builtin/governance-review.js";
 import { jiraSkill } from "./builtin/jira/index.js";
@@ -213,12 +214,13 @@ export function getSkillTools(
   skillIds: string[],
   allSkills: Map<string, SkillDefinition>,
   store: DocumentStore,
+  projectConfig?: MarvinProjectConfig,
 ): SdkMcpToolDefinition<any>[] {
   const tools: SdkMcpToolDefinition<any>[] = [];
   for (const id of skillIds) {
     const skill = allSkills.get(id);
     if (skill?.tools) {
-      tools.push(...skill.tools(store));
+      tools.push(...skill.tools(store, projectConfig));
     }
   }
   return tools;
