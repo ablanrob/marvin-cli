@@ -803,5 +803,55 @@ tr:hover td {
   fill: var(--bg) !important;
   font-weight: 600;
 }
+
+/* Urgency row indicators */
+.urgency-row-overdue { border-left: 3px solid var(--red); }
+.urgency-row-due-3d { border-left: 3px solid var(--amber); }
+.urgency-row-due-7d { border-left: 3px solid #e2a308; }
+
+/* Urgency badge pills */
+.urgency-badge-overdue { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+.urgency-badge-due-3d { background: rgba(251, 191, 36, 0.15); color: var(--amber); }
+.urgency-badge-due-7d { background: rgba(226, 163, 8, 0.15); color: #e2a308; }
+.urgency-badge-upcoming { background: rgba(108, 140, 255, 0.15); color: var(--accent); }
+.urgency-badge-later { background: rgba(139, 143, 164, 0.1); color: var(--text-dim); }
+
+/* Trending */
+.trending-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.trending-score {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(108, 140, 255, 0.15);
+  color: var(--accent);
+}
+
+.signal-tag {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  margin-right: 0.25rem;
+  margin-bottom: 0.15rem;
+  white-space: nowrap;
+}
+
+.text-dim { color: var(--text-dim); }
 `;
 }

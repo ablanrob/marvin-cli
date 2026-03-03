@@ -8,6 +8,7 @@ import {
   getOverviewData,
   getGarData,
   getBoardData,
+  getUpcomingData,
 } from "../../web/data.js";
 import type { NavGroup } from "../../web/templates/layout.js";
 
@@ -96,6 +97,7 @@ export function createWebTools(
         const base = `http://localhost:${runningServer.port}`;
         const urls: Record<string, string> = {
           overview: base,
+          upcoming: `${base}/upcoming`,
           gar: `${base}/gar`,
           board: `${base}/board`,
         };
@@ -170,6 +172,19 @@ export function createWebTools(
         };
         return {
           content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        };
+      },
+      { annotations: { readOnlyHint: true } },
+    ),
+
+    tool(
+      "get_dashboard_upcoming",
+      "Get upcoming data: due-soon actions and sprint tasks, plus trending items scored by relevance signals. Works without the web server running.",
+      {},
+      async () => {
+        const data = getUpcomingData(store);
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
         };
       },
       { annotations: { readOnlyHint: true } },
