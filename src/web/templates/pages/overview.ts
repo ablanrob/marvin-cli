@@ -1,7 +1,7 @@
 import type { OverviewData, DiagramDataResult } from "../../data.js";
 import type { NavGroup } from "../layout.js";
 import { escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
-import { buildTimelineGantt, buildArtifactFlowchart } from "../mermaid.js";
+import { buildArtifactFlowchart } from "../mermaid.js";
 
 function renderCard(t: { type: string; total: number; open: number }): string {
   return `
@@ -69,8 +69,7 @@ export function overviewPage(data: OverviewData, diagrams: DiagramDataResult, na
     ${groupSections}
     ${ungroupedSection}
 
-    <div class="section-title">Project Timeline</div>
-    ${buildTimelineGantt(diagrams)}
+    <div class="section-title"><a href="/timeline">Project Timeline &rarr;</a></div>
 
     <div class="section-title">Artifact Relationships</div>
     ${buildArtifactFlowchart(diagrams)}

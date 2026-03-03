@@ -239,6 +239,10 @@ a:hover { text-decoration: underline; }
 /* Table */
 .table-wrap {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 280px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 table {
@@ -254,6 +258,10 @@ th {
   letter-spacing: 0.05em;
   color: var(--text-dim);
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 1;
 }
 
 td {
@@ -301,6 +309,8 @@ tr:hover td {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .gar-area .area-header {
@@ -331,6 +341,9 @@ tr:hover td {
 .gar-area ul {
   list-style: none;
   font-size: 0.8rem;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .gar-area li {
@@ -353,13 +366,14 @@ tr:hover td {
   display: flex;
   gap: 1rem;
   overflow-x: auto;
+  scrollbar-width: thin;
   padding-bottom: 1rem;
 }
 
 .board-column {
   min-width: 240px;
   max-width: 300px;
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 .board-column-header {
@@ -372,6 +386,7 @@ tr:hover td {
   margin-bottom: 0.5rem;
   display: flex;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .board-column-header .count {
@@ -552,6 +567,241 @@ tr:hover td {
 
 .mermaid-row .mermaid-container {
   margin: 0;
+}
+
+/* Three-column artifact flow */
+.flow-diagram {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  position: relative;
+  overflow-x: auto;
+}
+
+.flow-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.flow-columns {
+  display: flex;
+  gap: 3rem;
+  position: relative;
+  min-width: 600px;
+}
+
+.flow-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.flow-column-header {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  font-weight: 600;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+
+.flow-node {
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  border-left: 3px solid var(--border);
+  background: var(--bg);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.flow-node:hover {
+  background: var(--bg-hover);
+}
+
+.flow-node-id {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--accent);
+  margin-bottom: 0.15rem;
+  text-decoration: none;
+}
+
+.flow-node-id:hover {
+  text-decoration: underline;
+}
+
+.flow-node-title {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.flow-done { border-left-color: var(--green); }
+.flow-active { border-left-color: var(--amber); }
+.flow-blocked { border-left-color: var(--red); }
+.flow-default { border-left-color: var(--accent-dim); }
+
+.flow-node { cursor: pointer; transition: opacity 0.2s, border-color 0.15s, background 0.15s; }
+.flow-dim { opacity: 0.2; }
+.flow-lit { background: var(--bg-hover); }
+.flow-line-lit { stroke: var(--accent) !important; stroke-width: 2 !important; }
+.flow-line-dim { opacity: 0.08; }
+
+/* Gantt truncation note */
+.mermaid-note {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-align: right;
+  margin-bottom: 0.5rem;
+}
+
+/* HTML Gantt chart */
+.gantt {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.25rem 1.25rem 0;
+  position: relative;
+  overflow-x: auto;
+}
+
+.gantt-chart {
+  min-width: 600px;
+}
+
+.gantt-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+}
+
+.gantt-header,
+.gantt-section-row,
+.gantt-row,
+.gantt-overlay {
+  display: flex;
+  align-items: center;
+}
+
+.gantt-label {
+  width: 200px;
+  min-width: 200px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gantt-section-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding-top: 0.6rem;
+}
+
+.gantt-track {
+  flex: 1;
+  position: relative;
+  height: 28px;
+  min-width: 0;
+}
+
+.gantt-section-row .gantt-track {
+  height: 20px;
+}
+
+.gantt-section-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  opacity: 0.4;
+}
+
+.gantt-bar {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 4px;
+  min-width: 6px;
+  transition: opacity 0.15s;
+}
+
+.gantt-bar:hover {
+  opacity: 0.85;
+}
+
+.gantt-bar-done {
+  background: var(--green);
+}
+
+.gantt-bar-active {
+  background: var(--amber);
+}
+
+.gantt-bar-blocked {
+  background: var(--red);
+}
+
+.gantt-bar-default {
+  background: var(--accent-dim);
+}
+
+.gantt-dates {
+  height: 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+
+.gantt-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--border);
+}
+
+.gantt-marker span {
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.gantt-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--red);
+  opacity: 0.7;
+}
+
+/* Pie chart color overrides */
+.mermaid-container .pieCircle {
+  stroke: var(--bg-card);
+}
+
+.mermaid-container text.slice {
+  fill: var(--bg) !important;
+  font-weight: 600;
 }
 `;
 }

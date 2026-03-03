@@ -16,6 +16,7 @@ import { documentDetailPage } from "./templates/pages/document-detail.js";
 import { garPage } from "./templates/pages/gar.js";
 import { healthPage } from "./templates/pages/health.js";
 import { boardPage } from "./templates/pages/board.js";
+import { timelinePage } from "./templates/pages/timeline.js";
 import { collectHealthMetrics } from "../reports/health/collector.js";
 import { evaluateHealth } from "../reports/health/evaluator.js";
 
@@ -47,6 +48,14 @@ export function handleRequest(
       const diagrams = getDiagramData(store);
       const body = overviewPage(data, diagrams, navGroups);
       respond(res, layout({ title: "Overview", activePath: "/", projectName, navGroups }, body));
+      return;
+    }
+
+    // GET /timeline
+    if (pathname === "/timeline") {
+      const diagrams = getDiagramData(store);
+      const body = timelinePage(diagrams);
+      respond(res, layout({ title: "Timeline", activePath: "/timeline", projectName, navGroups, mainClass: "expanded" }, body));
       return;
     }
 
