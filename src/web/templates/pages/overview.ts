@@ -1,6 +1,6 @@
 import type { OverviewData, DiagramDataResult } from "../../data.js";
 import type { NavGroup } from "../layout.js";
-import { escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
 import { buildArtifactFlowchart } from "../mermaid.js";
 
 function renderCard(t: { type: string; total: number; open: number }): string {
@@ -71,11 +71,11 @@ export function overviewPage(data: OverviewData, diagrams: DiagramDataResult, na
 
     <div class="section-title"><a href="/timeline">Project Timeline &rarr;</a></div>
 
-    <div class="section-title">Artifact Relationships</div>
-    ${buildArtifactFlowchart(diagrams)}
+    ${collapsibleSection("overview-relationships", "Artifact Relationships", buildArtifactFlowchart(diagrams))}
 
-    <div class="section-title">Recent Activity</div>
-    ${
+    ${collapsibleSection(
+      "overview-recent",
+      "Recent Activity",
       data.recent.length > 0
         ? `
     <div class="table-wrap">
@@ -94,7 +94,7 @@ export function overviewPage(data: OverviewData, diagrams: DiagramDataResult, na
         </tbody>
       </table>
     </div>`
-        : `<div class="empty"><p>No documents yet.</p></div>`
-    }
+        : `<div class="empty"><p>No documents yet.</p></div>`,
+    )}
   `;
 }

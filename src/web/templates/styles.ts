@@ -785,13 +785,60 @@ tr:hover td {
   white-space: nowrap;
 }
 
+.gantt-grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  opacity: 0.35;
+}
+
+.gantt-sprint-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text-dim);
+  opacity: 0.3;
+}
+
 .gantt-today {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 2px;
+  width: 3px;
   background: var(--red);
-  opacity: 0.7;
+  opacity: 0.8;
+  border-radius: 1px;
+}
+
+/* Sprint band in timeline */
+.gantt-sprint-band-row {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+
+.gantt-sprint-band {
+  height: 32px;
+}
+
+.gantt-sprint-block {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 0.4rem;
 }
 
 /* Pie chart color overrides */
@@ -853,5 +900,39 @@ tr:hover td {
 }
 
 .text-dim { color: var(--text-dim); }
+
+/* Collapsible sections */
+.collapsible-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  color: var(--accent);
+}
+
+.collapsible-chevron {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.collapsible.collapsed .collapsible-chevron {
+  transform: rotate(-90deg);
+}
+
+.collapsible-body {
+  overflow: hidden;
+  max-height: 5000px;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+  opacity: 1;
+}
+
+.collapsible.collapsed .collapsible-body {
+  max-height: 0;
+  opacity: 0;
+}
 `;
 }

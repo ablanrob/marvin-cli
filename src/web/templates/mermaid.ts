@@ -59,7 +59,7 @@ function fmtDate(ms: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-/** Build an HTML/CSS Gantt chart showing sprints with their linked epics */
+/** Build an HTML/CSS Gantt chart with a sprint band and epic swimlanes */
 export function buildTimelineGantt(data: DiagramData, maxSprints = 6): string {
   const sprintsWithDates = data.sprints
     .filter((s) => s.startDate && s.endDate)
@@ -98,6 +98,26 @@ export function buildTimelineGantt(data: DiagramData, maxSprints = 6): string {
     tick += 7 * DAY;
   }
 
+  // Full-height weekly grid lines (reuse same tick positions)
+  const gridLines: string[] = [];
+  let gridTick = timelineStart;
+  const gridStartDay = new Date(gridTick).getDay();
+  gridTick += ((8 - gridStartDay) % 7) * DAY;
+  while (gridTick <= timelineEnd) {
+    gridLines.push(`<div class="gantt-grid-line" style="left:${pct(gridTick).toFixed(2)}%"></div>`);
+    gridTick += 7 * DAY;
+  }
+
+  // Sprint boundary lines
+  const sprintBoundaries = new Set<number>();
+  for (const sprint of visibleSprints) {
+    sprintBoundaries.add(toMs(sprint.startDate!));
+    sprintBoundaries.add(toMs(sprint.endDate!));
+  }
+  const sprintLines = [...sprintBoundaries].map(
+    (ms) => `<div class="gantt-sprint-line" style="left:${pct(ms).toFixed(2)}%"></div>`,
+  );
+
   // Today marker
   const now = Date.now();
   let todayMarker = "";
@@ -105,46 +125,70 @@ export function buildTimelineGantt(data: DiagramData, maxSprints = 6): string {
     todayMarker = `<div class="gantt-today" style="left:${pct(now).toFixed(2)}%"></div>`;
   }
 
-  // Build rows
-  const rows: string[] = [];
+  // Sprint band row — one block per sprint
+  const sprintBlocks = visibleSprints
+    .map((sprint) => {
+      const sStart = toMs(sprint.startDate!);
+      const sEnd = toMs(sprint.endDate!);
+      const left = pct(sStart).toFixed(2);
+      const width = (pct(sEnd) - pct(sStart)).toFixed(2);
+      return `<div class="gantt-sprint-block" style="left:${left}%;width:${width}%">${sanitize(sprint.id, 20)}</div>`;
+    })
+    .join("");
+
+  const sprintBandRow = `<div class="gantt-row gantt-sprint-band-row">
+      <div class="gantt-label gantt-section-label">Sprints</div>
+      <div class="gantt-track gantt-sprint-band">${sprintBlocks}</div>
+    </div>`;
+
+  // Epic swimlane rows — each epic appears once, spanning all its sprints
+  const epicSpanMap = new Map<string, { startMs: number; endMs: number }>();
+
   for (const sprint of visibleSprints) {
     const sStart = toMs(sprint.startDate!);
     const sEnd = toMs(sprint.endDate!);
+    for (const eid of sprint.linkedEpics) {
+      if (!epicMap.has(eid)) continue;
+      const existing = epicSpanMap.get(eid);
+      if (existing) {
+        existing.startMs = Math.min(existing.startMs, sStart);
+        existing.endMs = Math.max(existing.endMs, sEnd);
+      } else {
+        epicSpanMap.set(eid, { startMs: sStart, endMs: sEnd });
+      }
+    }
+  }
 
-    // Section header row
-    rows.push(`<div class="gantt-section-row">
-      <div class="gantt-label gantt-section-label">${sanitize(sprint.id + " " + sprint.title, 50)}</div>
-      <div class="gantt-track">
-        <div class="gantt-section-bg" style="left:${pct(sStart).toFixed(2)}%;width:${(pct(sEnd) - pct(sStart)).toFixed(2)}%"></div>
-      </div>
-    </div>`);
+  // Sort epics by effective start date, then by ID
+  const sortedEpicIds = [...epicSpanMap.keys()].sort((a, b) => {
+    const aSpan = epicSpanMap.get(a)!;
+    const bSpan = epicSpanMap.get(b)!;
+    if (aSpan.startMs !== bSpan.startMs) return aSpan.startMs - bSpan.startMs;
+    return a.localeCompare(b);
+  });
 
-    const linked = sprint.linkedEpics
-      .map((eid) => epicMap.get(eid))
-      .filter(Boolean) as EpicData[];
-
-    const items = linked.length > 0
-      ? linked.map((e) => ({ label: sanitize(e.id + " " + e.title), status: e.status }))
-      : [{ label: sanitize(sprint.title), status: sprint.status }];
-
-    for (const item of items) {
+  const epicRows = sortedEpicIds
+    .map((eid) => {
+      const epic = epicMap.get(eid)!;
+      const { startMs, endMs } = epicSpanMap.get(eid)!;
       const cls =
-        item.status === "done" || item.status === "completed" ? "gantt-bar-done"
-        : item.status === "in-progress" || item.status === "active" ? "gantt-bar-active"
-        : item.status === "blocked" ? "gantt-bar-blocked"
+        epic.status === "done" || epic.status === "completed" ? "gantt-bar-done"
+        : epic.status === "in-progress" || epic.status === "active" ? "gantt-bar-active"
+        : epic.status === "blocked" ? "gantt-bar-blocked"
         : "gantt-bar-default";
 
-      const left = pct(sStart).toFixed(2);
-      const width = (pct(sEnd) - pct(sStart)).toFixed(2);
+      const left = pct(startMs).toFixed(2);
+      const width = (pct(endMs) - pct(startMs)).toFixed(2);
+      const label = sanitize(epic.id + " " + epic.title);
 
-      rows.push(`<div class="gantt-row">
-        <div class="gantt-label">${item.label}</div>
+      return `<div class="gantt-row">
+        <div class="gantt-label">${label}</div>
         <div class="gantt-track">
           <div class="gantt-bar ${cls}" style="left:${left}%;width:${width}%"></div>
         </div>
-      </div>`);
-    }
-  }
+      </div>`;
+    })
+    .join("\n");
 
   const note = truncated
     ? `<div class="mermaid-note">${hiddenCount} earlier sprint${hiddenCount > 1 ? "s" : ""} not shown</div>`
@@ -157,11 +201,12 @@ export function buildTimelineGantt(data: DiagramData, maxSprints = 6): string {
           <div class="gantt-label"></div>
           <div class="gantt-track gantt-dates">${markers.join("")}</div>
         </div>
-        ${rows.join("\n")}
+        ${sprintBandRow}
+        ${epicRows}
       </div>
       <div class="gantt-overlay">
         <div class="gantt-label"></div>
-        <div class="gantt-track">${todayMarker}</div>
+        <div class="gantt-track">${gridLines.join("")}${sprintLines.join("")}${todayMarker}</div>
       </div>
     </div>`;
 }

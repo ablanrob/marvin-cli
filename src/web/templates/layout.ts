@@ -1,3 +1,31 @@
+/**
+ * Wrap a section title + content in a collapsible container.
+ * `sectionId` is used as a localStorage key to persist open/closed state.
+ * Sections default to expanded.
+ */
+export function collapsibleSection(
+  sectionId: string,
+  title: string,
+  content: string,
+  opts?: { titleTag?: string; titleClass?: string; defaultCollapsed?: boolean },
+): string {
+  const tag = opts?.titleTag ?? "div";
+  const cls = opts?.titleClass ?? "section-title";
+  const collapsed = opts?.defaultCollapsed ? " collapsed" : "";
+  return `
+    <div class="collapsible${collapsed}" data-section-id="${escapeHtml(sectionId)}">
+      <${tag} class="${cls} collapsible-header" onclick="toggleSection(this)">
+        <svg class="collapsible-chevron" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+          <path d="M4.94 5.72a.75.75 0 0 1 1.06-.02L8 7.56l1.97-1.84a.75.75 0 1 1 1.02 1.1l-2.5 2.34a.75.75 0 0 1-1.02 0l-2.5-2.34a.75.75 0 0 1-.03-1.06z"/>
+        </svg>
+        <span>${title}</span>
+      </${tag}>
+      <div class="collapsible-body">
+        ${content}
+      </div>
+    </div>`;
+}
+
 export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -231,6 +259,32 @@ export function layout(opts: LayoutOptions, body: string): string {
       ${body}
     </main>
   </div>
+  <script>
+    function toggleSection(header) {
+      var section = header.closest('.collapsible');
+      if (!section) return;
+      section.classList.toggle('collapsed');
+      var id = section.getAttribute('data-section-id');
+      if (id) {
+        try {
+          var state = JSON.parse(localStorage.getItem('marvin-collapsed') || '{}');
+          state[id] = section.classList.contains('collapsed');
+          localStorage.setItem('marvin-collapsed', JSON.stringify(state));
+        } catch(e) {}
+      }
+    }
+    // Restore collapsed state on load
+    (function() {
+      try {
+        var state = JSON.parse(localStorage.getItem('marvin-collapsed') || '{}');
+        document.querySelectorAll('.collapsible[data-section-id]').forEach(function(el) {
+          var id = el.getAttribute('data-section-id');
+          if (state[id] === true) el.classList.add('collapsed');
+          else if (state[id] === false) el.classList.remove('collapsed');
+        });
+      } catch(e) {}
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>mermaid.initialize({
     startOnLoad: true,

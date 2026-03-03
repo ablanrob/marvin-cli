@@ -1,5 +1,5 @@
 import type { GarReport } from "../../../reports/gar/types.js";
-import { escapeHtml } from "../layout.js";
+import { collapsibleSection, escapeHtml } from "../layout.js";
 import { buildStatusPie } from "../mermaid.js";
 
 export function garPage(report: GarReport): string {
@@ -34,15 +34,16 @@ export function garPage(report: GarReport): string {
       <div class="label">Overall: ${escapeHtml(report.overall)}</div>
     </div>
 
-    <div class="gar-areas">
-      ${areaCards}
-    </div>
+    ${collapsibleSection("gar-areas", "Areas", `<div class="gar-areas">${areaCards}</div>`)}
 
-    <div class="section-title">Status Distribution</div>
-    ${buildStatusPie("Action Status", {
-      Open: report.metrics.scope.open,
-      Done: report.metrics.scope.done,
-      "In Progress": Math.max(0, report.metrics.scope.total - report.metrics.scope.open - report.metrics.scope.done),
-    })}
+    ${collapsibleSection(
+      "gar-status-dist",
+      "Status Distribution",
+      buildStatusPie("Action Status", {
+        Open: report.metrics.scope.open,
+        Done: report.metrics.scope.done,
+        "In Progress": Math.max(0, report.metrics.scope.total - report.metrics.scope.open - report.metrics.scope.done),
+      }),
+    )}
   `;
 }

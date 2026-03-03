@@ -1,12 +1,13 @@
 import type { HealthReport } from "../../../reports/health/types.js";
 import type { HealthMetrics } from "../../../reports/health/types.js";
-import { escapeHtml } from "../layout.js";
+import { collapsibleSection, escapeHtml } from "../layout.js";
 import { buildHealthGauge, buildStatusPie } from "../mermaid.js";
 
 export function healthPage(report: HealthReport, metrics?: HealthMetrics): string {
   const dotClass = `dot-${report.overall}`;
 
   function renderSection(
+    sectionId: string,
     title: string,
     categories: HealthReport["completeness"],
   ): string {
@@ -28,10 +29,9 @@ export function healthPage(report: HealthReport, metrics?: HealthMetrics): strin
       )
       .join("\n");
 
-    return `
-      <div class="health-section-title">${escapeHtml(title)}</div>
-      <div class="gar-areas">${cards}</div>
-    `;
+    return collapsibleSection(sectionId, title, `<div class="gar-areas">${cards}</div>`, {
+      titleClass: "health-section-title",
+    });
   }
 
   return `
@@ -45,35 +45,43 @@ export function healthPage(report: HealthReport, metrics?: HealthMetrics): strin
       <div class="label">Overall: ${escapeHtml(report.overall)}</div>
     </div>
 
-    ${renderSection("Completeness", report.completeness)}
+    ${renderSection("health-completeness", "Completeness", report.completeness)}
 
-    <div class="health-section-title">Completeness Overview</div>
-    ${buildHealthGauge(
-      metrics
-        ? Object.entries(metrics.completeness).map(([name, cat]) => ({
-            name: name.replace(/\b\w/g, (c) => c.toUpperCase()),
-            complete: cat.complete,
-            total: cat.total,
-          }))
-        : report.completeness.map((c) => {
-            const match = c.summary.match(/(\d+)\s*\/\s*(\d+)/);
-            return {
-              name: c.name,
-              complete: match ? parseInt(match[1], 10) : 0,
-              total: match ? parseInt(match[2], 10) : 0,
-            };
-          }),
+    ${collapsibleSection(
+      "health-completeness-overview",
+      "Completeness Overview",
+      buildHealthGauge(
+        metrics
+          ? Object.entries(metrics.completeness).map(([name, cat]) => ({
+              name: name.replace(/\b\w/g, (c) => c.toUpperCase()),
+              complete: cat.complete,
+              total: cat.total,
+            }))
+          : report.completeness.map((c) => {
+              const match = c.summary.match(/(\d+)\s*\/\s*(\d+)/);
+              return {
+                name: c.name,
+                complete: match ? parseInt(match[1], 10) : 0,
+                total: match ? parseInt(match[2], 10) : 0,
+              };
+            }),
+      ),
+      { titleClass: "health-section-title" },
     )}
 
-    ${renderSection("Process", report.process)}
+    ${renderSection("health-process", "Process", report.process)}
 
-    <div class="health-section-title">Process Summary</div>
-    ${metrics ? buildStatusPie("Process Health", {
-      Stale: metrics.process.stale.length,
-      "Aging Actions": metrics.process.agingActions.length,
-      Healthy: Math.max(0,
-        (metrics.completeness ? Object.values(metrics.completeness).reduce((sum, c) => sum + c.total, 0) : 0)
-        - metrics.process.stale.length - metrics.process.agingActions.length),
-    }) : ""}
+    ${collapsibleSection(
+      "health-process-summary",
+      "Process Summary",
+      metrics ? buildStatusPie("Process Health", {
+        Stale: metrics.process.stale.length,
+        "Aging Actions": metrics.process.agingActions.length,
+        Healthy: Math.max(0,
+          (metrics.completeness ? Object.values(metrics.completeness).reduce((sum, c) => sum + c.total, 0) : 0)
+          - metrics.process.stale.length - metrics.process.agingActions.length),
+      }) : "",
+      { titleClass: "health-section-title" },
+    )}
   `;
 }
