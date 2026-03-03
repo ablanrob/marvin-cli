@@ -11,14 +11,14 @@ export const jiraSkill: SkillDefinition = {
   documentTypeRegistrations: [
     { type: "jira-issue", dirName: "jira-issues", idPrefix: "JI" },
   ],
-  tools: (store) => createJiraTools(store),
+  tools: (store, projectConfig) => createJiraTools(store, projectConfig),
   promptFragments: {
     "product-owner": `You have the **Jira Integration** skill. You can pull issues from Jira and push Marvin artifacts to Jira.
 
 **Available tools:**
 - \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues
 - \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
-- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, feature, etc.)
+- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, feature, etc.). The \`projectKey\` parameter is optional when a default is configured in \`.marvin/config.yaml\` under \`jira.projectKey\`.
 - \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
 - \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx
 
@@ -33,7 +33,7 @@ export const jiraSkill: SkillDefinition = {
 **Available tools:**
 - \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues
 - \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
-- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, action, epic, task, etc.)
+- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, action, epic, task, etc.). The \`projectKey\` parameter is optional when a default is configured in \`.marvin/config.yaml\` under \`jira.projectKey\`.
 - \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
 - \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx
 
@@ -48,7 +48,7 @@ export const jiraSkill: SkillDefinition = {
 **Available tools:**
 - \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues
 - \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
-- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, action, etc.)
+- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, action, etc.). The \`projectKey\` parameter is optional when a default is configured in \`.marvin/config.yaml\` under \`jira.projectKey\`.
 - \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
 - \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx
 

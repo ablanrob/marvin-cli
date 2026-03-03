@@ -21,6 +21,10 @@ export interface GitConfig {
   remote?: string;
 }
 
+export interface JiraProjectConfig {
+  projectKey?: string;
+}
+
 export interface MarvinProjectConfig {
   name: string;
   methodology?: string;
@@ -28,6 +32,7 @@ export interface MarvinProjectConfig {
   documentTypes?: string[];
   git?: GitConfig;
   skills?: Record<string, string[]>;
+  jira?: JiraProjectConfig;
 }
 
 export interface PersonaConfigOverride {

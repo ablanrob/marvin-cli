@@ -45,7 +45,7 @@ export function collectTools(marvinDir: string): SdkMcpToolDefinition<any>[] {
 
   const allSkills = loadAllSkills(marvinDir);
   const allSkillIds = [...allSkills.keys()];
-  const codeSkillTools = getSkillTools(allSkillIds, allSkills, store);
+  const codeSkillTools = getSkillTools(allSkillIds, allSkills, store, config);
   const skillsWithActions = allSkillIds
     .map((id) => allSkills.get(id)!)
     .filter((s) => s.actions && s.actions.length > 0);
