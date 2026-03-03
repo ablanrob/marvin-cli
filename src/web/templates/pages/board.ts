@@ -17,6 +17,7 @@ export function boardPage(data: BoardData): string {
           <span>${escapeHtml(col.status)}</span>
           <span class="count">${col.docs.length}</span>
         </div>
+        <div class="board-column-cards">
         ${col.docs
           .map(
             (doc) => `
@@ -29,6 +30,7 @@ export function boardPage(data: BoardData): string {
           </div>`,
           )
           .join("\n")}
+        </div>
       </div>`,
     )
     .join("\n");

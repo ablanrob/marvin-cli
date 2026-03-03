@@ -169,11 +169,13 @@ interface LayoutOptions {
   activePath: string;
   projectName: string;
   navGroups: NavGroup[];
+  mainClass?: string;
 }
 
 export function layout(opts: LayoutOptions, body: string): string {
   const topItems = [
     { href: "/", label: "Overview" },
+    { href: "/timeline", label: "Timeline" },
     { href: "/board", label: "Board" },
     { href: "/gar", label: "GAR Report" },
     { href: "/health", label: "Health" },
@@ -220,7 +222,7 @@ export function layout(opts: LayoutOptions, body: string): string {
         ${groupsHtml}
       </nav>
     </aside>
-    <main class="main">
+    <main class="main${opts.mainClass ? ` ${opts.mainClass}` : ""}">
       <button class="expand-toggle" onclick="document.querySelector('.main').classList.toggle('expanded')" title="Toggle wide view">
         <svg class="icon-expand" viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M1 1h5v1.5H3.56l3.72 3.72-1.06 1.06L2.5 3.56V6H1V1zm14 14h-5v-1.5h2.44l-3.72-3.72 1.06-1.06 3.72 3.72V10H15v5z"/></svg>
         <svg class="icon-collapse" viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M6 7H1V5.5h2.44L0.22 2.28l1.06-1.06L4.5 4.44V2H6v5zm4-1h5v1.5h-2.44l3.22 3.22-1.06 1.06L11.5 8.56V11H10V6z"/></svg>
@@ -229,7 +231,36 @@ export function layout(opts: LayoutOptions, body: string): string {
     </main>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-  <script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>
+  <script>mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#1a1d27',
+      primaryColor: '#2a2e3a',
+      sectionBkgColor: '#1a1d27',
+      sectionBkgColor2: '#222632',
+      altSectionBkgColor: '#222632',
+      gridColor: '#2a2e3a',
+      taskBorderColor: '#475569',
+      doneTaskBkgColor: '#065f46',
+      doneTaskBorderColor: '#34d399',
+      activeTaskBkgColor: '#78350f',
+      activeTaskBorderColor: '#fbbf24',
+      taskTextColor: '#e1e4ea',
+      sectionBkgColor: '#1a1d27',
+      pie1: '#34d399',
+      pie2: '#475569',
+      pie3: '#fbbf24',
+      pie4: '#f87171',
+      pie5: '#6c8cff',
+      pie6: '#a78bfa',
+      pie7: '#f472b6',
+      pieTitleTextColor: '#e1e4ea',
+      pieSectionTextColor: '#e1e4ea',
+      pieLegendTextColor: '#e1e4ea',
+      pieStrokeColor: '#1a1d27'
+    }
+  });</script>
 </body>
 </html>`;
 }
