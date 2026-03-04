@@ -92,6 +92,8 @@ export function collectSprintSummaryData(
       d.frontmatter.tags?.includes(sprintTag),
   );
 
+  // Completion stats count only primary items (contributions are supplementary)
+  const primaryDocs = workItemDocs.filter((d) => d.frontmatter.type !== "contribution");
   const byStatus: Record<string, number> = {};
   const byType: Record<string, number> = {};
   let doneCount = 0;
@@ -99,7 +101,7 @@ export function collectSprintSummaryData(
   let openCount = 0;
   let blockedCount = 0;
 
-  for (const doc of workItemDocs) {
+  for (const doc of primaryDocs) {
     const s = doc.frontmatter.status;
     byStatus[s] = (byStatus[s] ?? 0) + 1;
     byType[doc.frontmatter.type] = (byType[doc.frontmatter.type] ?? 0) + 1;
@@ -109,21 +111,70 @@ export function collectSprintSummaryData(
     else openCount++;
   }
 
+  // Build a tree from aboutArtifact references (action → task → contribution)
+  const allItemsById = new Map<string, SprintWorkItem>();
+  const childrenByParent = new Map<string, SprintWorkItem[]>();
+  const sprintItemIds = new Set(workItemDocs.map((d) => d.frontmatter.id));
+
+  for (const doc of workItemDocs) {
+    const about = doc.frontmatter.aboutArtifact as string | undefined;
+    const item: SprintWorkItem = {
+      id: doc.frontmatter.id,
+      title: doc.frontmatter.title,
+      type: doc.frontmatter.type,
+      status: doc.frontmatter.status,
+      aboutArtifact: about,
+    };
+    allItemsById.set(item.id, item);
+
+    // Only nest if the parent is also in this sprint
+    if (about && sprintItemIds.has(about)) {
+      if (!childrenByParent.has(about)) childrenByParent.set(about, []);
+      childrenByParent.get(about)!.push(item);
+    }
+  }
+
+  // Attach children recursively and collect root items
+  const itemsWithChildren = new Set<string>();
+  for (const [parentId, children] of childrenByParent) {
+    const parent = allItemsById.get(parentId);
+    if (parent) {
+      parent.children = children;
+      for (const child of children) itemsWithChildren.add(child.id);
+    }
+  }
+
+  // Recursively attach grandchildren (e.g. contributions under tasks under actions)
+  for (const item of allItemsById.values()) {
+    if (item.children) {
+      for (const child of item.children) {
+        const grandchildren = childrenByParent.get(child.id);
+        if (grandchildren) {
+          child.children = grandchildren;
+          for (const gc of grandchildren) itemsWithChildren.add(gc.id);
+        }
+      }
+    }
+  }
+
+  // Root items: those not nested under any other sprint item
+  const items: SprintWorkItem[] = [];
+  for (const doc of workItemDocs) {
+    if (!itemsWithChildren.has(doc.frontmatter.id)) {
+      items.push(allItemsById.get(doc.frontmatter.id)!);
+    }
+  }
+
   const workItems: SprintSummaryData["workItems"] = {
-    total: workItemDocs.length,
+    total: primaryDocs.length,
     done: doneCount,
     inProgress: inProgressCount,
     open: openCount,
     blocked: blockedCount,
-    completionPct: workItemDocs.length > 0 ? Math.round((doneCount / workItemDocs.length) * 100) : 0,
+    completionPct: primaryDocs.length > 0 ? Math.round((doneCount / primaryDocs.length) * 100) : 0,
     byStatus,
     byType,
-    items: workItemDocs.map((d) => ({
-      id: d.frontmatter.id,
-      title: d.frontmatter.title,
-      type: d.frontmatter.type,
-      status: d.frontmatter.status,
-    })),
+    items,
   };
 
   // --- Meetings during sprint ---
@@ -246,6 +297,7 @@ export function collectSprintSummaryData(
       (d) =>
         d.frontmatter.type !== "sprint" &&
         d.frontmatter.type !== "epic" &&
+        d.frontmatter.type !== "contribution" &&
         d.frontmatter.tags?.includes(prevTag),
     );
     const prevDone = prevWorkItems.filter((d) => DONE_STATUSES.has(d.frontmatter.status)).length;

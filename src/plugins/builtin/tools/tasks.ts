@@ -106,6 +106,7 @@ export function createTaskTools(
         title: z.string().describe("Task title"),
         content: z.string().describe("Task description and implementation details"),
         linkedEpic: linkedEpicArray.describe("Epic ID(s) to link this task to (e.g. ['E-001'] or ['E-001', 'E-002'])"),
+        aboutArtifact: z.string().optional().describe("Parent artifact this task derives from (e.g. 'A-001')"),
         status: z
           .enum(["backlog", "ready", "in-progress", "review", "done"])
           .optional()
@@ -143,6 +144,7 @@ export function createTaskTools(
           linkedEpic: linkedEpics,
           tags: [...generateEpicTags(linkedEpics), ...(args.tags ?? [])],
         };
+        if (args.aboutArtifact) frontmatter.aboutArtifact = args.aboutArtifact;
         if (args.acceptanceCriteria) frontmatter.acceptanceCriteria = args.acceptanceCriteria;
         if (args.technicalNotes) frontmatter.technicalNotes = args.technicalNotes;
         if (args.estimatedPoints !== undefined) frontmatter.estimatedPoints = args.estimatedPoints;
@@ -169,6 +171,7 @@ export function createTaskTools(
       {
         id: z.string().describe("Task ID to update"),
         title: z.string().optional().describe("New title"),
+        aboutArtifact: z.string().optional().describe("Parent artifact this task derives from (e.g. 'A-001')"),
         status: z
           .enum(["backlog", "ready", "in-progress", "review", "done"])
           .optional()
