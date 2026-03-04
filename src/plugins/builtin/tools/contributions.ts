@@ -78,6 +78,7 @@ export function createContributionTools(
         aboutArtifact: z.string().describe("Artifact ID this contribution relates to (e.g. 'A-001', 'T-003')"),
         status: z.string().optional().describe("Status (default: 'done')"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
+        workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Adds a stream:<value> tag."),
       },
       async (args) => {
         const frontmatter: Record<string, unknown> = {
@@ -87,7 +88,9 @@ export function createContributionTools(
           contributionType: args.contributionType,
         };
         frontmatter.aboutArtifact = args.aboutArtifact;
-        if (args.tags) frontmatter.tags = args.tags;
+        const tags = [...(args.tags ?? [])];
+        if (args.workStream) tags.push(`stream:${args.workStream}`);
+        if (tags.length > 0) frontmatter.tags = tags;
 
         const doc = store.create("contribution", frontmatter as any, args.content);
         return {
@@ -109,9 +112,17 @@ export function createContributionTools(
         title: z.string().optional().describe("New title"),
         status: z.string().optional().describe("New status"),
         content: z.string().optional().describe("New content"),
+        workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Replaces existing stream:<value> tag."),
       },
       async (args) => {
-        const { id, content, ...updates } = args;
+        const { id, content, workStream, ...updates } = args;
+        if (workStream !== undefined) {
+          const existing = store.get(id);
+          const existingTags: string[] = existing?.frontmatter.tags ?? [];
+          const filtered = existingTags.filter((t) => !t.startsWith("stream:"));
+          filtered.push(`stream:${workStream}`);
+          (updates as any).tags = filtered;
+        }
         const doc = store.update(id, updates, content);
         return {
           content: [
