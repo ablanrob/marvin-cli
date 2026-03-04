@@ -82,10 +82,14 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
       const isContribution = w.type === "contribution";
       const rowClass = isContribution ? ' class="contribution-row"' : isChild ? ' class="child-row"' : "";
       const indent = depth > 0 ? ` style="padding-left: ${0.75 + depth * 1}rem"` : "";
+      const streamCell = w.workStream
+        ? `<span class="badge badge-subtle">${escapeHtml(w.workStream)}</span>`
+        : "";
       const row = `
               <tr${rowClass}>
                 <td${indent}><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
                 <td>${escapeHtml(w.title)}</td>
+                <td>${streamCell}</td>
                 <td>${escapeHtml(typeLabel(w.type))}</td>
                 <td>${statusBadge(w.status)}</td>
               </tr>`;
@@ -102,7 +106,7 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
         `<div class="table-wrap">
           <table>
             <thead>
-              <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th></tr>
+              <tr><th>ID</th><th>Title</th><th>Stream</th><th>Type</th><th>Status</th></tr>
             </thead>
             <tbody>
               ${workItemRows.join("")}

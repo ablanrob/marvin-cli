@@ -100,6 +100,7 @@ export function createActionTools(
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
         dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
         sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (e.g. ['SP-001']). Adds sprint:SP-xxx tags."),
+        workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Adds a stream:<value> tag."),
       },
       async (args) => {
         const tags = [...(args.tags ?? [])];
@@ -108,6 +109,9 @@ export function createActionTools(
             const tag = `sprint:${sprintId}`;
             if (!tags.includes(tag)) tags.push(tag);
           }
+        }
+        if (args.workStream) {
+          tags.push(`stream:${args.workStream}`);
         }
 
         const doc = store.create(
@@ -155,9 +159,10 @@ export function createActionTools(
         dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
         tags: z.array(z.string()).optional().describe("Replace all tags. When provided with sprints, sprint tags are merged into this array."),
         sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
+        workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Replaces existing stream:<value> tag."),
       },
       async (args) => {
-        const { id, content, sprints, tags, ...updates } = args;
+        const { id, content, sprints, tags, workStream, ...updates } = args;
 
         if (tags !== undefined) {
           // tags takes precedence — merge sprint tags into the provided array
@@ -168,9 +173,14 @@ export function createActionTools(
               if (!merged.includes(tag)) merged.push(tag);
             }
           }
-          (updates as any).tags = merged;
-        } else if (sprints !== undefined) {
-          // Legacy behavior: only replace sprint tags, preserve non-sprint tags
+          if (workStream !== undefined) {
+            const filtered = merged.filter((t) => !t.startsWith("stream:"));
+            filtered.push(`stream:${workStream}`);
+            (updates as any).tags = filtered;
+          } else {
+            (updates as any).tags = merged;
+          }
+        } else if (sprints !== undefined || workStream !== undefined) {
           const existing = store.get(id);
           if (!existing) {
             return {
@@ -178,10 +188,16 @@ export function createActionTools(
               isError: true,
             };
           }
-          const existingTags: string[] = existing.frontmatter.tags ?? [];
-          const nonSprintTags = existingTags.filter((t) => !t.startsWith("sprint:"));
-          const newSprintTags = sprints.map((s) => `sprint:${s}`);
-          (updates as any).tags = [...nonSprintTags, ...newSprintTags];
+          let existingTags: string[] = existing.frontmatter.tags ?? [];
+          if (sprints !== undefined) {
+            existingTags = existingTags.filter((t) => !t.startsWith("sprint:"));
+            existingTags.push(...sprints.map((s) => `sprint:${s}`));
+          }
+          if (workStream !== undefined) {
+            existingTags = existingTags.filter((t) => !t.startsWith("stream:"));
+            existingTags.push(`stream:${workStream}`);
+          }
+          (updates as any).tags = existingTags;
         }
 
         const doc = store.update(id, updates, content);

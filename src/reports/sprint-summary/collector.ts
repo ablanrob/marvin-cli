@@ -118,11 +118,13 @@ export function collectSprintSummaryData(
 
   for (const doc of workItemDocs) {
     const about = doc.frontmatter.aboutArtifact as string | undefined;
+    const streamTag = (doc.frontmatter.tags as string[] ?? []).find((t) => t.startsWith("stream:"));
     const item: SprintWorkItem = {
       id: doc.frontmatter.id,
       title: doc.frontmatter.title,
       type: doc.frontmatter.type,
       status: doc.frontmatter.status,
+      workStream: streamTag ? streamTag.slice(7) : undefined,
       aboutArtifact: about,
     };
     allItemsById.set(item.id, item);

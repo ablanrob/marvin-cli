@@ -16,13 +16,18 @@ export function createDocumentTools(
           .describe(`Filter by document type (registered types: ${store.registeredTypes.join(", ")})`),
         status: z.string().optional().describe("Filter by status"),
         tag: z.string().optional().describe("Filter by tag"),
+        workStream: z.string().optional().describe("Filter by work stream name (matches stream:<value> tag)"),
       },
       async (args) => {
-        const docs = store.list({
+        let docs = store.list({
           type: args.type,
           status: args.status,
           tag: args.tag,
         });
+        if (args.workStream) {
+          const streamTag = `stream:${args.workStream}`;
+          docs = docs.filter((d) => d.frontmatter.tags?.includes(streamTag));
+        }
         const summary = docs.map((d) => ({
           id: d.frontmatter.id,
           title: d.frontmatter.title,
