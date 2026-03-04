@@ -235,6 +235,12 @@ a:hover { text-decoration: underline; }
 .badge-closed, .badge-resolved { background: rgba(52, 211, 153, 0.15); color: var(--green); }
 .badge-blocked { background: rgba(248, 113, 113, 0.15); color: var(--red); }
 .badge-default { background: rgba(139, 143, 164, 0.1); color: var(--text-dim); }
+.badge-subtle {
+  background: rgba(139, 143, 164, 0.12);
+  color: var(--text-dim);
+  text-transform: none;
+  font-weight: 500;
+}
 
 /* Table */
 .table-wrap {
@@ -1050,6 +1056,22 @@ tr:hover td {
 .collapsible.collapsed .collapsible-body {
   max-height: 0;
   opacity: 0;
+}
+
+/* Sortable table headers */
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+}
+.sortable-th:hover {
+  text-decoration: underline;
+  color: var(--text);
+}
+.sort-arrow {
+  display: inline-block;
+  margin-left: 0.3rem;
+  font-size: 0.65rem;
+  opacity: 0.7;
 }
 `;
 }

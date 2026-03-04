@@ -89,6 +89,7 @@ export function collectSprintSummaryData(
     (d) =>
       d.frontmatter.type !== "sprint" &&
       d.frontmatter.type !== "epic" &&
+      d.frontmatter.type !== "meeting" &&
       d.frontmatter.tags?.includes(sprintTag),
   );
 
