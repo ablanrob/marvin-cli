@@ -918,6 +918,142 @@ tr:hover td {
 
 .text-dim { color: var(--text-dim); }
 
+/* Persona switcher */
+.persona-switcher {
+  padding: 0.5rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.persona-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.persona-select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.persona-select:focus {
+  outline: none;
+  border-color: var(--persona-accent, var(--accent));
+}
+
+/* Persona banner (first-visit picker) */
+.persona-banner {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.persona-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.persona-banner-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.persona-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.persona-banner-dismiss:hover {
+  color: var(--text);
+}
+
+.persona-banner-subtitle {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.persona-banner-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.persona-banner-option {
+  display: block;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, background 0.15s;
+  border-left: 3px solid var(--persona-card-accent, var(--accent));
+}
+
+.persona-banner-option:hover {
+  border-color: var(--persona-card-accent, var(--accent));
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+.persona-banner-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.persona-banner-desc {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+/* Persona accent override */
+.shell[style*="--persona-accent"] .sidebar nav a.active {
+  color: var(--persona-accent);
+  background: rgba(108, 140, 255, 0.08);
+  border-right-color: var(--persona-accent);
+}
+
+.shell[style*="--persona-accent"] .sidebar-brand h1 {
+  color: var(--persona-accent);
+}
+
+/* Persona page placeholder */
+.persona-placeholder {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-dim);
+}
+
+.persona-placeholder h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
 /* Sprint Summary */
 .sprint-goal {
   background: var(--bg-card);
