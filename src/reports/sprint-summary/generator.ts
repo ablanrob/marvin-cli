@@ -3,13 +3,17 @@ import type { SprintSummaryData } from "./types.js";
 
 export async function generateSprintSummary(
   data: SprintSummaryData,
+  personaSystemPrompt?: string,
 ): Promise<string> {
   const prompt = buildPrompt(data);
+  const systemPrompt = personaSystemPrompt
+    ? `${SYSTEM_PROMPT}\n\nAdditional persona context:\n${personaSystemPrompt}`
+    : SYSTEM_PROMPT;
 
   const result = query({
     prompt,
     options: {
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt,
       maxTurns: 1,
       tools: [],
       allowedTools: [],

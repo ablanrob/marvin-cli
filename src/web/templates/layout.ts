@@ -198,9 +198,15 @@ interface LayoutOptions {
   projectName: string;
   navGroups: NavGroup[];
   mainClass?: string;
+  persona?: import("../persona-views.js").DashboardPersona;
+  personaSwitcherHtml?: string;
+  personaNavHtml?: string;
+  personaAccentColor?: string;
+  bodyPrefix?: string;
 }
 
 export function layout(opts: LayoutOptions, body: string): string {
+
   const topItems = [
     { href: "/", label: "Overview" },
     { href: "/upcoming", label: "Upcoming" },
@@ -216,21 +222,37 @@ export function layout(opts: LayoutOptions, body: string): string {
       ? " active"
       : "";
 
-  const groupsHtml = opts.navGroups
-    .map((group) => {
-      const links = group.types
-        .map((type) => {
-          const href = `/docs/${type}`;
-          return `<a href="${href}" class="${isActive(href)}">${typeLabel(type)}s</a>`;
-        })
-        .join("\n          ");
-      return `
+  const switcherHtml = opts.personaSwitcherHtml ?? "";
+
+  let navHtml: string;
+  if (opts.personaNavHtml) {
+    navHtml = opts.personaNavHtml;
+  } else {
+    // Admin (default) navigation
+    const groupsHtml = opts.navGroups
+      .map((group) => {
+        const links = group.types
+          .map((type) => {
+            const href = `/docs/${type}`;
+            return `<a href="${href}" class="${isActive(href)}">${typeLabel(type)}s</a>`;
+          })
+          .join("\n          ");
+        return `
         <div class="nav-group">
           <div class="nav-group-label">${escapeHtml(group.label)}</div>
           ${links}
         </div>`;
-    })
-    .join("\n");
+      })
+      .join("\n");
+
+    navHtml = `
+        ${topItems.map((n) => `<a href="${n.href}" class="${isActive(n.href)}">${n.label}</a>`).join("\n        ")}
+        ${groupsHtml}`;
+  }
+
+  const accentOverride = opts.personaAccentColor
+    ? ` style="--persona-accent: ${opts.personaAccentColor}"`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -241,15 +263,15 @@ export function layout(opts: LayoutOptions, body: string): string {
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="shell">
+  <div class="shell"${accentOverride}>
     <aside class="sidebar">
       <div class="sidebar-brand">
         <h1>Marvin</h1>
         <div class="project-name">${escapeHtml(opts.projectName)}</div>
       </div>
+      ${switcherHtml}
       <nav>
-        ${topItems.map((n) => `<a href="${n.href}" class="${isActive(n.href)}">${n.label}</a>`).join("\n        ")}
-        ${groupsHtml}
+        ${navHtml}
       </nav>
     </aside>
     <main class="main${opts.mainClass ? ` ${opts.mainClass}` : ""}">
@@ -257,7 +279,7 @@ export function layout(opts: LayoutOptions, body: string): string {
         <svg class="icon-expand" viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M1 1h5v1.5H3.56l3.72 3.72-1.06 1.06L2.5 3.56V6H1V1zm14 14h-5v-1.5h2.44l-3.72-3.72 1.06-1.06 3.72 3.72V10H15v5z"/></svg>
         <svg class="icon-collapse" viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M6 7H1V5.5h2.44L0.22 2.28l1.06-1.06L4.5 4.44V2H6v5zm4-1h5v1.5h-2.44l3.22 3.22-1.06 1.06L11.5 8.56V11H10V6z"/></svg>
       </button>
-      ${body}
+      ${opts.bodyPrefix ?? ""}${body}
     </main>
   </div>
   <script>
