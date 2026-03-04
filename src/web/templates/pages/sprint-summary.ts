@@ -76,17 +76,65 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
     : "";
 
   // Work items with hierarchical nesting (action → task → contribution)
+
+  // --- Per-stream row background colors ---
+  const STREAM_PALETTE = [
+    "hsla(220, 30%, 22%, 0.45)",
+    "hsla(160, 30%, 20%, 0.45)",
+    "hsla(280, 25%, 22%, 0.45)",
+    "hsla(30, 35%, 22%, 0.45)",
+    "hsla(340, 25%, 22%, 0.45)",
+    "hsla(190, 30%, 20%, 0.45)",
+    "hsla(60, 25%, 20%, 0.45)",
+    "hsla(120, 20%, 20%, 0.45)",
+  ];
+
+  function hashString(s: string): number {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h);
+  }
+
+  // Collect unique stream names and assign colors
+  function collectStreams(items: SprintWorkItem[]): Set<string> {
+    const streams = new Set<string>();
+    for (const w of items) {
+      if (w.workStream) streams.add(w.workStream);
+      if (w.children) {
+        for (const s of collectStreams(w.children)) streams.add(s);
+      }
+    }
+    return streams;
+  }
+  const uniqueStreams = collectStreams(data.workItems.items);
+  const streamColorMap = new Map<string, string>();
+  for (const name of uniqueStreams) {
+    streamColorMap.set(name, STREAM_PALETTE[hashString(name) % STREAM_PALETTE.length]);
+  }
+
+  // Generate <style> block for stream row backgrounds
+  const streamStyleRules = [...streamColorMap.entries()]
+    .map(([name, color]) => `tr[data-stream="${escapeHtml(name)}"] td { background: ${color}; }`)
+    .join("\n");
+  const streamStyleBlock = streamStyleRules ? `<style>${streamStyleRules}</style>` : "";
+
   function renderItemRows(items: SprintWorkItem[], depth = 0): string[] {
     return items.flatMap((w) => {
       const isChild = depth > 0;
       const isContribution = w.type === "contribution";
-      const rowClass = isContribution ? ' class="contribution-row"' : isChild ? ' class="child-row"' : "";
+      const classes: string[] = [];
+      if (isContribution) classes.push("contribution-row");
+      else if (isChild) classes.push("child-row");
+      const dataStream = w.workStream ? ` data-stream="${escapeHtml(w.workStream)}"` : "";
+      const rowAttrs = classes.length > 0 ? ` class="${classes.join(" ")}"` : "";
       const indent = depth > 0 ? ` style="padding-left: ${0.75 + depth * 1}rem"` : "";
       const streamCell = w.workStream
         ? `<span class="badge badge-subtle">${escapeHtml(w.workStream)}</span>`
         : "";
       const row = `
-              <tr${rowClass}>
+              <tr${rowAttrs}${dataStream}>
                 <td${indent}><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
                 <td>${escapeHtml(w.title)}</td>
                 <td>${streamCell}</td>
@@ -99,14 +147,23 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
   }
   const workItemRows = renderItemRows(data.workItems.items);
 
+  const sortableHeaders = `<tr>
+                <th class="sortable-th" onclick="sortWorkItems(0)">ID<span class="sort-arrow" id="sort-arrow-0"></span></th>
+                <th class="sortable-th" onclick="sortWorkItems(1)">Title<span class="sort-arrow" id="sort-arrow-1"></span></th>
+                <th class="sortable-th" onclick="sortWorkItems(2)">Stream<span class="sort-arrow" id="sort-arrow-2"></span></th>
+                <th class="sortable-th" onclick="sortWorkItems(3)">Type<span class="sort-arrow" id="sort-arrow-3"></span></th>
+                <th class="sortable-th" onclick="sortWorkItems(4)">Status<span class="sort-arrow" id="sort-arrow-4"></span></th>
+              </tr>`;
+
   const workItemsSection = workItemRows.length > 0
     ? collapsibleSection(
         "ss-work-items",
         "Work Items",
-        `<div class="table-wrap">
-          <table>
+        `${streamStyleBlock}
+        <div class="table-wrap">
+          <table id="work-items-table">
             <thead>
-              <tr><th>ID</th><th>Title</th><th>Stream</th><th>Type</th><th>Status</th></tr>
+              ${sortableHeaders}
             </thead>
             <tbody>
               ${workItemRows.join("")}
@@ -203,6 +260,61 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
     </div>
 
     <script>
+      var _sortCol = -1;
+      var _sortAsc = true;
+
+      function sortWorkItems(col) {
+        var table = document.getElementById('work-items-table');
+        if (!table) return;
+        var tbody = table.querySelector('tbody');
+        var allRows = Array.from(tbody.querySelectorAll('tr'));
+
+        // Toggle direction if clicking the same column
+        if (_sortCol === col) {
+          _sortAsc = !_sortAsc;
+        } else {
+          _sortCol = col;
+          _sortAsc = true;
+        }
+
+        // Update sort arrows
+        for (var i = 0; i < 5; i++) {
+          var arrow = document.getElementById('sort-arrow-' + i);
+          if (arrow) arrow.textContent = i === col ? (_sortAsc ? ' \\u25B2' : ' \\u25BC') : '';
+        }
+
+        // Group rows: root rows + their child/contribution rows
+        var groups = [];
+        var current = null;
+        for (var r = 0; r < allRows.length; r++) {
+          var row = allRows[r];
+          var isChild = row.classList.contains('child-row') || row.classList.contains('contribution-row');
+          if (!isChild) {
+            current = { root: row, children: [] };
+            groups.push(current);
+          } else if (current) {
+            current.children.push(row);
+          }
+        }
+
+        // Sort groups by root row text content of target column
+        groups.sort(function(a, b) {
+          var aText = (a.root.children[col] ? a.root.children[col].textContent : '').trim().toLowerCase();
+          var bText = (b.root.children[col] ? b.root.children[col].textContent : '').trim().toLowerCase();
+          if (aText < bText) return _sortAsc ? -1 : 1;
+          if (aText > bText) return _sortAsc ? 1 : -1;
+          return 0;
+        });
+
+        // Re-append rows in sorted order
+        for (var g = 0; g < groups.length; g++) {
+          tbody.appendChild(groups[g].root);
+          for (var c = 0; c < groups[g].children.length; c++) {
+            tbody.appendChild(groups[g].children[c]);
+          }
+        }
+      }
+
       async function generateSummary() {
         var btn = document.getElementById('generate-btn');
         var loading = document.getElementById('summary-loading');
