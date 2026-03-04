@@ -11,6 +11,8 @@ export interface SprintWorkItem {
   title: string;
   type: string;
   status: string;
+  aboutArtifact?: string;
+  children?: SprintWorkItem[];
 }
 
 export interface SprintMeetingSummary {

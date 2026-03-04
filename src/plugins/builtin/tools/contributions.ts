@@ -75,18 +75,18 @@ export function createContributionTools(
         content: z.string().describe("Contribution content — the input from the persona"),
         persona: z.string().describe("Persona making the contribution (e.g. 'tech-lead')"),
         contributionType: z.string().describe("Type of contribution (e.g. 'action-result', 'risk-finding')"),
-        aboutArtifact: z.string().optional().describe("Artifact ID this contribution relates to (e.g. 'A-001')"),
-        status: z.string().optional().describe("Status (default: 'open')"),
+        aboutArtifact: z.string().describe("Artifact ID this contribution relates to (e.g. 'A-001', 'T-003')"),
+        status: z.string().optional().describe("Status (default: 'done')"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
       },
       async (args) => {
         const frontmatter: Record<string, unknown> = {
           title: args.title,
-          status: args.status ?? "open",
+          status: args.status ?? "done",
           persona: args.persona,
           contributionType: args.contributionType,
         };
-        if (args.aboutArtifact) frontmatter.aboutArtifact = args.aboutArtifact;
+        frontmatter.aboutArtifact = args.aboutArtifact;
         if (args.tags) frontmatter.tags = args.tags;
 
         const doc = store.create("contribution", frontmatter as any, args.content);

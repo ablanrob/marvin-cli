@@ -48,7 +48,7 @@ describe("Contribution Tools", () => {
     expect(data.persona).toBe("tech-lead");
     expect(data.contributionType).toBe("action-result");
     expect(data.aboutArtifact).toBe("A-001");
-    expect(data.status).toBe("open");
+    expect(data.status).toBe("done");
   });
 
   it("should list contributions and filter by persona", async () => {

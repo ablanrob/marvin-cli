@@ -1,4 +1,4 @@
-import type { SprintSummaryData } from "../../../reports/sprint-summary/types.js";
+import type { SprintSummaryData, SprintWorkItem } from "../../../reports/sprint-summary/types.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge, renderMarkdown, typeLabel } from "../layout.js";
 
 function progressBar(pct: number): string {
@@ -75,8 +75,27 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
       )
     : "";
 
-  // Work items by status
-  const workItemsSection = data.workItems.total > 0
+  // Work items with hierarchical nesting (action → task → contribution)
+  function renderItemRows(items: SprintWorkItem[], depth = 0): string[] {
+    return items.flatMap((w) => {
+      const isChild = depth > 0;
+      const isContribution = w.type === "contribution";
+      const rowClass = isContribution ? ' class="contribution-row"' : isChild ? ' class="child-row"' : "";
+      const indent = depth > 0 ? ` style="padding-left: ${0.75 + depth * 1}rem"` : "";
+      const row = `
+              <tr${rowClass}>
+                <td${indent}><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
+                <td>${escapeHtml(w.title)}</td>
+                <td>${escapeHtml(typeLabel(w.type))}</td>
+                <td>${statusBadge(w.status)}</td>
+              </tr>`;
+      const childRows = w.children ? renderItemRows(w.children, depth + 1) : [];
+      return [row, ...childRows];
+    });
+  }
+  const workItemRows = renderItemRows(data.workItems.items);
+
+  const workItemsSection = workItemRows.length > 0
     ? collapsibleSection(
         "ss-work-items",
         "Work Items",
@@ -86,13 +105,7 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
               <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th></tr>
             </thead>
             <tbody>
-              ${data.workItems.items.map((w) => `
-              <tr>
-                <td><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
-                <td>${escapeHtml(w.title)}</td>
-                <td>${escapeHtml(typeLabel(w.type))}</td>
-                <td>${statusBadge(w.status)}</td>
-              </tr>`).join("")}
+              ${workItemRows.join("")}
             </tbody>
           </table>
         </div>`,

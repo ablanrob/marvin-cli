@@ -751,4 +751,10 @@ npm run typecheck    # TypeScript check without emitting
 
 ## License
 
-MIT
+Marvin CLI is open-source and released under the MIT License with Commons Clause. This means you can:
+
+- Use Marvin for personal and commercial projects
+- Modify the source code to fit your needs
+- Distribute copies of the software
+- Contribute improvements back to the community
+- The Commons Clause adds one important restriction: you cannot sell Marvin itself as a service or product, but you can use it in your own applications and services.

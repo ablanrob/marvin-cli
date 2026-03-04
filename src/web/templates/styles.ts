@@ -274,6 +274,17 @@ tr:hover td {
   background: var(--bg-hover);
 }
 
+/* Hierarchical work-item sub-rows */
+.child-row td {
+  font-size: 0.8125rem;
+  border-bottom-style: dashed;
+}
+.contribution-row td {
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  border-bottom-style: dashed;
+}
+
 /* GAR */
 .gar-overall {
   text-align: center;
