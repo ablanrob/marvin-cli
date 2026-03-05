@@ -33,9 +33,26 @@ export function tlSprintPage(ctx: PersonaPageContext): string {
       </div>`;
   }
 
-  // Filter work items to epics and tasks
+  // Filter work items to epics and tasks, promoting children whose parent is excluded
   const techTypes = new Set(["epic", "task"]);
-  const techItems = data.workItems.items.filter((w) => techTypes.has(w.type));
+  const techItems: typeof data.workItems.items = [];
+  for (const item of data.workItems.items) {
+    if (techTypes.has(item.type)) {
+      techItems.push(item);
+    } else if (item.children) {
+      // Parent excluded (e.g. action) — promote matching children to top-level
+      const promoteChildren = (children: typeof data.workItems.items) => {
+        for (const child of children) {
+          if (techTypes.has(child.type)) {
+            techItems.push(child);
+          } else if (child.children) {
+            promoteChildren(child.children);
+          }
+        }
+      };
+      promoteChildren(item.children);
+    }
+  }
   const techDone = techItems.filter((w) => DONE_STATUSES.has(w.status)).length;
 
   // TL contributions from store

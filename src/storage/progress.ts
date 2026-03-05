@@ -34,8 +34,9 @@ export function propagateProgressFromTask(
       store.update(taskId, { progress: 100 } as any);
       updated.push(taskId);
     }
-  } else {
+  } else if (!task.frontmatter.progressOverride) {
     // Auto-calculate from child contributions when children exist
+    // (skipped when progressOverride is set — explicit value is preserved)
     const children = store
       .list({ type: "contribution" })
       .filter((d) => d.frontmatter.aboutArtifact === taskId);
@@ -88,41 +89,44 @@ export function propagateProgressToAction(
     return updated;
   }
 
-  const childTasks = store
-    .list({ type: "task" })
-    .filter((d) => d.frontmatter.aboutArtifact === actionId);
-  const directContribs = store
-    .list({ type: "contribution" })
-    .filter((d) => d.frontmatter.aboutArtifact === actionId);
+  // Skip auto-calculation when progressOverride is set — explicit value is preserved
+  if (!action.frontmatter.progressOverride) {
+    const childTasks = store
+      .list({ type: "task" })
+      .filter((d) => d.frontmatter.aboutArtifact === actionId);
+    const directContribs = store
+      .list({ type: "contribution" })
+      .filter((d) => d.frontmatter.aboutArtifact === actionId);
 
-  const hasTasks = childTasks.length > 0;
-  const hasContribs = directContribs.length > 0;
+    const hasTasks = childTasks.length > 0;
+    const hasContribs = directContribs.length > 0;
 
-  let progress: number | undefined;
+    let progress: number | undefined;
 
-  if (hasTasks && hasContribs) {
-    const taskAvg =
-      childTasks.reduce((s, t) => s + getEffectiveProgress(t.frontmatter), 0) /
-      childTasks.length;
-    const contribAvg =
-      directContribs.reduce((s, c) => s + getEffectiveProgress(c.frontmatter), 0) /
-      directContribs.length;
-    progress = Math.round(taskAvg * 0.8 + contribAvg * 0.2);
-  } else if (hasTasks) {
-    progress = Math.round(
-      childTasks.reduce((s, t) => s + getEffectiveProgress(t.frontmatter), 0) /
-        childTasks.length,
-    );
-  } else if (hasContribs) {
-    progress = Math.round(
-      directContribs.reduce((s, c) => s + getEffectiveProgress(c.frontmatter), 0) /
-        directContribs.length,
-    );
-  }
+    if (hasTasks && hasContribs) {
+      const taskAvg =
+        childTasks.reduce((s, t) => s + getEffectiveProgress(t.frontmatter), 0) /
+        childTasks.length;
+      const contribAvg =
+        directContribs.reduce((s, c) => s + getEffectiveProgress(c.frontmatter), 0) /
+        directContribs.length;
+      progress = Math.round(taskAvg * 0.8 + contribAvg * 0.2);
+    } else if (hasTasks) {
+      progress = Math.round(
+        childTasks.reduce((s, t) => s + getEffectiveProgress(t.frontmatter), 0) /
+          childTasks.length,
+      );
+    } else if (hasContribs) {
+      progress = Math.round(
+        directContribs.reduce((s, c) => s + getEffectiveProgress(c.frontmatter), 0) /
+          directContribs.length,
+      );
+    }
 
-  if (progress !== undefined) {
-    store.update(actionId, { progress } as any);
-    updated.push(actionId);
+    if (progress !== undefined) {
+      store.update(actionId, { progress } as any);
+      updated.push(actionId);
+    }
   }
 
   return updated;
