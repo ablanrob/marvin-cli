@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 import { normalizeLinkedEpics, generateEpicTags } from "./task-utils.js";
+import { propagateProgressFromTask } from "../../../storage/progress.js";
 
 /**
  * Schema that advertises `type: array` but also accepts a JSON-stringified
@@ -195,9 +196,10 @@ export function createTaskTools(
           .describe("New priority"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove old tags, add new ones)"),
         workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Replaces existing stream:<value> tag."),
+        progress: z.number().optional().describe("Explicit progress percentage (0-100). Overrides auto-calculation from child contributions."),
       },
       async (args) => {
-        const { id, content, linkedEpic: rawLinkedEpic, tags: userTags, workStream, ...updates } = args;
+        const { id, content, linkedEpic: rawLinkedEpic, tags: userTags, workStream, progress, ...updates } = args;
         const warnings: string[] = [];
 
         // If linkedEpic is being changed, soft-validate
@@ -234,7 +236,17 @@ export function createTaskTools(
           (updates as Record<string, unknown>).tags = filtered;
         }
 
+        // Include progress in frontmatter updates
+        if (typeof progress === "number") {
+          (updates as Record<string, unknown>).progress = Math.max(0, Math.min(100, Math.round(progress)));
+        }
+
         const doc = store.update(id, updates, content);
+
+        // Propagate progress if status or progress changed
+        if (args.status !== undefined || typeof progress === "number") {
+          propagateProgressFromTask(store, id);
+        }
 
         const parts = [`Updated task ${doc.frontmatter.id}: ${doc.frontmatter.title}`];
         if (warnings.length > 0) {

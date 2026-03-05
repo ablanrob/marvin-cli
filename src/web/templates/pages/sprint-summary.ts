@@ -133,6 +133,9 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
       const streamCell = w.workStream
         ? `<span class="badge badge-subtle">${escapeHtml(w.workStream)}</span>`
         : "";
+      const progressCell = !isContribution && w.progress !== undefined
+        ? `<div class="mini-progress-bar"><div class="mini-progress-fill" style="width:${w.progress}%"></div><span class="mini-progress-label">${w.progress}%</span></div>`
+        : "";
       const row = `
               <tr${rowAttrs}${dataStream}>
                 <td${indent}><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
@@ -140,6 +143,7 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
                 <td>${streamCell}</td>
                 <td>${escapeHtml(typeLabel(w.type))}</td>
                 <td>${statusBadge(w.status)}</td>
+                <td>${progressCell}</td>
               </tr>`;
       const childRows = w.children ? renderItemRows(w.children, depth + 1) : [];
       return [row, ...childRows];
@@ -153,6 +157,7 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
                 <th class="sortable-th" onclick="sortWorkItems(2)">Stream<span class="sort-arrow" id="sort-arrow-2"></span></th>
                 <th class="sortable-th" onclick="sortWorkItems(3)">Type<span class="sort-arrow" id="sort-arrow-3"></span></th>
                 <th class="sortable-th" onclick="sortWorkItems(4)">Status<span class="sort-arrow" id="sort-arrow-4"></span></th>
+                <th class="sortable-th" onclick="sortWorkItems(5)">Progress<span class="sort-arrow" id="sort-arrow-5"></span></th>
               </tr>`;
 
   const workItemsSection = workItemRows.length > 0
@@ -278,7 +283,7 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
         }
 
         // Update sort arrows
-        for (var i = 0; i < 5; i++) {
+        for (var i = 0; i < 6; i++) {
           var arrow = document.getElementById('sort-arrow-' + i);
           if (arrow) arrow.textContent = i === col ? (_sortAsc ? ' \\u25B2' : ' \\u25BC') : '';
         }

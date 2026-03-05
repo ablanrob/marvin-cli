@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
+import { propagateProgressToAction } from "../../storage/progress.js";
 
 function findMatchingSprints(
   store: DocumentStore,
@@ -160,9 +161,10 @@ export function createActionTools(
         tags: z.array(z.string()).optional().describe("Replace all tags. When provided with sprints, sprint tags are merged into this array."),
         sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
         workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Replaces existing stream:<value> tag."),
+        progress: z.number().optional().describe("Explicit progress percentage (0-100)."),
       },
       async (args) => {
-        const { id, content, sprints, tags, workStream, ...updates } = args;
+        const { id, content, sprints, tags, workStream, progress, ...updates } = args;
 
         if (tags !== undefined) {
           // tags takes precedence — merge sprint tags into the provided array
@@ -200,7 +202,18 @@ export function createActionTools(
           (updates as any).tags = existingTags;
         }
 
+        // Include progress in frontmatter updates
+        if (typeof progress === "number") {
+          (updates as any).progress = Math.max(0, Math.min(100, Math.round(progress)));
+        }
+
         const doc = store.update(id, updates, content);
+
+        // Propagate progress if status or progress changed
+        if (args.status !== undefined || typeof progress === "number") {
+          propagateProgressToAction(store, id);
+        }
+
         return {
           content: [
             {

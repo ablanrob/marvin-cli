@@ -4,7 +4,11 @@ import { collapsibleSection, escapeHtml } from "../layout.js";
 import { buildHealthGauge, buildStatusPie } from "../mermaid.js";
 
 export function healthPage(report: HealthReport, metrics?: HealthMetrics): string {
-  const dotClass = `dot-${report.overall}`;
+  const allCategories = [...report.completeness, ...report.process];
+  const nonGreen = allCategories.filter((c) => c.status !== "green");
+  const healthMetricTags = nonGreen.length > 0
+    ? nonGreen.map((c) => `<span class="gar-metric">${escapeHtml(c.name)} (${c.status})</span>`).join("")
+    : `<span class="gar-metric">All areas healthy</span>`;
 
   function renderSection(
     sectionId: string,
@@ -29,7 +33,7 @@ export function healthPage(report: HealthReport, metrics?: HealthMetrics): strin
       )
       .join("\n");
 
-    return collapsibleSection(sectionId, title, `<div class="gar-areas">${cards}</div>`, {
+    return collapsibleSection(sectionId, title, `<div class="gar-areas-3col">${cards}</div>`, {
       titleClass: "health-section-title",
     });
   }
@@ -40,9 +44,12 @@ export function healthPage(report: HealthReport, metrics?: HealthMetrics): strin
       <div class="subtitle">Generated ${escapeHtml(report.generatedAt)}</div>
     </div>
 
-    <div class="gar-overall">
-      <div class="dot ${dotClass}"></div>
-      <div class="label">Overall: ${escapeHtml(report.overall)}</div>
+    <div class="gar-overall-compact">
+      <div class="gar-overall-status">
+        <div class="dot dot-${report.overall}"></div>
+        <div class="label">${escapeHtml(report.overall.toUpperCase())}</div>
+      </div>
+      <div class="gar-overall-metrics">${healthMetricTags}</div>
     </div>
 
     ${renderSection("health-completeness", "Completeness", report.completeness)}

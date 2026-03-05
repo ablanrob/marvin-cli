@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 import { normalizeLinkedFeatures } from "./epic-utils.js";
+import { calculateSprintCompletionPct } from "../../../storage/progress.js";
 
 const PRIORITY_ORDER: Record<string, number> = {
   critical: 0,
@@ -129,7 +130,7 @@ export function createSprintPlanningTools(
           const doneCount = workItems.filter(
             (d) => d.frontmatter.status === "done" || d.frontmatter.status === "resolved" || d.frontmatter.status === "closed",
           ).length;
-          const completionPct = workItems.length > 0 ? Math.round((doneCount / workItems.length) * 100) : 0;
+          const completionPct = calculateSprintCompletionPct(workItems);
 
           activeSprint = {
             id: activeSprintDoc.frontmatter.id,

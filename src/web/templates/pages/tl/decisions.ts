@@ -1,7 +1,8 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
 
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+/** Decision statuses that indicate the decision has been resolved */
+const RESOLVED_STATUSES = new Set(["decided", "superseded", "dismissed"]);
 
 export function tlDecisionsPage(ctx: PersonaPageContext): string {
   const decisions = ctx.store.list({ type: "decision" });
@@ -20,8 +21,8 @@ export function tlDecisionsPage(ctx: PersonaPageContext): string {
   const displayDecisions = technicalDecisions.length > 0 ? technicalDecisions : decisions;
   const isFiltered = technicalDecisions.length > 0;
 
-  const openDecisions = displayDecisions.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
-  const resolvedDecisions = displayDecisions.filter((d) => DONE_STATUSES.has(d.frontmatter.status));
+  const openDecisions = displayDecisions.filter((d) => !RESOLVED_STATUSES.has(d.frontmatter.status));
+  const resolvedDecisions = displayDecisions.filter((d) => RESOLVED_STATUSES.has(d.frontmatter.status));
 
   // Technical questions
   const technicalQuestions = questions.filter((d) => {

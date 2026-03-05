@@ -1,7 +1,7 @@
 import type { BoardData } from "../../data.js";
 import { escapeHtml, typeLabel } from "../layout.js";
 
-export function boardPage(data: BoardData): string {
+export function boardPage(data: BoardData, basePath = "/board"): string {
   const typeOptions = data.types
     .map(
       (t) =>
@@ -55,8 +55,9 @@ export function boardPage(data: BoardData): string {
 
     <script>
       function filterByType(type) {
-        if (type) window.location = '/board/' + type;
-        else window.location = '/board';
+        var base = '${escapeHtml(basePath)}';
+        if (type) window.location = base + '/' + type;
+        else window.location = base;
       }
     </script>
   `;

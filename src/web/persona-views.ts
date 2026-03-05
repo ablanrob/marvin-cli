@@ -1,4 +1,4 @@
-export type DashboardPersona = "po" | "dm" | "tl" | null; // null = admin
+export type DashboardPersona = "po" | "dm" | "tl" | null; // null = no persona selected
 
 export interface PersonaNavItem {
   path: string;
@@ -18,6 +18,9 @@ export type PersonaPageRenderer = (ctx: PersonaPageContext) => string;
 export interface PersonaPageContext {
   store: import("../storage/store.js").DocumentStore;
   projectName: string;
+  searchParams?: URLSearchParams;
+  subPath?: string;
+  persona?: string;
 }
 
 const VIEWS = new Map<string, PersonaViewConfig>();
@@ -63,3 +66,25 @@ export function parsePersonaFromPath(pathname: string): DashboardPersona {
   const match = pathname.match(/^\/(po|dm|tl)(?:\/|$)/);
   return match ? (match[1] as DashboardPersona) : null;
 }
+
+/** Resolve persona from path first, then query params, defaulting to null. */
+export function resolvePersona(
+  pathname: string,
+  params: URLSearchParams,
+): DashboardPersona {
+  return parsePersonaFromPath(pathname) ?? parsePersonaFromUrl(params);
+}
+
+export interface SharedNavItem {
+  pageId: string;
+  label: string;
+}
+
+export const SHARED_NAV_ITEMS: SharedNavItem[] = [
+  { pageId: "timeline", label: "Timeline" },
+  { pageId: "board", label: "Board" },
+  { pageId: "upcoming", label: "Upcoming" },
+  { pageId: "sprint-summary", label: "Sprint Summary" },
+  { pageId: "gar", label: "GAR Report" },
+  { pageId: "health", label: "Health" },
+];

@@ -1,6 +1,10 @@
 import type { DocumentStore } from "../../storage/store.js";
 import type { Document } from "../../storage/types.js";
 import { normalizeLinkedEpics } from "../../plugins/builtin/tools/task-utils.js";
+import {
+  calculateSprintCompletionPct,
+  getEffectiveProgress,
+} from "../../storage/progress.js";
 import type {
   SprintSummaryData,
   SprintEpicSummary,
@@ -125,6 +129,7 @@ export function collectSprintSummaryData(
       title: doc.frontmatter.title,
       type: doc.frontmatter.type,
       status: doc.frontmatter.status,
+      progress: getEffectiveProgress(doc.frontmatter),
       workStream: streamTag ? streamTag.slice(7) : undefined,
       aboutArtifact: about,
     };
@@ -174,7 +179,7 @@ export function collectSprintSummaryData(
     inProgress: inProgressCount,
     open: openCount,
     blocked: blockedCount,
-    completionPct: primaryDocs.length > 0 ? Math.round((doneCount / primaryDocs.length) * 100) : 0,
+    completionPct: calculateSprintCompletionPct(primaryDocs),
     byStatus,
     byType,
     items,
@@ -303,8 +308,7 @@ export function collectSprintSummaryData(
         d.frontmatter.type !== "contribution" &&
         d.frontmatter.tags?.includes(prevTag),
     );
-    const prevDone = prevWorkItems.filter((d) => DONE_STATUSES.has(d.frontmatter.status)).length;
-    const prevRate = prevWorkItems.length > 0 ? Math.round((prevDone / prevWorkItems.length) * 100) : 0;
+    const prevRate = calculateSprintCompletionPct(prevWorkItems);
     velocity = {
       currentCompletionRate: currentRate,
       previousSprintRate: prevRate,

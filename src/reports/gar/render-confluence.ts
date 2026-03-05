@@ -26,9 +26,12 @@ export function renderConfluence(report: GarReport): string {
   lines.push("");
 
   for (const area of report.areas) {
-    if (area.items.length === 0) continue;
+    if (area.items.length === 0 && (area.insights ?? []).length === 0) continue;
     lines.push(`## ${area.name}`);
     lines.push("");
+    for (const insight of area.insights ?? []) {
+      lines.push(`- _${insight}_`);
+    }
     for (const item of area.items) {
       lines.push(`- **${item.id}** ${item.title}`);
     }

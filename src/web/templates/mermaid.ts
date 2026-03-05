@@ -318,9 +318,15 @@ export function buildArtifactFlowchart(data: DiagramData): string {
 
       function drawLines() {
         var rect = container.getBoundingClientRect();
-        svg.setAttribute('width', rect.width);
-        svg.setAttribute('height', rect.height);
+        var scrollW = container.scrollWidth;
+        var scrollH = container.scrollHeight;
+        svg.setAttribute('width', scrollW);
+        svg.setAttribute('height', scrollH);
         svg.innerHTML = '';
+
+        // Use scroll offsets so lines align with scrolled content
+        var scrollLeft = container.scrollLeft;
+        var scrollTop = container.scrollTop;
 
         edges.forEach(function(edge) {
           var fromEl = container.querySelector('[data-flow-id="' + edge.from + '"]');
@@ -329,10 +335,10 @@ export function buildArtifactFlowchart(data: DiagramData): string {
 
           var fr = fromEl.getBoundingClientRect();
           var tr = toEl.getBoundingClientRect();
-          var x1 = fr.right - rect.left;
-          var y1 = fr.top + fr.height / 2 - rect.top;
-          var x2 = tr.left - rect.left;
-          var y2 = tr.top + tr.height / 2 - rect.top;
+          var x1 = fr.right - rect.left + scrollLeft;
+          var y1 = fr.top + fr.height / 2 - rect.top + scrollTop;
+          var x2 = tr.left - rect.left + scrollLeft;
+          var y2 = tr.top + tr.height / 2 - rect.top + scrollTop;
           var mx = (x1 + x2) / 2;
 
           var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -422,8 +428,15 @@ export function buildArtifactFlowchart(data: DiagramData): string {
         highlight(clickedId);
       });
 
-      requestAnimationFrame(function() { setTimeout(drawLines, 100); });
-      window.addEventListener('resize', drawLines);
+      function drawAndHighlight() {
+        drawLines();
+        if (activeId) highlight(activeId);
+      }
+
+      requestAnimationFrame(function() { setTimeout(drawAndHighlight, 100); });
+      window.addEventListener('resize', drawAndHighlight);
+      container.addEventListener('scroll', drawAndHighlight);
+      new ResizeObserver(drawAndHighlight).observe(container);
     })();
     </script>`;
 }

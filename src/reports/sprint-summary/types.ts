@@ -11,6 +11,7 @@ export interface SprintWorkItem {
   title: string;
   type: string;
   status: string;
+  progress?: number;
   workStream?: string;
   aboutArtifact?: string;
   children?: SprintWorkItem[];

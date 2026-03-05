@@ -40,6 +40,9 @@ export function statusBadge(status: string): string {
     done: "badge-done",
     closed: "badge-done",
     resolved: "badge-resolved",
+    decided: "badge-done",
+    superseded: "badge-draft",
+    dismissed: "badge-draft",
     "in-progress": "badge-in-progress",
     "in progress": "badge-in-progress",
     draft: "badge-draft",
@@ -207,47 +210,15 @@ interface LayoutOptions {
 
 export function layout(opts: LayoutOptions, body: string): string {
 
-  const topItems = [
-    { href: "/", label: "Overview" },
-    { href: "/upcoming", label: "Upcoming" },
-    { href: "/sprint-summary", label: "Sprint Summary" },
-    { href: "/timeline", label: "Timeline" },
-    { href: "/board", label: "Board" },
-    { href: "/gar", label: "GAR Report" },
-    { href: "/health", label: "Health" },
-  ];
-
-  const isActive = (href: string) =>
-    opts.activePath === href || (href !== "/" && opts.activePath.startsWith(href))
-      ? " active"
-      : "";
-
   const switcherHtml = opts.personaSwitcherHtml ?? "";
 
   let navHtml: string;
   if (opts.personaNavHtml) {
     navHtml = opts.personaNavHtml;
   } else {
-    // Admin (default) navigation
-    const groupsHtml = opts.navGroups
-      .map((group) => {
-        const links = group.types
-          .map((type) => {
-            const href = `/docs/${type}`;
-            return `<a href="${href}" class="${isActive(href)}">${typeLabel(type)}s</a>`;
-          })
-          .join("\n          ");
-        return `
-        <div class="nav-group">
-          <div class="nav-group-label">${escapeHtml(group.label)}</div>
-          ${links}
-        </div>`;
-      })
-      .join("\n");
-
+    // Minimal nav (persona picker page only)
     navHtml = `
-        ${topItems.map((n) => `<a href="${n.href}" class="${isActive(n.href)}">${n.label}</a>`).join("\n        ")}
-        ${groupsHtml}`;
+        <a href="/" class="active">Home</a>`;
   }
 
   const accentOverride = opts.personaAccentColor
@@ -296,6 +267,19 @@ export function layout(opts: LayoutOptions, body: string): string {
         } catch(e) {}
       }
     }
+    function toggleNavGroup(label) {
+      var group = label.closest('.nav-group-collapsible');
+      if (!group) return;
+      group.classList.toggle('nav-collapsed');
+      var key = group.getAttribute('data-nav-group');
+      if (key) {
+        try {
+          var state = JSON.parse(localStorage.getItem('marvin-collapsed') || '{}');
+          state['nav-' + key] = group.classList.contains('nav-collapsed');
+          localStorage.setItem('marvin-collapsed', JSON.stringify(state));
+        } catch(e) {}
+      }
+    }
     // Restore collapsed state on load
     (function() {
       try {
@@ -305,9 +289,36 @@ export function layout(opts: LayoutOptions, body: string): string {
           if (state[id] === true) el.classList.add('collapsed');
           else if (state[id] === false) el.classList.remove('collapsed');
         });
+        // Nav groups: restore state but force-expand if group contains an active link
+        document.querySelectorAll('.nav-group-collapsible[data-nav-group]').forEach(function(el) {
+          var key = 'nav-' + el.getAttribute('data-nav-group');
+          var hasActive = el.querySelector('a.active');
+          if (hasActive) {
+            el.classList.remove('nav-collapsed');
+          } else if (state[key] === true) {
+            el.classList.add('nav-collapsed');
+          } else if (state[key] === false) {
+            el.classList.remove('nav-collapsed');
+          }
+        });
       } catch(e) {}
     })();
   </script>
+  ${opts.persona ? `<script>
+    // Preserve persona context on /docs/ links
+    (function() {
+      var persona = "${opts.persona}";
+      document.addEventListener('click', function(e) {
+        var a = e.target.closest('a');
+        if (!a) return;
+        var href = a.getAttribute('href');
+        if (!href || !href.startsWith('/docs/')) return;
+        if (href.indexOf('persona=') !== -1) return;
+        var sep = href.indexOf('?') === -1 ? '?' : '&';
+        a.setAttribute('href', href + sep + 'persona=' + persona);
+      }, true);
+    })();
+  </script>` : ""}
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>mermaid.initialize({
     startOnLoad: true,

@@ -28,6 +28,9 @@ export function renderAscii(report: GarReport): string {
 
   for (const area of report.areas) {
     lines.push(`  ${STATUS_DOT[area.status]} ${chalk.bold(area.name.padEnd(12))} ${area.summary}`);
+    for (const insight of area.insights ?? []) {
+      lines.push(`    ${chalk.dim("—")} ${insight}`);
+    }
     for (const item of area.items) {
       lines.push(`    ${chalk.dim("└")} ${item.id} ${item.title}`);
     }

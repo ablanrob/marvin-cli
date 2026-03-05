@@ -1,11 +1,11 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
-import { getGarData, getUpcomingData } from "../../../data.js";
-import { garPage } from "../gar.js";
+import { getGarData } from "../../../data.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import { renderGarWidget } from "../../gar-widget.js";
+import { renderTableUtilsScript, sortableTh, tableFilter } from "../../table-utils.js";
 
 export function poStakeholdersPage(ctx: PersonaPageContext): string {
   const garReport = getGarData(ctx.store, ctx.projectName);
-  const upcoming = getUpcomingData(ctx.store);
 
   // Open action items
   const actions = ctx.store.list({ type: "action" });
@@ -17,46 +17,55 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
   const questions = ctx.store.list({ type: "question" });
   const openQuestions = questions.filter((d) => d.frontmatter.status === "open");
 
-  // GAR summary section (reuse the gar page rendering as a section)
-  const garDotClass = `dot-${garReport.overall}`;
+  // GAR summary section
   const garAreaCards = garReport.areas
     .map(
-      (area) => `
+      (area) => {
+        const insights = (area.insights ?? []).length > 0
+          ? `<ul class="gar-insights">${area.insights.map((ins) => `<li>${escapeHtml(ins)}</li>`).join("")}</ul>`
+          : "";
+        return `
       <div class="gar-area">
         <div class="area-header">
           <div class="area-dot dot-${area.status}"></div>
           <div class="area-name">${escapeHtml(area.name)}</div>
         </div>
         <div class="area-summary">${escapeHtml(area.summary)}</div>
+        ${insights}
         ${
           area.items.length > 0
             ? `<ul>${area.items.slice(0, 5).map((item) => `<li><span class="ref-id">${escapeHtml(item.id)}</span>${escapeHtml(item.title)}</li>`).join("")}</ul>`
             : ""
         }
-      </div>`,
+      </div>`;
+      },
     )
     .join("\n");
 
   const garSection = collapsibleSection(
     "po-stakeholders-gar",
     "Project Status (GAR)",
-    `<div class="gar-overall">
-      <div class="dot ${garDotClass}"></div>
-      <div class="label">Overall: ${escapeHtml(garReport.overall)}</div>
-    </div>
-    <div class="gar-areas">${garAreaCards}</div>`,
+    `${renderGarWidget(garReport)}
+    <div class="gar-areas-3col">${garAreaCards}</div>`,
     { titleTag: "h3" },
   );
 
-  // Open actions table
+  // Open actions table with filters
+  const actionStatuses = [...new Set(openActions.map((d) => d.frontmatter.status))].sort();
+  const actionOwners = [...new Set(openActions.map((d) => d.frontmatter.owner).filter(Boolean) as string[])].sort();
+
   const actionsSection = openActions.length > 0
     ? collapsibleSection(
         "po-stakeholders-actions",
         `Open Action Items (${openActions.length})`,
-        `<div class="table-wrap">
-          <table>
+        `<div class="filters">
+          ${tableFilter("stakeholder-actions-table", 2, "Status", actionStatuses)}
+          ${actionOwners.length > 0 ? tableFilter("stakeholder-actions-table", 3, "Owner", actionOwners) : ""}
+        </div>
+        <div class="table-wrap table-short">
+          <table id="stakeholder-actions-table">
             <thead>
-              <tr><th>ID</th><th>Title</th><th>Status</th><th>Owner</th><th>Due Date</th></tr>
+              <tr>${sortableTh("ID", "stakeholder-actions-table", 0)}${sortableTh("Title", "stakeholder-actions-table", 1)}${sortableTh("Status", "stakeholder-actions-table", 2)}${sortableTh("Owner", "stakeholder-actions-table", 3)}${sortableTh("Due Date", "stakeholder-actions-table", 4)}</tr>
             </thead>
             <tbody>
               ${openActions.map((d) => `
@@ -74,15 +83,18 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
       )
     : "";
 
-  // Questions needing input
+  // Questions needing input with filter
+  const questionOwners = [...new Set(openQuestions.map((d) => d.frontmatter.owner).filter(Boolean) as string[])].sort();
+
   const questionsSection = openQuestions.length > 0
     ? collapsibleSection(
         "po-stakeholders-questions",
         `Questions Needing Input (${openQuestions.length})`,
-        `<div class="table-wrap">
-          <table>
+        `${questionOwners.length > 0 ? `<div class="filters">${tableFilter("stakeholder-questions-table", 2, "Owner", questionOwners)}</div>` : ""}
+        <div class="table-wrap table-short">
+          <table id="stakeholder-questions-table">
             <thead>
-              <tr><th>ID</th><th>Title</th><th>Owner</th><th>Created</th></tr>
+              <tr>${sortableTh("ID", "stakeholder-questions-table", 0)}${sortableTh("Title", "stakeholder-questions-table", 1)}${sortableTh("Owner", "stakeholder-questions-table", 2)}${sortableTh("Created", "stakeholder-questions-table", 3)}</tr>
             </thead>
             <tbody>
               ${openQuestions.map((d) => `
@@ -107,5 +119,6 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
     ${garSection}
     ${actionsSection}
     ${questionsSection}
+    ${renderTableUtilsScript()}
   `;
 }

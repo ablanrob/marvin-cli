@@ -1,13 +1,15 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import { renderTableUtilsScript, sortableTh, tableFilter, tableDateFilter } from "../../table-utils.js";
 
-const DONE_STATUSES = new Set(["done", "closed", "resolved"]);
+/** Decision statuses that indicate the decision has been resolved */
+const RESOLVED_STATUSES = new Set(["decided", "superseded", "dismissed"]);
 
 export function poDecisionsPage(ctx: PersonaPageContext): string {
   const decisions = ctx.store.list({ type: "decision" });
 
-  const openDecisions = decisions.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
-  const resolvedDecisions = decisions.filter((d) => DONE_STATUSES.has(d.frontmatter.status));
+  const openDecisions = decisions.filter((d) => !RESOLVED_STATUSES.has(d.frontmatter.status));
+  const resolvedDecisions = decisions.filter((d) => RESOLVED_STATUSES.has(d.frontmatter.status));
 
   const statsCards = `
     <div class="cards">
@@ -28,12 +30,23 @@ export function poDecisionsPage(ctx: PersonaPageContext): string {
       </div>
     </div>`;
 
-  function decisionTable(docs: typeof decisions): string {
+  function decisionTable(docs: typeof decisions, tableId: string): string {
     if (docs.length === 0) return '<div class="empty"><p>None found.</p></div>';
-    return `<div class="table-wrap">
-      <table>
+
+    const statuses = [...new Set(docs.map((d) => d.frontmatter.status))].sort();
+    const owners = [...new Set(docs.map((d) => d.frontmatter.owner).filter(Boolean) as string[])].sort();
+
+    const filters = `<div class="filters">
+      ${tableFilter(tableId, 2, "Status", statuses)}
+      ${owners.length > 0 ? tableFilter(tableId, 3, "Owner", owners) : ""}
+      ${tableDateFilter(tableId, 4)}
+    </div>`;
+
+    return `${filters}
+    <div class="table-wrap table-short">
+      <table id="${escapeHtml(tableId)}">
         <thead>
-          <tr><th>ID</th><th>Title</th><th>Status</th><th>Owner</th><th>Created</th></tr>
+          <tr>${sortableTh("ID", tableId, 0)}${sortableTh("Title", tableId, 1)}${sortableTh("Status", tableId, 2)}${sortableTh("Owner", tableId, 3)}${sortableTh("Created", tableId, 4)}</tr>
         </thead>
         <tbody>
           ${docs.map((d) => `
@@ -52,14 +65,14 @@ export function poDecisionsPage(ctx: PersonaPageContext): string {
   const openSection = collapsibleSection(
     "po-decisions-open",
     `Open Decisions (${openDecisions.length})`,
-    decisionTable(openDecisions),
+    decisionTable(openDecisions, "decisions-open-table"),
     { titleTag: "h3" },
   );
 
   const resolvedSection = collapsibleSection(
     "po-decisions-resolved",
     `Resolved Decisions (${resolvedDecisions.length})`,
-    decisionTable(resolvedDecisions),
+    decisionTable(resolvedDecisions, "decisions-resolved-table"),
     { titleTag: "h3", defaultCollapsed: true },
   );
 
@@ -71,5 +84,6 @@ export function poDecisionsPage(ctx: PersonaPageContext): string {
     ${statsCards}
     ${openSection}
     ${resolvedSection}
+    ${renderTableUtilsScript()}
   `;
 }

@@ -82,7 +82,7 @@ export function dmRisksPage(ctx: PersonaPageContext): string {
     ? collapsibleSection(
         "dm-risks-aging",
         `Aging Items (${agingItems.length})`,
-        `<div class="table-wrap">
+        `<div class="table-wrap table-short">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Created</th><th>Age</th></tr>
@@ -110,23 +110,24 @@ export function dmRisksPage(ctx: PersonaPageContext): string {
     : "";
 
   // Health overview
+  const allCategories = [...healthReport.completeness, ...healthReport.process];
+  const nonGreenHealth = allCategories.filter((c) => c.status !== "green");
+  const healthMetricTags = nonGreenHealth.length > 0
+    ? nonGreenHealth.map((c) => `<span class="gar-metric">${escapeHtml(c.name)} (${c.status})</span>`).join("")
+    : `<span class="gar-metric">All areas healthy</span>`;
+
   const healthSection = collapsibleSection(
     "dm-risks-health",
     "Health Overview",
-    `<div class="gar-overall">
-      <div class="dot dot-${healthReport.overall}"></div>
-      <div class="label">Overall: ${escapeHtml(healthReport.overall)}</div>
+    `<div class="gar-overall-compact">
+      <div class="gar-overall-status">
+        <div class="dot dot-${healthReport.overall}"></div>
+        <div class="label">${escapeHtml(healthReport.overall.toUpperCase())}</div>
+      </div>
+      <div class="gar-overall-metrics">${healthMetricTags}</div>
     </div>
-    <div class="gar-areas">
-      ${healthReport.completeness.map((cat) => `
-      <div class="gar-area">
-        <div class="area-header">
-          <div class="area-dot dot-${cat.status}"></div>
-          <div class="area-name">${escapeHtml(cat.name)}</div>
-        </div>
-        <div class="area-summary">${escapeHtml(cat.summary)}</div>
-      </div>`).join("")}
-      ${healthReport.process.map((cat) => `
+    <div class="gar-areas-3col">
+      ${allCategories.map((cat) => `
       <div class="gar-area">
         <div class="area-header">
           <div class="area-dot dot-${cat.status}"></div>

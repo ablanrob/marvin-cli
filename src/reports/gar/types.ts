@@ -3,28 +3,29 @@ export type GarStatus = "green" | "amber" | "red";
 export interface GarItemRef {
   id: string;
   title: string;
+  daysOverdue?: number;
+  priority?: string;
+  urgency?: string;
 }
 
 export interface GarMetrics {
   scope: {
-    total: number;
-    open: number;
-    done: number;
-    completionPct: number;
+    atRiskItems: GarItemRef[];
+    epicSummaries: { id: string; title: string; tasksDone: number; tasksTotal: number; status: string }[];
   };
   schedule: {
     blocked: number;
     overdue: number;
+    badlyOverdueCount: number;
     items: GarItemRef[];
   };
   quality: {
-    risks: number;
+    riskScore: number;
+    riskCount: number;
     openQuestions: number;
+    staleQuestionCount: number;
     items: GarItemRef[];
-  };
-  resources: {
-    unowned: number;
-    items: GarItemRef[];
+    totalOpenItems: number;
   };
 }
 
@@ -33,6 +34,7 @@ export interface GarArea {
   status: GarStatus;
   summary: string;
   items: GarItemRef[];
+  insights: string[];
 }
 
 export interface GarReport {

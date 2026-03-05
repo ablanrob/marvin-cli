@@ -91,21 +91,19 @@ describe("Report Tools", () => {
       const report = JSON.parse(result.content[0].text);
 
       // Metrics are still present
-      expect(report.metrics.scope.total).toBe(4);
-      expect(report.metrics.scope.open).toBe(3);
-      expect(report.metrics.scope.done).toBe(1);
-      expect(report.metrics.scope.completionPct).toBe(25);
+      expect(report.metrics.scope.atRiskItems).toBeDefined();
+      expect(report.metrics.scope.epicSummaries).toBeDefined();
       expect(report.metrics.schedule.blocked).toBe(1);
       expect(report.metrics.quality.openQuestions).toBe(1);
-      expect(report.metrics.quality.risks).toBe(2);
-      expect(report.metrics.resources.unowned).toBe(2);
+      expect(report.metrics.quality.riskCount).toBe(2);
 
-      // Areas with statuses
-      expect(report.areas).toHaveLength(4);
+      // Areas with statuses (3 areas: Scope, Schedule, Quality — no Resources)
+      expect(report.areas).toHaveLength(3);
       const names = report.areas.map((a: any) => a.name);
-      expect(names).toEqual(["Scope", "Schedule", "Quality", "Resources"]);
+      expect(names).toEqual(["Scope", "Schedule", "Quality"]);
       for (const area of report.areas) {
         expect(["green", "amber", "red"]).toContain(area.status);
+        expect(Array.isArray(area.insights)).toBe(true);
       }
 
       // Overall
