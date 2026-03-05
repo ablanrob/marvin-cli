@@ -92,7 +92,7 @@ describe("propagateProgressFromTask", () => {
     expect(task.frontmatter.progress).toBe(100);
   });
 
-  it("auto-calculates even when explicit progress was set (children take precedence)", () => {
+  it("auto-calculates when no progressOverride flag (default behavior)", () => {
     store.create("task", { title: "Task 1", status: "in-progress", progress: 70 } as any);
     store.create("contribution", { title: "C1", status: "done", aboutArtifact: "T-001" } as any);
 
@@ -100,8 +100,36 @@ describe("propagateProgressFromTask", () => {
     expect(updated).toContain("T-001");
 
     const task = store.get("T-001")!;
-    // Child contrib is done (100), so auto-calc = 100 overrides explicit 70
+    // No progressOverride → child contrib (done=100) overrides explicit 70
     expect(task.frontmatter.progress).toBe(100);
+  });
+
+  it("respects progressOverride flag — skips auto-calc from children", () => {
+    store.create("task", { title: "Task 1", status: "in-progress", progress: 70, progressOverride: true } as any);
+    store.create("contribution", { title: "C1", status: "done", aboutArtifact: "T-001" } as any);
+
+    const updated = propagateProgressFromTask(store, "T-001");
+    // Task itself should NOT be updated (override preserved)
+    expect(updated).not.toContain("T-001");
+
+    const task = store.get("T-001")!;
+    // Explicit 70 is preserved despite child being done (100)
+    expect(task.frontmatter.progress).toBe(70);
+  });
+
+  it("still propagates upward when task has progressOverride", () => {
+    store.create("action", { title: "Action 1", status: "in-progress" } as any);
+    store.create("task", { title: "Task 1", status: "in-progress", aboutArtifact: "A-001", progress: 70, progressOverride: true } as any);
+    store.create("contribution", { title: "C1", status: "done", aboutArtifact: "T-001" } as any);
+
+    const updated = propagateProgressFromTask(store, "T-001");
+    // Task is NOT updated, but parent action IS
+    expect(updated).not.toContain("T-001");
+    expect(updated).toContain("A-001");
+
+    const action = store.get("A-001")!;
+    // Action auto-calculates from task's effective progress (70)
+    expect(action.frontmatter.progress).toBe(70);
   });
 
   it("propagates to parent action", () => {
@@ -196,6 +224,31 @@ describe("propagateProgressToAction", () => {
 
   it("returns empty for missing doc", () => {
     expect(propagateProgressToAction(store, "A-999")).toEqual([]);
+  });
+
+  it("respects progressOverride flag — skips auto-calc from children", () => {
+    store.create("action", { title: "Action 1", status: "in-progress", progress: 40, progressOverride: true } as any);
+    store.create("task", { title: "T1", status: "done", aboutArtifact: "A-001" } as any);
+
+    const updated = propagateProgressToAction(store, "A-001");
+    // Action should NOT be updated (override preserved)
+    expect(updated).toEqual([]);
+
+    const action = store.get("A-001")!;
+    // Explicit 40 is preserved despite child task being done (100)
+    expect(action.frontmatter.progress).toBe(40);
+  });
+
+  it("still auto-calculates without progressOverride flag", () => {
+    store.create("action", { title: "Action 1", status: "in-progress", progress: 40 } as any);
+    store.create("task", { title: "T1", status: "done", aboutArtifact: "A-001" } as any);
+
+    const updated = propagateProgressToAction(store, "A-001");
+    expect(updated).toContain("A-001");
+
+    const action = store.get("A-001")!;
+    // No override → auto-calc from child task (done=100) overwrites 40
+    expect(action.frontmatter.progress).toBe(100);
   });
 });
 

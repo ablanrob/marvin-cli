@@ -239,6 +239,7 @@ export function createTaskTools(
         // Include progress in frontmatter updates
         if (typeof progress === "number") {
           (updates as Record<string, unknown>).progress = Math.max(0, Math.min(100, Math.round(progress)));
+          (updates as Record<string, unknown>).progressOverride = true;
         }
 
         const doc = store.update(id, updates, content);

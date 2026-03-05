@@ -205,6 +205,7 @@ export function createActionTools(
         // Include progress in frontmatter updates
         if (typeof progress === "number") {
           (updates as any).progress = Math.max(0, Math.min(100, Math.round(progress)));
+          (updates as any).progressOverride = true;
         }
 
         const doc = store.update(id, updates, content);

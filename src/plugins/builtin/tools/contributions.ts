@@ -107,7 +107,7 @@ export function createContributionTools(
             if (typeof args.parentProgress === "number") {
               // Explicit progress: set on parent, skip auto-calc, propagate upward only
               const clamped = Math.max(0, Math.min(100, Math.round(args.parentProgress)));
-              store.update(args.aboutArtifact, { progress: clamped } as any);
+              store.update(args.aboutArtifact, { progress: clamped, progressOverride: true } as any);
               progressParts.push(`${args.aboutArtifact} → ${clamped}%`);
 
               // Propagate to grandparent action if parent is a task
