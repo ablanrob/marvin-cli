@@ -226,6 +226,7 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .badge-open { background: rgba(108, 140, 255, 0.15); color: var(--accent); }
@@ -253,6 +254,7 @@ a:hover { text-decoration: underline; }
 
 table {
   width: 100%;
+  min-width: 600px;
   border-collapse: collapse;
 }
 
@@ -274,6 +276,18 @@ td {
   padding: 0.6rem 0.75rem;
   font-size: 0.875rem;
   border-bottom: 1px solid var(--border);
+}
+
+/* Prevent short-content columns from line-wrapping */
+td:first-child,
+th:first-child {
+  white-space: nowrap;
+  min-width: 4.5rem;
+}
+
+td:last-child,
+th:last-child {
+  white-space: nowrap;
 }
 
 tr:hover td {
@@ -315,9 +329,60 @@ tr:hover td {
   text-transform: uppercase;
 }
 
+/* Compact overall status bar */
+.gar-overall-compact {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.gar-overall-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.gar-overall-status .dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.gar-overall-status .label {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.gar-overall-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.gar-metric {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.05);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+}
+
 .gar-areas {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.gar-areas-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 
@@ -594,6 +659,11 @@ tr:hover td {
   padding: 1.25rem;
   position: relative;
   overflow-x: auto;
+  height: 420px;
+  min-height: 200px;
+  max-height: 90vh;
+  overflow-y: auto;
+  resize: vertical;
 }
 
 .flow-lines {
@@ -1183,7 +1253,6 @@ tr:hover td {
 }
 
 .collapsible-body {
-  overflow: hidden;
   max-height: 5000px;
   transition: max-height 0.3s ease, opacity 0.2s ease;
   opacity: 1;
@@ -1192,6 +1261,7 @@ tr:hover td {
 .collapsible.collapsed .collapsible-body {
   max-height: 0;
   opacity: 0;
+  overflow: hidden;
 }
 
 /* Sortable table headers */
@@ -1208,6 +1278,242 @@ tr:hover td {
   margin-left: 0.3rem;
   font-size: 0.65rem;
   opacity: 0.7;
+}
+
+/* Persona picker (landing page) */
+.persona-picker {
+  text-align: center;
+  padding: 4rem 2rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.persona-picker h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.persona-picker-subtitle {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.persona-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.persona-picker-card {
+  display: block;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--persona-card-accent, var(--accent));
+  border-radius: var(--radius);
+  padding: 1.5rem 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.persona-picker-card:hover {
+  border-color: var(--persona-card-accent, var(--accent));
+  background: var(--bg-hover);
+  text-decoration: none;
+  transform: translateY(-2px);
+}
+
+.persona-picker-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-bottom: 0.35rem;
+}
+
+.persona-picker-desc {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* Secondary nav groups (shared pages, artifact lists) */
+.nav-group-secondary .nav-group-label {
+  opacity: 0.7;
+}
+
+/* Collapsible sidebar nav groups */
+.nav-group-collapsible .nav-group-label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  user-select: none;
+}
+
+.nav-group-collapsible .nav-group-label:hover {
+  color: var(--text);
+}
+
+.nav-group-chevron {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.nav-collapsed .nav-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.nav-group-links {
+  overflow: hidden;
+  max-height: 500px;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  opacity: 1;
+}
+
+.nav-collapsed .nav-group-links {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* Shorter scrollable tables */
+.table-wrap.table-short {
+  max-height: 400px;
+}
+
+/* Multi-select filter (native <details>) */
+.multi-filter {
+  position: relative;
+}
+
+.multi-filter summary {
+  list-style: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: var(--font);
+  white-space: nowrap;
+}
+
+.multi-filter summary::-webkit-details-marker { display: none; }
+
+.multi-filter summary:hover {
+  border-color: var(--text-dim);
+}
+
+.multi-filter summary:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.multi-filter-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0;
+  min-width: 160px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  scrollbar-width: thin;
+}
+
+.multi-filter[open] .multi-filter-menu {
+  display: block;
+}
+
+.multi-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.multi-filter-option:hover {
+  background: var(--bg-hover);
+}
+
+.multi-filter-option input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* GAR insight bullets */
+.gar-insights {
+  list-style: none;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  padding: 0;
+}
+
+.gar-insights li {
+  padding: 0.15rem 0;
+  color: var(--text-dim);
+}
+
+.gar-insights li::before {
+  content: "\\2014\\00a0";
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
+/* Signal tag color variants */
+.signal-tag-high {
+  background: rgba(248, 113, 113, 0.18);
+  color: var(--red);
+}
+
+.signal-tag-medium {
+  background: rgba(251, 191, 36, 0.18);
+  color: var(--amber);
+}
+
+.signal-tag-positive {
+  background: rgba(52, 211, 153, 0.18);
+  color: var(--green);
+}
+
+/* Mini progress bar (inline in tables) */
+.mini-progress-bar {
+  position: relative;
+  width: 72px;
+  height: 16px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.mini-progress-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text);
 }
 `;
 }

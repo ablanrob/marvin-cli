@@ -9,7 +9,7 @@ export function createDecisionTools(
     tool(
       "list_decisions",
       "List all decisions in the project, optionally filtered by status",
-      { status: z.string().optional().describe("Filter by status (e.g. 'open', 'decided', 'superseded')") },
+      { status: z.enum(["open", "decided", "superseded", "dismissed"]).optional().describe("Filter by status") },
       async (args) => {
         const docs = store.list({ type: "decision", status: args.status });
         const summary = docs.map((d) => ({
@@ -59,7 +59,7 @@ export function createDecisionTools(
       {
         title: z.string().describe("Title of the decision"),
         content: z.string().describe("Decision description, context, and rationale"),
-        status: z.string().optional().describe("Status (default: 'open')"),
+        status: z.enum(["open", "decided", "superseded", "dismissed"]).optional().describe("Status (default: 'open')"),
         owner: z.string().optional().describe("Person responsible for this decision"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
       },
@@ -91,7 +91,7 @@ export function createDecisionTools(
       {
         id: z.string().describe("Decision ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z.string().optional().describe("New status"),
+        status: z.enum(["open", "decided", "superseded", "dismissed"]).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: z.string().optional().describe("New owner"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),

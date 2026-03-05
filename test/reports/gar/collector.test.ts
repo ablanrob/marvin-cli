@@ -14,7 +14,7 @@ describe("collectGarMetrics", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics"]) {
+    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "sprints", "tasks"]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, COMMON_REGISTRATIONS);
@@ -24,17 +24,16 @@ describe("collectGarMetrics", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("should return 100% completion for empty store", () => {
+  it("should return empty at-risk items for empty store", () => {
     const metrics = collectGarMetrics(store);
 
-    expect(metrics.scope.total).toBe(0);
-    expect(metrics.scope.completionPct).toBe(100);
+    expect(metrics.scope.atRiskItems).toHaveLength(0);
+    expect(metrics.scope.epicSummaries).toHaveLength(0);
     expect(metrics.schedule.blocked).toBe(0);
-    expect(metrics.quality.risks).toBe(0);
-    expect(metrics.resources.unowned).toBe(0);
+    expect(metrics.quality.riskCount).toBe(0);
   });
 
-  it("should compute correct metric counts", () => {
+  it("should compute schedule blocked/overdue counts", () => {
     store.create("action", { title: "Build API", status: "open", owner: "alice", tags: ["risk"] });
     store.create("action", { title: "Write tests", status: "open" });
     store.create("action", { title: "Design UI", status: "done", owner: "bob" });
@@ -44,18 +43,13 @@ describe("collectGarMetrics", () => {
 
     const metrics = collectGarMetrics(store);
 
-    expect(metrics.scope.total).toBe(4);
-    expect(metrics.scope.open).toBe(3);
-    expect(metrics.scope.done).toBe(1);
-    expect(metrics.scope.completionPct).toBe(25);
     expect(metrics.schedule.blocked).toBe(1);
     expect(metrics.schedule.overdue).toBe(0);
-    expect(metrics.quality.risks).toBe(2);
+    expect(metrics.quality.riskCount).toBe(2);
     expect(metrics.quality.openQuestions).toBe(1);
-    expect(metrics.resources.unowned).toBe(2); // Write tests + Deploy
   });
 
-  it("should include item arrays with ids and titles", () => {
+  it("should include schedule items with ids and titles", () => {
     store.create("action", { title: "Deploy", status: "open", tags: ["blocked"] });
     store.create("action", { title: "Write tests", status: "open" });
     store.create("question", { title: "Which DB?", status: "open", tags: ["risk"] });
@@ -67,11 +61,6 @@ describe("collectGarMetrics", () => {
 
     expect(metrics.quality.items).toHaveLength(1);
     expect(metrics.quality.items[0].id).toBe("Q-001");
-
-    expect(metrics.resources.items).toHaveLength(2);
-    const ids = metrics.resources.items.map((i) => i.id);
-    expect(ids).toContain("A-001");
-    expect(ids).toContain("A-002");
   });
 
   it("should deduplicate items tagged with both blocked and overdue", () => {
@@ -84,7 +73,7 @@ describe("collectGarMetrics", () => {
     expect(metrics.schedule.items).toHaveLength(1);
   });
 
-  it("should count open action with past dueDate as overdue", () => {
+  it("should count open action with past dueDate as overdue with daysOverdue", () => {
     store.create("action", { title: "Overdue task", status: "open", dueDate: "2020-01-01" } as any);
 
     const metrics = collectGarMetrics(store);
@@ -92,6 +81,7 @@ describe("collectGarMetrics", () => {
     expect(metrics.schedule.overdue).toBe(1);
     expect(metrics.schedule.items).toHaveLength(1);
     expect(metrics.schedule.items[0].title).toBe("Overdue task");
+    expect(metrics.schedule.items[0].daysOverdue).toBeGreaterThan(0);
   });
 
   it("should NOT count done action with past dueDate as overdue", () => {
@@ -128,7 +118,7 @@ describe("collectGarMetrics", () => {
 
     const metrics = collectGarMetrics(store);
 
-    expect(metrics.quality.risks).toBe(1);
+    expect(metrics.quality.riskCount).toBe(1);
     expect(metrics.quality.items).toHaveLength(1);
     expect(metrics.quality.items[0].title).toBe("Open risk");
   });
@@ -139,7 +129,37 @@ describe("collectGarMetrics", () => {
 
     const metrics = collectGarMetrics(store);
 
-    expect(metrics.quality.risks).toBe(1);
+    expect(metrics.quality.riskCount).toBe(1);
     expect(metrics.quality.items[0].title).toBe("Open risk Q");
+  });
+
+  it("should count badly overdue items (> 7 days)", () => {
+    store.create("action", { title: "Very late", status: "open", dueDate: "2020-01-01" } as any);
+
+    const metrics = collectGarMetrics(store);
+
+    expect(metrics.schedule.badlyOverdueCount).toBe(1);
+  });
+
+  it("should compute weighted risk score by priority", () => {
+    store.create("action", { title: "Critical risk", status: "open", tags: ["risk"], priority: "critical" } as any);
+    store.create("action", { title: "Low risk", status: "open", tags: ["risk"], priority: "low" } as any);
+
+    const metrics = collectGarMetrics(store);
+
+    // critical=4, low=1
+    expect(metrics.quality.riskScore).toBe(5);
+    expect(metrics.quality.riskCount).toBe(2);
+  });
+
+  it("should track totalOpenItems for relative threshold", () => {
+    store.create("action", { title: "A1", status: "open" });
+    store.create("action", { title: "A2", status: "open" });
+    store.create("action", { title: "A3", status: "done" });
+
+    const metrics = collectGarMetrics(store);
+
+    // 2 open actions + potentially other open docs
+    expect(metrics.quality.totalOpenItems).toBeGreaterThanOrEqual(2);
   });
 });

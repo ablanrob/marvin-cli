@@ -1,5 +1,6 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import { renderTableUtilsScript, sortableTh, tableFilter } from "../../table-utils.js";
 
 export function poBacklogPage(ctx: PersonaPageContext): string {
   const features = ctx.store.list({ type: "feature" });
@@ -42,11 +43,25 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
     return "";
   }
 
+  // Unique filter values
+  const featureStatuses = [...new Set(features.map((d) => d.frontmatter.status))].sort();
+  const featurePriorities = [...new Set(features.map((d) => (d.frontmatter.priority as string) ?? "").filter(Boolean))].sort();
+  const featureEpicIds = [...new Set(
+    features.flatMap((d) => featureToEpics.get(d.frontmatter.id) ?? []),
+  )].sort();
+
+  const featuresFilters = `<div class="filters">
+    ${tableFilter("features-table", 2, "Status", featureStatuses)}
+    ${tableFilter("features-table", 3, "Priority", featurePriorities)}
+    ${featureEpicIds.length > 0 ? tableFilter("features-table", 4, "Epic", featureEpicIds) : ""}
+  </div>`;
+
   const featuresTable = sortedFeatures.length > 0
-    ? `<div class="table-wrap">
-        <table>
+    ? `${featuresFilters}
+      <div class="table-wrap table-short">
+        <table id="features-table">
           <thead>
-            <tr><th>ID</th><th>Title</th><th>Status</th><th>Priority</th><th>Linked Epics</th></tr>
+            <tr>${sortableTh("ID", "features-table", 0)}${sortableTh("Title", "features-table", 1)}${sortableTh("Status", "features-table", 2)}${sortableTh("Priority", "features-table", 3)}<th>Linked Epics</th></tr>
           </thead>
           <tbody>
             ${sortedFeatures.map((d) => {
@@ -68,14 +83,18 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
       </div>`
     : '<div class="empty"><p>No features found.</p></div>';
 
+  // Question owners for filter
+  const questionOwners = [...new Set(openQuestions.map((d) => d.frontmatter.owner).filter(Boolean) as string[])].sort();
+
   const questionsTable = openQuestions.length > 0
     ? collapsibleSection(
         "po-backlog-questions",
         `Open Questions (${openQuestions.length})`,
-        `<div class="table-wrap">
-          <table>
+        `${questionOwners.length > 0 ? `<div class="filters">${tableFilter("questions-table", 2, "Owner", questionOwners)}</div>` : ""}
+        <div class="table-wrap table-short">
+          <table id="questions-table">
             <thead>
-              <tr><th>ID</th><th>Title</th><th>Owner</th><th>Created</th></tr>
+              <tr>${sortableTh("ID", "questions-table", 0)}${sortableTh("Title", "questions-table", 1)}${sortableTh("Owner", "questions-table", 2)}${sortableTh("Created", "questions-table", 3)}</tr>
             </thead>
             <tbody>
               ${openQuestions.map((d) => `
@@ -99,5 +118,6 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
     </div>
     ${collapsibleSection("po-backlog-features", `Features (${features.length})`, featuresTable, { titleTag: "h3" })}
     ${questionsTable}
+    ${renderTableUtilsScript()}
   `;
 }

@@ -15,7 +15,7 @@ describe("Contribution Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "contributions"]) {
+    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "contributions", "tasks", "sprints"]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, COMMON_REGISTRATIONS);
@@ -120,6 +120,56 @@ describe("Contribution Tools", () => {
     const result = await tools.get_contribution({ id: "C-999" });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("not found");
+  });
+
+  it("should set parentProgress on parent task and propagate to action", async () => {
+    // Create an action and a task under it
+    store.create("action", { title: "Action 1", status: "in-progress" } as any);
+    store.create("task", {
+      title: "Task 1",
+      status: "in-progress",
+      aboutArtifact: "A-001",
+    } as any);
+
+    // Create a contribution with parentProgress
+    const result = await tools.create_contribution({
+      title: "Contribution 1",
+      content: "Work done.",
+      persona: "tech-lead",
+      contributionType: "action-result",
+      aboutArtifact: "T-001",
+      parentProgress: 70,
+    });
+
+    expect(result.content[0].text).toContain("Progress updated");
+    expect(result.content[0].text).toContain("T-001");
+
+    // Verify task progress was set
+    const task = store.get("T-001");
+    expect(task!.frontmatter.progress).toBe(70);
+
+    // Verify action progress was propagated
+    const action = store.get("A-001");
+    expect(typeof action!.frontmatter.progress).toBe("number");
+  });
+
+  it("should propagate when contribution status changes", async () => {
+    store.create("task", { title: "Task 1", status: "in-progress" } as any);
+    await tools.create_contribution({
+      title: "C1",
+      content: "Work.",
+      persona: "tech-lead",
+      contributionType: "action-result",
+      aboutArtifact: "T-001",
+      status: "open",
+    });
+
+    // Update contribution to done
+    await tools.update_contribution({ id: "C-001", status: "done" });
+
+    // Task should have auto-calculated progress from child contributions
+    const task = store.get("T-001");
+    expect(task!.frontmatter.progress).toBe(100);
   });
 
   it("should filter by status", async () => {

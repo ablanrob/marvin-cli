@@ -4,6 +4,8 @@ import { buildArtifactFlowchart } from "../../mermaid.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../../layout.js";
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+/** Decision statuses that indicate the decision has been resolved */
+const RESOLVED_DECISION_STATUSES = new Set(["decided", "superseded", "dismissed"]);
 
 export function tlDashboardPage(ctx: PersonaPageContext): string {
   const epics = ctx.store.list({ type: "epic" });
@@ -15,17 +17,18 @@ export function tlDashboardPage(ctx: PersonaPageContext): string {
   const openEpics = epics.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
   const openTasks = tasks.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
 
-  // Technical decisions = decisions with tags containing "technical" or type hints
+  // Technical decisions = decisions with tags containing technical/architecture/design
   const technicalDecisions = decisions.filter((d) => {
     const tags = (d.frontmatter.tags as string[]) ?? [];
-    return tags.some((t) => t.toLowerCase().includes("technical") || t.toLowerCase().includes("architecture"));
+    return tags.some((t) => {
+      const lower = t.toLowerCase();
+      return lower.includes("technical") || lower.includes("architecture") || lower.includes("design");
+    });
   });
-  const openTechDecisions = technicalDecisions.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
 
-  // Fallback: show all open decisions if no technical tags found
-  const pendingDecisions = openTechDecisions.length > 0
-    ? openTechDecisions
-    : decisions.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
+  // Fallback: show all decisions if no technical-tagged decisions exist at all
+  const displayDecisions = technicalDecisions.length > 0 ? technicalDecisions : decisions;
+  const pendingDecisions = displayDecisions.filter((d) => !RESOLVED_DECISION_STATUSES.has(d.frontmatter.status));
 
   const statsCards = `
     <div class="cards">

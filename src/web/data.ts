@@ -244,7 +244,7 @@ export interface UpcomingData {
   trending: TrendingItem[];
 }
 
-function computeUrgency(dueDateStr: string, todayStr: string): UrgencyTier {
+export function computeUrgency(dueDateStr: string, todayStr: string): UrgencyTier {
   const due = new Date(dueDateStr).getTime();
   const today = new Date(todayStr).getTime();
   const diffDays = Math.floor((due - today) / 86_400_000);

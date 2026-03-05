@@ -1,47 +1,46 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DocumentStore } from "../storage/store.js";
 import {
-  getOverviewData,
   getDocumentListData,
   getDocumentDetail,
-  getGarData,
-  getBoardData,
-  getDiagramData,
-  getUpcomingData,
   getSprintSummaryData,
 } from "./data.js";
-import { layout, escapeHtml, type NavGroup } from "./templates/layout.js";
+import { layout, escapeHtml, typeLabel, type NavGroup } from "./templates/layout.js";
 import { renderStyles } from "./templates/styles.js";
-import { overviewPage } from "./templates/pages/overview.js";
 import { documentsPage } from "./templates/pages/documents.js";
 import { documentDetailPage } from "./templates/pages/document-detail.js";
-import { garPage } from "./templates/pages/gar.js";
-import { healthPage } from "./templates/pages/health.js";
-import { boardPage } from "./templates/pages/board.js";
-import { timelinePage } from "./templates/pages/timeline.js";
-import { upcomingPage } from "./templates/pages/upcoming.js";
 import { sprintSummaryPage } from "./templates/pages/sprint-summary.js";
-import { collectHealthMetrics } from "../reports/health/collector.js";
-import { evaluateHealth } from "../reports/health/evaluator.js";
+import { personaPickerPage } from "./templates/pages/persona-picker.js";
 import { generateSprintSummary } from "../reports/sprint-summary/generator.js";
 import { getPersona } from "../personas/registry.js";
 import { renderMarkdown } from "./templates/layout.js";
 import {
   parsePersonaFromPath,
+  resolvePersona,
   getPersonaView,
   getPersonaPageRenderer,
+  SHARED_NAV_ITEMS,
   type DashboardPersona,
 } from "./persona-views.js";
-import { renderPersonaBanner, renderPersonaSwitcher } from "./templates/persona-switcher.js";
+import { renderPersonaSwitcher } from "./templates/persona-switcher.js";
 
 // Import persona configs to trigger registration
 import "./persona-configs/po.js";
 import "./persona-configs/dm.js";
 import "./persona-configs/tl.js";
 
+// Import shared page registrations
+import "./shared-page-registration.js";
+
+/** Layout overrides per shared pageId */
+const PAGE_LAYOUT_OVERRIDES: Record<string, { mainClass?: string }> = {
+  timeline: { mainClass: "expanded" },
+};
+
 function buildPersonaLayoutOpts(
   persona: DashboardPersona,
   activePath: string,
+  navGroups: NavGroup[],
 ): { personaSwitcherHtml: string; personaNavHtml?: string; personaAccentColor?: string } {
   const switcherHtml = renderPersonaSwitcher(persona, activePath);
   const view = persona ? getPersonaView(persona) : undefined;
@@ -55,6 +54,7 @@ function buildPersonaLayoutOpts(
       ? " active"
       : "";
 
+  // Primary: persona's own nav items
   const personaLinks = view.navItems
     .map(
       (item) =>
@@ -62,12 +62,55 @@ function buildPersonaLayoutOpts(
     )
     .join("\n        ");
 
+  // Chevron SVG for collapsible groups
+  const chevronSvg = `<svg class="nav-group-chevron" viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M4.94 5.72a.75.75 0 0 1 1.06-.02L8 7.56l1.97-1.84a.75.75 0 1 1 1.02 1.1l-2.5 2.34a.75.75 0 0 1-1.02 0l-2.5-2.34a.75.75 0 0 1-.03-1.06z"/></svg>`;
+
+  // Project group: shared pages
+  const sharedLinks = SHARED_NAV_ITEMS
+    .map((item) => {
+      const href = `/${persona}/${item.pageId}`;
+      return `<a href="${href}" class="${isActive(href)}">${escapeHtml(item.label)}</a>`;
+    })
+    .join("\n            ");
+
+  const projectGroupActive = SHARED_NAV_ITEMS.some(
+    (item) => isActive(`/${persona}/${item.pageId}`) !== "",
+  );
+
+  // Artifact groups from navGroups
+  const artifactGroupsHtml = navGroups
+    .map((group) => {
+      const links = group.types
+        .map((type) => {
+          const href = `/docs/${type}?persona=${persona}`;
+          return `<a href="${href}" class="${isActive(`/docs/${type}`)}">${typeLabel(type)}s</a>`;
+        })
+        .join("\n            ");
+      const groupActive = group.types.some(
+        (type) => isActive(`/docs/${type}`) !== "",
+      );
+      const collapsed = groupActive ? "" : " nav-collapsed";
+      const groupKey = `art-${group.label.toLowerCase().replace(/\s+/g, "-")}`;
+      return `
+        <div class="nav-group nav-group-secondary nav-group-collapsible${collapsed}" data-nav-group="${escapeHtml(groupKey)}">
+          <div class="nav-group-label" onclick="toggleNavGroup(this)">${chevronSvg} <span>${escapeHtml(group.label)}</span></div>
+          <div class="nav-group-links">
+            ${links}
+          </div>
+        </div>`;
+    })
+    .join("\n");
+
+  const projectCollapsed = projectGroupActive ? "" : " nav-collapsed";
   const navHtml = `
         ${personaLinks}
-        <div class="nav-group">
-          <div class="nav-group-label">Admin</div>
-          <a href="/">Full Dashboard</a>
-        </div>`;
+        <div class="nav-group nav-group-secondary nav-group-collapsible${projectCollapsed}" data-nav-group="project">
+          <div class="nav-group-label" onclick="toggleNavGroup(this)">${chevronSvg} <span>Project</span></div>
+          <div class="nav-group-links">
+            ${sharedLinks}
+          </div>
+        </div>
+        ${artifactGroupsHtml}`;
 
   return {
     personaSwitcherHtml: switcherHtml,
@@ -83,6 +126,9 @@ interface CachedSummary {
 
 const sprintSummaryCache = new Map<string, CachedSummary>();
 
+/** Old root routes that should redirect to persona-scoped versions */
+const OLD_ROOT_PAGES = new Set(["timeline", "gar", "health", "upcoming", "sprint-summary"]);
+
 export function handleRequest(
   req: IncomingMessage,
   res: ServerResponse,
@@ -93,10 +139,6 @@ export function handleRequest(
   const parsed = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   const pathname = parsed.pathname;
   const navTypes = store.registeredTypes;
-
-  // Parse persona from URL path
-  const persona: DashboardPersona = parsePersonaFromPath(pathname);
-  const personaOpts = buildPersonaLayoutOpts(persona, pathname);
 
   try {
     // GET /styles.css
@@ -109,7 +151,44 @@ export function handleRequest(
       return;
     }
 
-    // Persona root redirects: /po → /po/dashboard, etc.
+    // --- Redirects for old root routes ---
+
+    // /timeline, /gar, /health, /upcoming, /sprint-summary → /:persona/:page
+    const oldRootMatch = pathname.match(/^\/([a-z-]+)$/);
+    if (oldRootMatch && OLD_ROOT_PAGES.has(oldRootMatch[1])) {
+      const pageId = oldRootMatch[1];
+      const persona = resolvePersona(pathname, parsed.searchParams) ?? "po";
+      const qs = parsed.searchParams.toString();
+      const target = `/${persona}/${pageId}${qs ? `?${qs}` : ""}`;
+      res.writeHead(302, { Location: target });
+      res.end();
+      return;
+    }
+
+    // /board or /board/:type → /:persona/board[/:type]
+    const oldBoardMatch = pathname.match(/^\/board(?:\/([^/]+))?$/);
+    if (oldBoardMatch) {
+      const persona = resolvePersona(pathname, parsed.searchParams) ?? "po";
+      const typeSuffix = oldBoardMatch[1] ? `/${oldBoardMatch[1]}` : "";
+      res.writeHead(302, { Location: `/${persona}/board${typeSuffix}` });
+      res.end();
+      return;
+    }
+
+    // --- Root: persona picker ---
+
+    if (pathname === "/") {
+      const body = personaPickerPage();
+      respond(res, layout({
+        title: "Choose View",
+        activePath: "/",
+        projectName,
+        navGroups,
+      }, body));
+      return;
+    }
+
+    // Persona root redirects: /po → /po/dashboard
     const personaRootMatch = pathname.match(/^\/(po|dm|tl)$/);
     if (personaRootMatch) {
       res.writeHead(302, { Location: `/${personaRootMatch[1]}/dashboard` });
@@ -117,17 +196,32 @@ export function handleRequest(
       return;
     }
 
-    // Persona page routes: /:persona/:pageId
-    const personaPageMatch = pathname.match(/^\/(po|dm|tl)\/([a-z-]+)$/);
+    // --- Persona page routes: /:persona/:pageId[/:subPath] ---
+
+    const personaPageMatch = pathname.match(/^\/(po|dm|tl)\/([a-z-]+)(?:\/([a-z0-9-]+))?$/);
     if (personaPageMatch) {
-      const [, personaKey, pageId] = personaPageMatch;
+      const [, personaKey, pageId, subPath] = personaPageMatch;
       const pPersona = personaKey as DashboardPersona;
       const renderer = getPersonaPageRenderer(personaKey, pageId);
       const view = getPersonaView(pPersona);
 
-      const pOpts = buildPersonaLayoutOpts(pPersona, pathname);
+      const pOpts = buildPersonaLayoutOpts(pPersona, pathname, navGroups);
+      const layoutOverrides = PAGE_LAYOUT_OVERRIDES[pageId] ?? {};
+
       if (renderer) {
-        const body = renderer({ store, projectName });
+        // Handle board sub-path type validation
+        if (pageId === "board" && subPath && !navTypes.includes(subPath)) {
+          notFound(res, projectName, navGroups, pathname, pPersona, pOpts);
+          return;
+        }
+
+        const body = renderer({
+          store,
+          projectName,
+          searchParams: parsed.searchParams,
+          subPath,
+          persona: personaKey,
+        });
         respond(
           res,
           layout(
@@ -138,12 +232,12 @@ export function handleRequest(
               navGroups,
               persona: pPersona,
               ...pOpts,
+              ...layoutOverrides,
             },
             body,
           ),
         );
       } else {
-        // Placeholder for unregistered persona pages
         const body = `
           <div class="persona-placeholder">
             <h3>Coming Soon</h3>
@@ -165,59 +259,6 @@ export function handleRequest(
           ),
         );
       }
-      return;
-    }
-
-    // GET /
-    if (pathname === "/") {
-      const data = getOverviewData(store);
-      const diagrams = getDiagramData(store);
-      const body = overviewPage(data, diagrams, navGroups);
-      const banner = renderPersonaBanner();
-      respond(res, layout({ title: "Overview", activePath: "/", projectName, navGroups, ...personaOpts, bodyPrefix: banner }, body));
-      return;
-    }
-
-    // GET /timeline
-    if (pathname === "/timeline") {
-      const diagrams = getDiagramData(store);
-      const body = timelinePage(diagrams);
-      respond(res, layout({ title: "Timeline", activePath: "/timeline", projectName, navGroups, ...personaOpts, mainClass: "expanded" }, body));
-      return;
-    }
-
-    // GET /gar
-    if (pathname === "/gar") {
-      const report = getGarData(store, projectName);
-      const body = garPage(report);
-      respond(res, layout({ title: "GAR Report", activePath: "/gar", projectName, navGroups, ...personaOpts }, body));
-      return;
-    }
-
-    // GET /health
-    if (pathname === "/health") {
-      const healthMetrics = collectHealthMetrics(store);
-      const report = evaluateHealth(projectName, healthMetrics);
-      const body = healthPage(report, healthMetrics);
-      respond(res, layout({ title: "Health Check", activePath: "/health", projectName, navGroups, ...personaOpts }, body));
-      return;
-    }
-
-    // GET /upcoming
-    if (pathname === "/upcoming") {
-      const data = getUpcomingData(store);
-      const body = upcomingPage(data);
-      respond(res, layout({ title: "Upcoming", activePath: "/upcoming", projectName, navGroups, ...personaOpts }, body));
-      return;
-    }
-
-    // GET /sprint-summary
-    if (pathname === "/sprint-summary" && req.method === "GET") {
-      const sprintId = parsed.searchParams.get("sprint") ?? undefined;
-      const data = getSprintSummaryData(store, sprintId);
-      const cached = data ? sprintSummaryCache.get(data.sprint.id) : undefined;
-      const body = sprintSummaryPage(data, cached ? { html: cached.html, generatedAt: cached.generatedAt } : undefined);
-      respond(res, layout({ title: "Sprint Summary", activePath: "/sprint-summary", projectName, navGroups, ...personaOpts }, body));
       return;
     }
 
@@ -250,31 +291,20 @@ export function handleRequest(
       return;
     }
 
-    // GET /board or /board/:type
-    const boardMatch = pathname.match(/^\/board(?:\/([^/]+))?$/);
-    if (boardMatch) {
-      const type = boardMatch[1];
-      if (type && !navTypes.includes(type)) {
-        notFound(res, projectName, navGroups, pathname, personaOpts);
-        return;
-      }
-      const data = getBoardData(store, type);
-      const body = boardPage(data);
-      respond(res, layout({ title: "Board", activePath: "/board", projectName, navGroups, ...personaOpts }, body));
-      return;
-    }
-
     // GET /docs/:type/:id
     const detailMatch = pathname.match(/^\/docs\/([^/]+)\/([^/]+)$/);
     if (detailMatch) {
       const [, type, id] = detailMatch;
+      const persona = resolvePersona(pathname, parsed.searchParams);
+      const pOpts = buildPersonaLayoutOpts(persona, pathname, navGroups);
+
       const doc = getDocumentDetail(store, type, id);
       if (!doc) {
-        notFound(res, projectName, navGroups, pathname, personaOpts);
+        notFound(res, projectName, navGroups, pathname, persona, pOpts);
         return;
       }
       const body = documentDetailPage(doc);
-      respond(res, layout({ title: `${id} — ${doc.frontmatter.title}`, activePath: `/docs/${type}`, projectName, navGroups, ...personaOpts }, body));
+      respond(res, layout({ title: `${id} — ${doc.frontmatter.title}`, activePath: `/docs/${type}`, projectName, navGroups, persona, ...pOpts }, body));
       return;
     }
 
@@ -282,19 +312,22 @@ export function handleRequest(
     const listMatch = pathname.match(/^\/docs\/([^/]+)$/);
     if (listMatch) {
       const type = listMatch[1];
+      const persona = resolvePersona(pathname, parsed.searchParams);
+      const pOpts = buildPersonaLayoutOpts(persona, pathname, navGroups);
+
       const filterStatus = parsed.searchParams.get("status") ?? undefined;
       const filterOwner = parsed.searchParams.get("owner") ?? undefined;
       const data = getDocumentListData(store, type, filterStatus, filterOwner);
       if (!data) {
-        notFound(res, projectName, navGroups, pathname, personaOpts);
+        notFound(res, projectName, navGroups, pathname, persona, pOpts);
         return;
       }
       const body = documentsPage(data);
-      respond(res, layout({ title: `${type}`, activePath: `/docs/${type}`, projectName, navGroups, ...personaOpts }, body));
+      respond(res, layout({ title: `${type}`, activePath: `/docs/${type}`, projectName, navGroups, persona, ...pOpts }, body));
       return;
     }
 
-    notFound(res, projectName, navGroups, pathname, personaOpts);
+    notFound(res, projectName, navGroups, pathname, null);
   } catch (err) {
     console.error("[marvin web] Error handling request:", err);
     res.writeHead(500, { "Content-Type": "text/html" });
@@ -312,9 +345,11 @@ function notFound(
   projectName: string,
   navGroups: NavGroup[],
   activePath: string,
+  persona?: DashboardPersona,
   pOpts?: { personaSwitcherHtml?: string; personaNavHtml?: string; personaAccentColor?: string },
 ): void {
-  const body = `<div class="empty"><h2>404</h2><p>Page not found.</p><p><a href="/">Go to overview</a></p></div>`;
+  const homeLink = persona ? `/${persona}/dashboard` : "/";
+  const body = `<div class="empty"><h2>404</h2><p>Page not found.</p><p><a href="${homeLink}">Go to dashboard</a></p></div>`;
   res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
-  res.end(layout({ title: "Not Found", activePath, projectName, navGroups, ...pOpts }, body));
+  res.end(layout({ title: "Not Found", activePath, projectName, navGroups, persona, ...pOpts }, body));
 }

@@ -1,6 +1,10 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
+import {
+  propagateProgressFromTask,
+  propagateProgressToAction,
+} from "../../../storage/progress.js";
 
 export function createContributionTools(
   store: DocumentStore,
@@ -79,6 +83,7 @@ export function createContributionTools(
         status: z.string().optional().describe("Status (default: 'done')"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
         workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Adds a stream:<value> tag."),
+        parentProgress: z.number().optional().describe("Set progress (0-100) on the parent artifact (e.g. task or action). Propagates up the hierarchy."),
       },
       async (args) => {
         const frontmatter: Record<string, unknown> = {
@@ -93,13 +98,55 @@ export function createContributionTools(
         if (tags.length > 0) frontmatter.tags = tags;
 
         const doc = store.create("contribution", frontmatter as any, args.content);
+
+        // Progress propagation
+        const progressParts: string[] = [];
+        if (args.aboutArtifact) {
+          const parent = store.get(args.aboutArtifact);
+          if (parent) {
+            if (typeof args.parentProgress === "number") {
+              // Explicit progress: set on parent, skip auto-calc, propagate upward only
+              const clamped = Math.max(0, Math.min(100, Math.round(args.parentProgress)));
+              store.update(args.aboutArtifact, { progress: clamped } as any);
+              progressParts.push(`${args.aboutArtifact} → ${clamped}%`);
+
+              // Propagate to grandparent action if parent is a task
+              if (parent.frontmatter.type === "task") {
+                const grandparent = parent.frontmatter.aboutArtifact as string | undefined;
+                if (grandparent) {
+                  const gp = store.get(grandparent);
+                  if (gp?.frontmatter.type === "action") {
+                    const updated = propagateProgressToAction(store, grandparent);
+                    for (const id of updated) {
+                      const d = store.get(id);
+                      if (d) progressParts.push(`${id} → ${d.frontmatter.progress}%`);
+                    }
+                  }
+                }
+              }
+            } else if (parent.frontmatter.type === "task") {
+              // No explicit progress: auto-calculate from children + propagate up
+              const updated = propagateProgressFromTask(store, args.aboutArtifact);
+              for (const id of updated) {
+                const d = store.get(id);
+                if (d) progressParts.push(`${id} → ${d.frontmatter.progress}%`);
+              }
+            } else if (parent.frontmatter.type === "action") {
+              const updated = propagateProgressToAction(store, args.aboutArtifact);
+              for (const id of updated) {
+                const d = store.get(id);
+                if (d) progressParts.push(`${id} → ${d.frontmatter.progress}%`);
+              }
+            }
+          }
+        }
+
+        const parts = [`Created contribution ${doc.frontmatter.id}: ${doc.frontmatter.title}`];
+        if (progressParts.length > 0) {
+          parts.push(`Progress updated: ${progressParts.join(", ")}`);
+        }
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Created contribution ${doc.frontmatter.id}: ${doc.frontmatter.title}`,
-            },
-          ],
+          content: [{ type: "text" as const, text: parts.join("\n") }],
         };
       },
     ),
@@ -123,7 +170,22 @@ export function createContributionTools(
           filtered.push(`stream:${workStream}`);
           (updates as any).tags = filtered;
         }
+        const oldDoc = store.get(id);
         const doc = store.update(id, updates, content);
+
+        // Propagate progress when status changed
+        if (args.status && args.status !== oldDoc?.frontmatter.status) {
+          const aboutArtifact = doc.frontmatter.aboutArtifact as string | undefined;
+          if (aboutArtifact) {
+            const parent = store.get(aboutArtifact);
+            if (parent?.frontmatter.type === "task") {
+              propagateProgressFromTask(store, aboutArtifact);
+            } else if (parent?.frontmatter.type === "action") {
+              propagateProgressToAction(store, aboutArtifact);
+            }
+          }
+        }
+
         return {
           content: [
             {

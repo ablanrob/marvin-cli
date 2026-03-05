@@ -3,7 +3,6 @@ import { tlDashboardPage } from "../templates/pages/tl/dashboard.js";
 import { tlBacklogPage } from "../templates/pages/tl/backlog.js";
 import { tlSprintPage } from "../templates/pages/tl/sprint.js";
 import { tlDecisionsPage } from "../templates/pages/tl/decisions.js";
-import { tlHealthPage } from "../templates/pages/tl/health.js";
 
 registerPersonaView({
   shortName: "tl",
@@ -15,7 +14,6 @@ registerPersonaView({
     { path: "/tl/backlog", label: "Technical Backlog" },
     { path: "/tl/sprint", label: "Sprint Work" },
     { path: "/tl/decisions", label: "Architecture Decisions" },
-    { path: "/tl/health", label: "Technical Health" },
   ],
 });
 
@@ -23,4 +21,3 @@ registerPersonaPage("tl", "dashboard", tlDashboardPage);
 registerPersonaPage("tl", "backlog", tlBacklogPage);
 registerPersonaPage("tl", "sprint", tlSprintPage);
 registerPersonaPage("tl", "decisions", tlDecisionsPage);
-registerPersonaPage("tl", "health", tlHealthPage);
