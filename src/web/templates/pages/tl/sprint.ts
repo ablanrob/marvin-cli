@@ -97,7 +97,7 @@ export function tlSprintPage(ctx: PersonaPageContext): string {
         `<div class="table-wrap">
           <table>
             <thead>
-              <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Stream</th></tr>
+              <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Focus</th></tr>
             </thead>
             <tbody>
               ${techItems.map((w) => `
@@ -106,7 +106,7 @@ export function tlSprintPage(ctx: PersonaPageContext): string {
                 <td>${escapeHtml(w.title)}</td>
                 <td>${escapeHtml(typeLabel(w.type))}</td>
                 <td>${statusBadge(w.status)}</td>
-                <td>${w.workStream ? `<span class="badge badge-subtle">${escapeHtml(w.workStream)}</span>` : '<span class="text-dim">—</span>'}</td>
+                <td>${w.workFocus ? `<span class="badge badge-subtle">${escapeHtml(w.workFocus)}</span>` : '<span class="text-dim">—</span>'}</td>
               </tr>`).join("")}
             </tbody>
           </table>

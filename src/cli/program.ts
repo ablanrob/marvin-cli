@@ -26,6 +26,7 @@ import { contributeCommand } from "./commands/contribute.js";
 import { garReportCommand, healthReportCommand, sprintSummaryCommand } from "./commands/report.js";
 import { webCommand } from "./commands/web.js";
 import { generateClaudeMdCommand } from "./commands/generate.js";
+import { doctorCommand } from "./commands/doctor.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -259,6 +260,15 @@ export function createProgram(): Command {
     .option("--no-open", "Don't auto-open the browser")
     .action(async (options) => {
       await webCommand(options);
+    });
+
+  program
+    .command("doctor")
+    .description("Scan project documents for structural issues and optionally auto-repair them")
+    .option("--fix", "Auto-repair fixable issues")
+    .option("--rule <rule>", "Run only a specific rule")
+    .action(async (options) => {
+      await doctorCommand(options);
     });
 
   const generateCmd = program

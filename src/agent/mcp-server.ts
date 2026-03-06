@@ -13,6 +13,7 @@ import { createDocumentTools } from "./tools/documents.js";
 import { createSourceTools } from "./tools/sources.js";
 import { createSessionTools } from "./tools/sessions.js";
 import { createWebTools } from "./tools/web.js";
+import { createDoctorTools } from "./tools/doctor.js";
 import type { NavGroup } from "../web/templates/layout.js";
 
 export interface McpServerOptions {
@@ -41,6 +42,7 @@ export function createMarvinMcpServer(
     ...(options?.projectName && options?.navGroups
       ? createWebTools(store, options.projectName, options.navGroups)
       : []),
+    ...createDoctorTools(store),
   ];
 
   return createSdkMcpServer({

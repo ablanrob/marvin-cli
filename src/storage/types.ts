@@ -16,6 +16,7 @@ export interface DocumentFrontmatter {
   created: string;
   updated: string;
   owner?: string;
+  assignee?: string;
   priority?: string;
   tags?: string[];
   dueDate?: string;

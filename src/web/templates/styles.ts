@@ -1515,5 +1515,38 @@ tr:hover td {
   font-weight: 700;
   color: var(--text);
 }
+
+/* Focus-grouped work items */
+.focus-row td:first-child {
+  border-left: 3px solid var(--focus-color, var(--border));
+}
+
+.focus-group-header td {
+  background: var(--bg-hover);
+  border-left: 3px solid var(--focus-color, var(--border));
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.focus-group-header td:first-child {
+  border-left-width: 3px;
+}
+
+.focus-group-name {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text);
+  margin-right: 0.75rem;
+}
+
+.focus-group-stats {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.focus-group-progress {
+  width: 96px;
+}
 `;
 }
