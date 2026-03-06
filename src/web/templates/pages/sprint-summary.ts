@@ -1,5 +1,5 @@
 import type { SprintSummaryData, SprintWorkItem } from "../../../reports/sprint-summary/types.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, renderMarkdown } from "../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel, renderMarkdown } from "../layout.js";
 
 function progressBar(pct: number): string {
   return `<div class="sprint-progress-bar">
