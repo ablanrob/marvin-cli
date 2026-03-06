@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
+import { ownerSchema, normalizeOwner } from "../../personas/owner.js";
 
 export function createDecisionTools(
   store: DocumentStore,
@@ -60,7 +61,8 @@ export function createDecisionTools(
         title: z.string().describe("Title of the decision"),
         content: z.string().describe("Decision description, context, and rationale"),
         status: z.enum(["open", "decided", "superseded", "dismissed"]).optional().describe("Status (default: 'open')"),
-        owner: z.string().optional().describe("Person responsible for this decision"),
+        owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
+        assignee: z.string().optional().describe("Person assigned to do the work"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
       },
       async (args) => {
@@ -69,7 +71,8 @@ export function createDecisionTools(
           {
             title: args.title,
             status: args.status,
-            owner: args.owner,
+            owner: normalizeOwner(args.owner),
+            assignee: args.assignee,
             tags: args.tags,
           },
           args.content,
@@ -93,11 +96,14 @@ export function createDecisionTools(
         title: z.string().optional().describe("New title"),
         status: z.enum(["open", "decided", "superseded", "dismissed"]).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
-        owner: z.string().optional().describe("New owner"),
+        owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
+        assignee: z.string().optional().describe("Person assigned to do the work"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
-        const { id, content, ...updates } = args;
+        const { id, content, owner, assignee, ...updates } = args;
+        if (owner !== undefined) (updates as any).owner = normalizeOwner(owner);
+        if (assignee !== undefined) (updates as any).assignee = assignee;
         const doc = store.update(id, updates, content);
         return {
           content: [

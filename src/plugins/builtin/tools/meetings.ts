@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
+import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
 
 export function createMeetingTools(
   store: DocumentStore,
@@ -61,7 +62,8 @@ export function createMeetingTools(
         title: z.string().describe("Title of the meeting"),
         content: z.string().describe("Meeting agenda, notes, or minutes"),
         status: z.string().optional().describe("Status (default: 'scheduled')"),
-        owner: z.string().optional().describe("Meeting organizer"),
+        owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
+        assignee: z.string().optional().describe("Person assigned to do the work"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
         attendees: z.array(z.string()).optional().describe("List of attendees"),
         date: z.string().describe("Date the meeting took place (ISO format, e.g. '2025-01-15'). Extract from the meeting content. If not found, ask the user before calling this tool."),
@@ -71,7 +73,8 @@ export function createMeetingTools(
           title: args.title,
           status: args.status ?? "scheduled",
         };
-        if (args.owner) frontmatter.owner = args.owner;
+        if (args.owner) frontmatter.owner = normalizeOwner(args.owner);
+        if (args.assignee) frontmatter.assignee = args.assignee;
         if (args.tags) frontmatter.tags = args.tags;
         if (args.attendees) frontmatter.attendees = args.attendees;
         frontmatter.date = args.date;
@@ -100,10 +103,13 @@ export function createMeetingTools(
         title: z.string().optional().describe("New title"),
         status: z.string().optional().describe("New status"),
         content: z.string().optional().describe("New content"),
-        owner: z.string().optional().describe("New owner"),
+        owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
+        assignee: z.string().optional().describe("Person assigned to do the work"),
       },
       async (args) => {
-        const { id, content, ...updates } = args;
+        const { id, content, owner, assignee, ...updates } = args;
+        if (owner !== undefined) (updates as any).owner = normalizeOwner(owner);
+        if (assignee !== undefined) (updates as any).assignee = assignee;
         const doc = store.update(id, updates, content);
         return {
           content: [

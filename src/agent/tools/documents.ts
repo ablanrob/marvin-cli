@@ -15,18 +15,20 @@ export function createDocumentTools(
           .optional()
           .describe(`Filter by document type (registered types: ${store.registeredTypes.join(", ")})`),
         status: z.string().optional().describe("Filter by status"),
+        owner: z.string().optional().describe("Filter by persona role owner (po, dm, tl)"),
         tag: z.string().optional().describe("Filter by tag"),
-        workStream: z.string().optional().describe("Filter by work stream name (matches stream:<value> tag)"),
+        workFocus: z.string().optional().describe("Filter by work focus name (matches focus:<value> tag)"),
       },
       async (args) => {
         let docs = store.list({
           type: args.type,
           status: args.status,
+          owner: args.owner,
           tag: args.tag,
         });
-        if (args.workStream) {
-          const streamTag = `stream:${args.workStream}`;
-          docs = docs.filter((d) => d.frontmatter.tags?.includes(streamTag));
+        if (args.workFocus) {
+          const focusTag = `focus:${args.workFocus}`;
+          docs = docs.filter((d) => d.frontmatter.tags?.includes(focusTag));
         }
         const summary = docs.map((d) => ({
           id: d.frontmatter.id,

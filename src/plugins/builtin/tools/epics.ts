@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 import { normalizeLinkedFeatures, generateFeatureTags } from "./epic-utils.js";
+import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
 
 /**
  * Schema that advertises `type: array` but also accepts a JSON-stringified
@@ -103,7 +104,8 @@ export function createEpicTools(
           .enum(["planned", "in-progress", "done"])
           .optional()
           .describe("Epic status (default: 'planned')"),
-        owner: z.string().optional().describe("Epic owner"),
+        owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
+        assignee: z.string().optional().describe("Person assigned to do the work"),
         targetDate: z.string().optional().describe("Target completion date (ISO format)"),
         estimatedEffort: z.string().optional().describe("Estimated effort (e.g. '2 weeks', '5 story points')"),
         tags: z.array(z.string()).optional().describe("Additional tags"),
@@ -155,7 +157,8 @@ export function createEpicTools(
           linkedFeature: linkedFeatures,
           tags: [...generateFeatureTags(linkedFeatures), ...(args.tags ?? [])],
         };
-        if (args.owner) frontmatter.owner = args.owner;
+        if (args.owner) frontmatter.owner = normalizeOwner(args.owner);
+        if (args.assignee) frontmatter.assignee = args.assignee;
         if (args.targetDate) frontmatter.targetDate = args.targetDate;
         if (args.estimatedEffort) frontmatter.estimatedEffort = args.estimatedEffort;
 
@@ -182,14 +185,17 @@ export function createEpicTools(
           .optional()
           .describe("New status"),
         content: z.string().optional().describe("New content"),
-        owner: z.string().optional().describe("New owner"),
+        owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
+        assignee: z.string().optional().describe("Person assigned to do the work"),
         targetDate: z.string().optional().describe("New target date"),
         estimatedEffort: z.string().optional().describe("New estimated effort"),
         linkedFeature: linkedFeatureArray.optional().describe("New linked feature ID(s)"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
-        const { id, content, linkedFeature: rawLinkedFeature, tags: userTags, ...updates } = args;
+        const { id, content, linkedFeature: rawLinkedFeature, tags: userTags, owner, assignee, ...updates } = args;
+        if (owner !== undefined) (updates as any).owner = normalizeOwner(owner);
+        if (assignee !== undefined) (updates as any).assignee = assignee;
 
         // If linkedFeature is being changed, validate all new features
         if (rawLinkedFeature !== undefined) {

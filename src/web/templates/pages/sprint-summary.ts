@@ -1,5 +1,5 @@
 import type { SprintSummaryData, SprintWorkItem } from "../../../reports/sprint-summary/types.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, renderMarkdown, typeLabel } from "../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, statusBadge, renderMarkdown } from "../layout.js";
 
 function progressBar(pct: number): string {
   return `<div class="sprint-progress-bar">
@@ -75,18 +75,17 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
       )
     : "";
 
-  // Work items with hierarchical nesting (action → task → contribution)
+  // Work items grouped by focus with subtle left-border color per focus
 
-  // --- Per-stream row background colors ---
-  const STREAM_PALETTE = [
-    "hsla(220, 30%, 22%, 0.45)",
-    "hsla(160, 30%, 20%, 0.45)",
-    "hsla(280, 25%, 22%, 0.45)",
-    "hsla(30, 35%, 22%, 0.45)",
-    "hsla(340, 25%, 22%, 0.45)",
-    "hsla(190, 30%, 20%, 0.45)",
-    "hsla(60, 25%, 20%, 0.45)",
-    "hsla(120, 20%, 20%, 0.45)",
+  const FOCUS_BORDER_PALETTE = [
+    "hsl(220, 60%, 55%)",
+    "hsl(160, 50%, 45%)",
+    "hsl(280, 45%, 55%)",
+    "hsl(30, 65%, 55%)",
+    "hsl(340, 50%, 55%)",
+    "hsl(190, 50%, 45%)",
+    "hsl(60, 50%, 50%)",
+    "hsl(120, 40%, 45%)",
   ];
 
   function hashString(s: string): number {
@@ -97,81 +96,105 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
     return Math.abs(h);
   }
 
-  // Collect unique stream names and assign colors
-  function collectStreams(items: SprintWorkItem[]): Set<string> {
-    const streams = new Set<string>();
-    for (const w of items) {
-      if (w.workStream) streams.add(w.workStream);
-      if (w.children) {
-        for (const s of collectStreams(w.children)) streams.add(s);
+  // Group root items by focus, preserving hierarchy
+  const focusGroups = new Map<string, SprintWorkItem[]>();
+  for (const item of data.workItems.items) {
+    const focus = item.workFocus ?? "Unassigned";
+    if (!focusGroups.has(focus)) focusGroups.set(focus, []);
+    focusGroups.get(focus)!.push(item);
+  }
+
+  // Assign a border color to each focus
+  const focusColorMap = new Map<string, string>();
+  for (const name of focusGroups.keys()) {
+    focusColorMap.set(name, FOCUS_BORDER_PALETTE[hashString(name) % FOCUS_BORDER_PALETTE.length]);
+  }
+
+  function countFocusStats(items: SprintWorkItem[]): { total: number; done: number; inProgress: number } {
+    let total = 0;
+    let done = 0;
+    let inProgress = 0;
+    function walk(list: SprintWorkItem[]) {
+      for (const w of list) {
+        if (w.type !== "contribution") {
+          total++;
+          const s = w.status.toLowerCase();
+          if (s === "done" || s === "closed" || s === "resolved" || s === "decided") done++;
+          else if (s === "in-progress" || s === "in progress") inProgress++;
+        }
+        if (w.children) walk(w.children);
       }
     }
-    return streams;
-  }
-  const uniqueStreams = collectStreams(data.workItems.items);
-  const streamColorMap = new Map<string, string>();
-  for (const name of uniqueStreams) {
-    streamColorMap.set(name, STREAM_PALETTE[hashString(name) % STREAM_PALETTE.length]);
+    walk(items);
+    return { total, done, inProgress };
   }
 
-  // Generate <style> block for stream row backgrounds
-  const streamStyleRules = [...streamColorMap.entries()]
-    .map(([name, color]) => `tr[data-stream="${escapeHtml(name)}"] td { background: ${color}; }`)
-    .join("\n");
-  const streamStyleBlock = streamStyleRules ? `<style>${streamStyleRules}</style>` : "";
-
-  function renderItemRows(items: SprintWorkItem[], depth = 0): string[] {
+  function renderItemRows(items: SprintWorkItem[], borderColor: string, depth = 0): string[] {
     return items.flatMap((w) => {
       const isChild = depth > 0;
       const isContribution = w.type === "contribution";
-      const classes: string[] = [];
+      const classes = ["focus-row"];
       if (isContribution) classes.push("contribution-row");
       else if (isChild) classes.push("child-row");
-      const dataStream = w.workStream ? ` data-stream="${escapeHtml(w.workStream)}"` : "";
-      const rowAttrs = classes.length > 0 ? ` class="${classes.join(" ")}"` : "";
       const indent = depth > 0 ? ` style="padding-left: ${0.75 + depth * 1}rem"` : "";
-      const streamCell = w.workStream
-        ? `<span class="badge badge-subtle">${escapeHtml(w.workStream)}</span>`
-        : "";
       const progressCell = !isContribution && w.progress !== undefined
         ? `<div class="mini-progress-bar"><div class="mini-progress-fill" style="width:${w.progress}%"></div><span class="mini-progress-label">${w.progress}%</span></div>`
         : "";
       const row = `
-              <tr${rowAttrs}${dataStream}>
+              <tr class="${classes.join(" ")}" style="--focus-color: ${borderColor}">
                 <td${indent}><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
                 <td>${escapeHtml(w.title)}</td>
-                <td>${streamCell}</td>
-                <td>${escapeHtml(typeLabel(w.type))}</td>
                 <td>${statusBadge(w.status)}</td>
                 <td>${progressCell}</td>
               </tr>`;
-      const childRows = w.children ? renderItemRows(w.children, depth + 1) : [];
+      const childRows = w.children ? renderItemRows(w.children, borderColor, depth + 1) : [];
       return [row, ...childRows];
     });
   }
-  const workItemRows = renderItemRows(data.workItems.items);
 
-  const sortableHeaders = `<tr>
-                <th class="sortable-th" onclick="sortWorkItems(0)">ID<span class="sort-arrow" id="sort-arrow-0"></span></th>
-                <th class="sortable-th" onclick="sortWorkItems(1)">Title<span class="sort-arrow" id="sort-arrow-1"></span></th>
-                <th class="sortable-th" onclick="sortWorkItems(2)">Stream<span class="sort-arrow" id="sort-arrow-2"></span></th>
-                <th class="sortable-th" onclick="sortWorkItems(3)">Type<span class="sort-arrow" id="sort-arrow-3"></span></th>
-                <th class="sortable-th" onclick="sortWorkItems(4)">Status<span class="sort-arrow" id="sort-arrow-4"></span></th>
-                <th class="sortable-th" onclick="sortWorkItems(5)">Progress<span class="sort-arrow" id="sort-arrow-5"></span></th>
+  // Build all rows grouped by focus with group header rows
+  const allWorkItemRows: string[] = [];
+  for (const [focus, items] of focusGroups) {
+    const color = focusColorMap.get(focus)!;
+    const stats = countFocusStats(items);
+    const pct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
+    const summaryParts: string[] = [];
+    if (stats.done > 0) summaryParts.push(`${stats.done} done`);
+    if (stats.inProgress > 0) summaryParts.push(`${stats.inProgress} in progress`);
+    const remaining = stats.total - stats.done - stats.inProgress;
+    if (remaining > 0) summaryParts.push(`${remaining} open`);
+
+    allWorkItemRows.push(`
+              <tr class="focus-group-header" style="--focus-color: ${color}">
+                <td colspan="2">
+                  <span class="focus-group-name">${escapeHtml(focus)}</span>
+                  <span class="focus-group-stats">${summaryParts.join(" / ")}</span>
+                </td>
+                <td colspan="2">
+                  <div class="mini-progress-bar focus-group-progress"><div class="mini-progress-fill" style="width:${pct}%"></div><span class="mini-progress-label">${pct}%</span></div>
+                </td>
+              </tr>`);
+    allWorkItemRows.push(...renderItemRows(items, color));
+  }
+
+  const tableHeaders = `<tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Progress</th>
               </tr>`;
 
-  const workItemsSection = workItemRows.length > 0
+  const workItemsSection = allWorkItemRows.length > 0
     ? collapsibleSection(
         "ss-work-items",
         "Work Items",
-        `${streamStyleBlock}
-        <div class="table-wrap">
+        `<div class="table-wrap">
           <table id="work-items-table">
             <thead>
-              ${sortableHeaders}
+              ${tableHeaders}
             </thead>
             <tbody>
-              ${workItemRows.join("")}
+              ${allWorkItemRows.join("")}
             </tbody>
           </table>
         </div>`,
@@ -265,61 +288,6 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
     </div>
 
     <script>
-      var _sortCol = -1;
-      var _sortAsc = true;
-
-      function sortWorkItems(col) {
-        var table = document.getElementById('work-items-table');
-        if (!table) return;
-        var tbody = table.querySelector('tbody');
-        var allRows = Array.from(tbody.querySelectorAll('tr'));
-
-        // Toggle direction if clicking the same column
-        if (_sortCol === col) {
-          _sortAsc = !_sortAsc;
-        } else {
-          _sortCol = col;
-          _sortAsc = true;
-        }
-
-        // Update sort arrows
-        for (var i = 0; i < 6; i++) {
-          var arrow = document.getElementById('sort-arrow-' + i);
-          if (arrow) arrow.textContent = i === col ? (_sortAsc ? ' \\u25B2' : ' \\u25BC') : '';
-        }
-
-        // Group rows: root rows + their child/contribution rows
-        var groups = [];
-        var current = null;
-        for (var r = 0; r < allRows.length; r++) {
-          var row = allRows[r];
-          var isChild = row.classList.contains('child-row') || row.classList.contains('contribution-row');
-          if (!isChild) {
-            current = { root: row, children: [] };
-            groups.push(current);
-          } else if (current) {
-            current.children.push(row);
-          }
-        }
-
-        // Sort groups by root row text content of target column
-        groups.sort(function(a, b) {
-          var aText = (a.root.children[col] ? a.root.children[col].textContent : '').trim().toLowerCase();
-          var bText = (b.root.children[col] ? b.root.children[col].textContent : '').trim().toLowerCase();
-          if (aText < bText) return _sortAsc ? -1 : 1;
-          if (aText > bText) return _sortAsc ? 1 : -1;
-          return 0;
-        });
-
-        // Re-append rows in sorted order
-        for (var g = 0; g < groups.length; g++) {
-          tbody.appendChild(groups[g].root);
-          for (var c = 0; c < groups[g].children.length; c++) {
-            tbody.appendChild(groups[g].children[c]);
-          }
-        }
-      }
-
       async function generateSummary() {
         var btn = document.getElementById('generate-btn');
         var loading = document.getElementById('summary-loading');

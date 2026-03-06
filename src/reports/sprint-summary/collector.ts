@@ -123,14 +123,14 @@ export function collectSprintSummaryData(
 
   for (const doc of workItemDocs) {
     const about = doc.frontmatter.aboutArtifact as string | undefined;
-    const streamTag = (doc.frontmatter.tags as string[] ?? []).find((t) => t.startsWith("stream:"));
+    const focusTag = (doc.frontmatter.tags as string[] ?? []).find((t) => t.startsWith("focus:"));
     const item: SprintWorkItem = {
       id: doc.frontmatter.id,
       title: doc.frontmatter.title,
       type: doc.frontmatter.type,
       status: doc.frontmatter.status,
       progress: getEffectiveProgress(doc.frontmatter),
-      workStream: streamTag ? streamTag.slice(7) : undefined,
+      workFocus: focusTag ? focusTag.slice(6) : undefined,
       aboutArtifact: about,
     };
     allItemsById.set(item.id, item);

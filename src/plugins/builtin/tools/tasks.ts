@@ -124,7 +124,7 @@ export function createTaskTools(
           .optional()
           .describe("Task priority"),
         tags: z.array(z.string()).optional().describe("Additional tags"),
-        workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Adds a stream:<value> tag."),
+        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Adds a focus:<value> tag."),
       },
       async (args) => {
         const linkedEpics = normalizeLinkedEpics(args.linkedEpic);
@@ -141,7 +141,7 @@ export function createTaskTools(
         }
 
         const baseTags = [...generateEpicTags(linkedEpics), ...(args.tags ?? [])];
-        if (args.workStream) baseTags.push(`stream:${args.workStream}`);
+        if (args.workFocus) baseTags.push(`focus:${args.workFocus}`);
 
         const frontmatter: Record<string, unknown> = {
           title: args.title,
@@ -195,11 +195,11 @@ export function createTaskTools(
           .optional()
           .describe("New priority"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove old tags, add new ones)"),
-        workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Replaces existing stream:<value> tag."),
+        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
         progress: z.number().optional().describe("Explicit progress percentage (0-100). Overrides auto-calculation from child contributions."),
       },
       async (args) => {
-        const { id, content, linkedEpic: rawLinkedEpic, tags: userTags, workStream, progress, ...updates } = args;
+        const { id, content, linkedEpic: rawLinkedEpic, tags: userTags, workFocus, progress, ...updates } = args;
         const warnings: string[] = [];
 
         // If linkedEpic is being changed, soft-validate
@@ -227,12 +227,12 @@ export function createTaskTools(
           (updates as Record<string, unknown>).tags = userTags;
         }
 
-        // Handle workStream: replace existing stream:* tag
-        if (workStream !== undefined) {
+        // Handle workFocus: replace existing focus:* tag
+        if (workFocus !== undefined) {
           const currentTags: string[] = (updates as Record<string, unknown>).tags as string[]
             ?? store.get(id)?.frontmatter.tags ?? [];
-          const filtered = currentTags.filter((t) => !t.startsWith("stream:"));
-          filtered.push(`stream:${workStream}`);
+          const filtered = currentTags.filter((t) => !t.startsWith("focus:"));
+          filtered.push(`focus:${workFocus}`);
           (updates as Record<string, unknown>).tags = filtered;
         }
 

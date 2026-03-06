@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
 import { propagateProgressToAction } from "../../storage/progress.js";
+import { ownerSchema, normalizeOwner } from "../../personas/owner.js";
 
 function findMatchingSprints(
   store: DocumentStore,
@@ -96,12 +97,13 @@ export function createActionTools(
         title: z.string().describe("Title of the action item"),
         content: z.string().describe("Description of what needs to be done"),
         status: z.string().optional().describe("Status (default: 'open')"),
-        owner: z.string().optional().describe("Person responsible"),
+        owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
+        assignee: z.string().optional().describe("Person assigned to do the work"),
         priority: z.string().optional().describe("Priority (high, medium, low)"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
         dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
         sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (e.g. ['SP-001']). Adds sprint:SP-xxx tags."),
-        workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Adds a stream:<value> tag."),
+        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Adds a focus:<value> tag."),
       },
       async (args) => {
         const tags = [...(args.tags ?? [])];
@@ -111,8 +113,8 @@ export function createActionTools(
             if (!tags.includes(tag)) tags.push(tag);
           }
         }
-        if (args.workStream) {
-          tags.push(`stream:${args.workStream}`);
+        if (args.workFocus) {
+          tags.push(`focus:${args.workFocus}`);
         }
 
         const doc = store.create(
@@ -120,7 +122,8 @@ export function createActionTools(
           {
             title: args.title,
             status: args.status,
-            owner: args.owner,
+            owner: normalizeOwner(args.owner),
+            assignee: args.assignee,
             priority: args.priority,
             tags: tags.length > 0 ? tags : undefined,
             dueDate: args.dueDate,
@@ -155,16 +158,19 @@ export function createActionTools(
         title: z.string().optional().describe("New title"),
         status: z.string().optional().describe("New status"),
         content: z.string().optional().describe("New content"),
-        owner: z.string().optional().describe("New owner"),
+        owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
+        assignee: z.string().optional().describe("Person assigned to do the work"),
         priority: z.string().optional().describe("New priority"),
         dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
         tags: z.array(z.string()).optional().describe("Replace all tags. When provided with sprints, sprint tags are merged into this array."),
         sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
-        workStream: z.string().optional().describe("Work stream name (e.g. 'Budget UX'). Replaces existing stream:<value> tag."),
+        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
         progress: z.number().optional().describe("Explicit progress percentage (0-100)."),
       },
       async (args) => {
-        const { id, content, sprints, tags, workStream, progress, ...updates } = args;
+        const { id, content, sprints, tags, workFocus, progress, owner, assignee, ...updates } = args;
+        if (owner !== undefined) (updates as any).owner = normalizeOwner(owner);
+        if (assignee !== undefined) (updates as any).assignee = assignee;
 
         if (tags !== undefined) {
           // tags takes precedence — merge sprint tags into the provided array
@@ -175,14 +181,14 @@ export function createActionTools(
               if (!merged.includes(tag)) merged.push(tag);
             }
           }
-          if (workStream !== undefined) {
-            const filtered = merged.filter((t) => !t.startsWith("stream:"));
-            filtered.push(`stream:${workStream}`);
+          if (workFocus !== undefined) {
+            const filtered = merged.filter((t) => !t.startsWith("focus:"));
+            filtered.push(`focus:${workFocus}`);
             (updates as any).tags = filtered;
           } else {
             (updates as any).tags = merged;
           }
-        } else if (sprints !== undefined || workStream !== undefined) {
+        } else if (sprints !== undefined || workFocus !== undefined) {
           const existing = store.get(id);
           if (!existing) {
             return {
@@ -195,9 +201,9 @@ export function createActionTools(
             existingTags = existingTags.filter((t) => !t.startsWith("sprint:"));
             existingTags.push(...sprints.map((s) => `sprint:${s}`));
           }
-          if (workStream !== undefined) {
-            existingTags = existingTags.filter((t) => !t.startsWith("stream:"));
-            existingTags.push(`stream:${workStream}`);
+          if (workFocus !== undefined) {
+            existingTags = existingTags.filter((t) => !t.startsWith("focus:"));
+            existingTags.push(`focus:${workFocus}`);
           }
           (updates as any).tags = existingTags;
         }
