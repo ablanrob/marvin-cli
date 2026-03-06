@@ -94,6 +94,8 @@ export function collectSprintSummaryData(
       d.frontmatter.type !== "sprint" &&
       d.frontmatter.type !== "epic" &&
       d.frontmatter.type !== "meeting" &&
+      d.frontmatter.type !== "decision" &&
+      d.frontmatter.type !== "question" &&
       d.frontmatter.tags?.includes(sprintTag),
   );
 
