@@ -1,6 +1,7 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
-import { getSprintSummaryData, getDiagramData } from "../../../data.js";
+import { getSprintSummaryData } from "../../../data.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../../layout.js";
+import { renderWorkItemsTable, computeOwnerCompletionPct, filterItemsByOwner } from "../../components/work-items-table.js";
 
 const TL_CONTRIBUTION_TYPES = new Set([
   "action-result",
@@ -8,8 +9,6 @@ const TL_CONTRIBUTION_TYPES = new Set([
   "technical-assessment",
   "architecture-review",
 ]);
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
 function progressBar(pct: number): string {
   return `<div class="sprint-progress-bar">
@@ -33,27 +32,9 @@ export function tlSprintPage(ctx: PersonaPageContext): string {
       </div>`;
   }
 
-  // Filter work items to epics and tasks, promoting children whose parent is excluded
-  const techTypes = new Set(["epic", "task"]);
-  const techItems: typeof data.workItems.items = [];
-  for (const item of data.workItems.items) {
-    if (techTypes.has(item.type)) {
-      techItems.push(item);
-    } else if (item.children) {
-      // Parent excluded (e.g. action) — promote matching children to top-level
-      const promoteChildren = (children: typeof data.workItems.items) => {
-        for (const child of children) {
-          if (techTypes.has(child.type)) {
-            techItems.push(child);
-          } else if (child.children) {
-            promoteChildren(child.children);
-          }
-        }
-      };
-      promoteChildren(item.children);
-    }
-  }
-  const techDone = techItems.filter((w) => DONE_STATUSES.has(w.status)).length;
+  // Filter work items to TL-owned items
+  const tlItems = filterItemsByOwner(data.workItems.items, "tl");
+  const tlCompletionPct = computeOwnerCompletionPct(data.workItems.items, "tl");
 
   // TL contributions from store
   const allDocs = ctx.store.list();
@@ -67,9 +48,9 @@ export function tlSprintPage(ctx: PersonaPageContext): string {
         <div class="card-sub">${data.timeline.daysRemaining} days remaining</div>
       </div>
       <div class="card">
-        <div class="card-label">Tech Items</div>
-        <div class="card-value">${techItems.length}</div>
-        <div class="card-sub">${techDone} done</div>
+        <div class="card-label">TL Completion</div>
+        <div class="card-value">${tlCompletionPct}%</div>
+        <div class="card-sub">${tlItems.length} owned items</div>
       </div>
       <div class="card">
         <div class="card-label">Epics</div>
@@ -89,31 +70,11 @@ export function tlSprintPage(ctx: PersonaPageContext): string {
       ${data.sprint.goal ? ` | ${escapeHtml(data.sprint.goal)}` : ""}
     </div>`;
 
-  // Sprint work items (epics + tasks only)
-  const workItemsSection = techItems.length > 0
-    ? collapsibleSection(
-        "tl-sprint-items",
-        `Sprint Work Items (${techItems.length})`,
-        `<div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Focus</th></tr>
-            </thead>
-            <tbody>
-              ${techItems.map((w) => `
-              <tr>
-                <td><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
-                <td>${escapeHtml(w.title)}</td>
-                <td>${escapeHtml(typeLabel(w.type))}</td>
-                <td>${statusBadge(w.status)}</td>
-                <td>${w.workFocus ? `<span class="badge badge-subtle">${escapeHtml(w.workFocus)}</span>` : '<span class="text-dim">—</span>'}</td>
-              </tr>`).join("")}
-            </tbody>
-          </table>
-        </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+  // TL work items with focus-grouped table
+  const workItemsSection = renderWorkItemsTable(tlItems, {
+    sectionId: "tl-sprint-items",
+    title: "TL Work Items",
+  });
 
   // TL contributions
   const contributionsSection = tlContributions.length > 0

@@ -1,5 +1,6 @@
-import type { SprintSummaryData, SprintWorkItem } from "../../../reports/sprint-summary/types.js";
+import type { SprintSummaryData } from "../../../reports/sprint-summary/types.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel, renderMarkdown } from "../layout.js";
+import { renderWorkItemsTable } from "../components/work-items-table.js";
 
 function progressBar(pct: number): string {
   return `<div class="sprint-progress-bar">
@@ -80,132 +81,11 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
       )
     : "";
 
-  // Work items grouped by focus with subtle left-border color per focus
-
-  const FOCUS_BORDER_PALETTE = [
-    "hsl(220, 60%, 55%)",
-    "hsl(160, 50%, 45%)",
-    "hsl(280, 45%, 55%)",
-    "hsl(30, 65%, 55%)",
-    "hsl(340, 50%, 55%)",
-    "hsl(190, 50%, 45%)",
-    "hsl(60, 50%, 50%)",
-    "hsl(120, 40%, 45%)",
-  ];
-
-  function hashString(s: string): number {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) {
-      h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-    }
-    return Math.abs(h);
-  }
-
-  // Group root items by focus, preserving hierarchy
-  const focusGroups = new Map<string, SprintWorkItem[]>();
-  for (const item of data.workItems.items) {
-    const focus = item.workFocus ?? "Unassigned";
-    if (!focusGroups.has(focus)) focusGroups.set(focus, []);
-    focusGroups.get(focus)!.push(item);
-  }
-
-  // Assign a border color to each focus
-  const focusColorMap = new Map<string, string>();
-  for (const name of focusGroups.keys()) {
-    focusColorMap.set(name, FOCUS_BORDER_PALETTE[hashString(name) % FOCUS_BORDER_PALETTE.length]);
-  }
-
-  function countFocusStats(items: SprintWorkItem[]): { total: number; done: number; inProgress: number } {
-    let total = 0;
-    let done = 0;
-    let inProgress = 0;
-    function walk(list: SprintWorkItem[]) {
-      for (const w of list) {
-        if (w.type !== "contribution") {
-          total++;
-          const s = w.status.toLowerCase();
-          if (s === "done" || s === "closed" || s === "resolved" || s === "decided") done++;
-          else if (s === "in-progress" || s === "in progress") inProgress++;
-        }
-        if (w.children) walk(w.children);
-      }
-    }
-    walk(items);
-    return { total, done, inProgress };
-  }
-
-  function renderItemRows(items: SprintWorkItem[], borderColor: string, depth = 0): string[] {
-    return items.flatMap((w) => {
-      const isChild = depth > 0;
-      const isContribution = w.type === "contribution";
-      const classes = ["focus-row"];
-      if (isContribution) classes.push("contribution-row");
-      else if (isChild) classes.push("child-row");
-      const indent = depth > 0 ? ` style="padding-left: ${0.75 + depth * 1}rem"` : "";
-      const progressCell = !isContribution && w.progress !== undefined
-        ? `<div class="mini-progress-bar"><div class="mini-progress-fill" style="width:${w.progress}%"></div><span class="mini-progress-label">${w.progress}%</span></div>`
-        : "";
-      const row = `
-              <tr class="${classes.join(" ")}" style="--focus-color: ${borderColor}">
-                <td${indent}><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
-                <td>${escapeHtml(w.title)}</td>
-                <td>${statusBadge(w.status)}</td>
-                <td>${progressCell}</td>
-              </tr>`;
-      const childRows = w.children ? renderItemRows(w.children, borderColor, depth + 1) : [];
-      return [row, ...childRows];
-    });
-  }
-
-  // Build all rows grouped by focus with group header rows
-  const allWorkItemRows: string[] = [];
-  for (const [focus, items] of focusGroups) {
-    const color = focusColorMap.get(focus)!;
-    const stats = countFocusStats(items);
-    const pct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
-    const summaryParts: string[] = [];
-    if (stats.done > 0) summaryParts.push(`${stats.done} done`);
-    if (stats.inProgress > 0) summaryParts.push(`${stats.inProgress} in progress`);
-    const remaining = stats.total - stats.done - stats.inProgress;
-    if (remaining > 0) summaryParts.push(`${remaining} open`);
-
-    allWorkItemRows.push(`
-              <tr class="focus-group-header" style="--focus-color: ${color}">
-                <td colspan="2">
-                  <span class="focus-group-name">${escapeHtml(focus)}</span>
-                  <span class="focus-group-stats">${summaryParts.join(" / ")}</span>
-                </td>
-                <td colspan="2">
-                  <div class="mini-progress-bar focus-group-progress"><div class="mini-progress-fill" style="width:${pct}%"></div><span class="mini-progress-label">${pct}%</span></div>
-                </td>
-              </tr>`);
-    allWorkItemRows.push(...renderItemRows(items, color));
-  }
-
-  const tableHeaders = `<tr>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Progress</th>
-              </tr>`;
-
-  const workItemsSection = allWorkItemRows.length > 0
-    ? collapsibleSection(
-        "ss-work-items",
-        "Work Items",
-        `<div class="table-wrap">
-          <table id="work-items-table">
-            <thead>
-              ${tableHeaders}
-            </thead>
-            <tbody>
-              ${allWorkItemRows.join("")}
-            </tbody>
-          </table>
-        </div>`,
-        { titleTag: "h3", defaultCollapsed: true },
-      )
-    : "";
+  const workItemsSection = renderWorkItemsTable(data.workItems.items, {
+    sectionId: "ss-work-items",
+    title: "Work Items",
+    defaultCollapsed: true,
+  });
 
   // Recent activity
   const activitySection = data.artifacts.length > 0

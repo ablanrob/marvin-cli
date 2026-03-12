@@ -4,6 +4,14 @@ import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../l
 import { renderGarWidget } from "../../gar-widget.js";
 import { renderTableUtilsScript, sortableTh, tableFilter } from "../../table-utils.js";
 
+const KNOWN_OWNERS = new Set(["po", "tl", "dm"]);
+
+function ownerBadge(owner?: string): string {
+  if (!owner) return '<span class="text-dim">—</span>';
+  const cls = KNOWN_OWNERS.has(owner.toLowerCase()) ? `owner-badge-${owner.toLowerCase()}` : "owner-badge-other";
+  return `<span class="owner-badge ${cls}">${escapeHtml(owner.toUpperCase())}</span>`;
+}
+
 export function poStakeholdersPage(ctx: PersonaPageContext): string {
   const garReport = getGarData(ctx.store, ctx.projectName);
 
@@ -73,7 +81,7 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
                 <td><a href="/docs/action/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${statusBadge(d.frontmatter.status)}</td>
-                <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(d.frontmatter.owner)}</td>
                 <td>${d.frontmatter.dueDate ? formatDate(d.frontmatter.dueDate) : '<span class="text-dim">—</span>'}</td>
               </tr>`).join("")}
             </tbody>
@@ -101,7 +109,7 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
               <tr>
                 <td><a href="/docs/question/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
-                <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(d.frontmatter.owner)}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
               </tr>`).join("")}
             </tbody>

@@ -1611,5 +1611,30 @@ tr:hover td {
 .focus-group-progress {
   width: 96px;
 }
+
+/* Owner badges for DM sprint view */
+.owner-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.owner-badge-po { background: rgba(108, 140, 255, 0.18); color: #6c8cff; }
+.owner-badge-tl { background: rgba(251, 191, 36, 0.18); color: #fbbf24; }
+.owner-badge-dm { background: rgba(52, 211, 153, 0.18); color: #34d399; }
+.owner-badge-other { background: rgba(139, 143, 164, 0.12); color: var(--text-dim); }
+
+/* Group header rows (PO dashboard decisions/deps) */
+.group-header-row td {
+  background: var(--bg-hover);
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
 `;
 }
