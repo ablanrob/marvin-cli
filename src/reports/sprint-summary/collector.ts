@@ -132,6 +132,7 @@ export function collectSprintSummaryData(
       type: doc.frontmatter.type,
       status: doc.frontmatter.status,
       progress: getEffectiveProgress(doc.frontmatter),
+      owner: doc.frontmatter.owner as string | undefined,
       workFocus: focusTag ? focusTag.slice(6) : undefined,
       aboutArtifact: about,
     };

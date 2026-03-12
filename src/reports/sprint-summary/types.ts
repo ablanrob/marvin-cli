@@ -12,6 +12,7 @@ export interface SprintWorkItem {
   type: string;
   status: string;
   progress?: number;
+  owner?: string;
   workFocus?: string;
   aboutArtifact?: string;
   children?: SprintWorkItem[];

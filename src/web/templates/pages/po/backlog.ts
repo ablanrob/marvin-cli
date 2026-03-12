@@ -1,6 +1,22 @@
+import type { Document } from "../../../../storage/types.js";
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
 import { renderTableUtilsScript, sortableTh, tableFilter } from "../../table-utils.js";
+import { normalizeLinkedFeatures } from "../../../../plugins/builtin/tools/epic-utils.js";
+import { getEffectiveProgress } from "../../../../storage/progress.js";
+
+function priorityClass(p?: string): string {
+  if (!p) return "";
+  const lower = p.toLowerCase();
+  if (lower === "critical" || lower === "high") return " priority-high";
+  if (lower === "medium") return " priority-medium";
+  if (lower === "low") return " priority-low";
+  return "";
+}
+
+function miniProgressBar(pct: number): string {
+  return `<div class="mini-progress-bar"><div class="mini-progress-fill" style="width:${pct}%"></div><span class="mini-progress-label">${pct}%</span></div>`;
+}
 
 export function poBacklogPage(ctx: PersonaPageContext): string {
   const features = ctx.store.list({ type: "feature" });
@@ -21,33 +37,55 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
     return a.frontmatter.id.localeCompare(b.frontmatter.id);
   });
 
-  // Link epics to features
+  // Feature → Epics (via epic's linkedFeature) — store full epic docs for task lookup
   const epics = ctx.store.list({ type: "epic" });
-  const featureToEpics = new Map<string, string[]>();
+  const featureToEpics = new Map<string, Document[]>();
   for (const epic of epics) {
-    const linked = epic.frontmatter.linkedFeature;
-    const featureIds = Array.isArray(linked) ? linked : linked ? [linked] : [];
+    const featureIds = normalizeLinkedFeatures(epic.frontmatter.linkedFeature);
     for (const fid of featureIds) {
-      const existing = featureToEpics.get(String(fid)) ?? [];
-      existing.push(epic.frontmatter.id);
-      featureToEpics.set(String(fid), existing);
+      const arr = featureToEpics.get(fid) ?? [];
+      arr.push(epic);
+      featureToEpics.set(fid, arr);
     }
   }
 
-  function priorityClass(p?: string): string {
-    if (!p) return "";
-    const lower = p.toLowerCase();
-    if (lower === "critical" || lower === "high") return " priority-high";
-    if (lower === "medium") return " priority-medium";
-    if (lower === "low") return " priority-low";
-    return "";
+  // Epic → Tasks (via task tags epic:<id>)
+  const allTasks = ctx.store.list({ type: "task" });
+  const epicToTasks = new Map<string, Document[]>();
+  for (const task of allTasks) {
+    const tags = (task.frontmatter.tags as string[]) ?? [];
+    for (const tag of tags) {
+      if (tag.startsWith("epic:")) {
+        const epicId = tag.slice(5);
+        const arr = epicToTasks.get(epicId) ?? [];
+        arr.push(task);
+        epicToTasks.set(epicId, arr);
+      }
+    }
+  }
+
+  const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+
+  function featureTaskStats(featureId: string) {
+    const fEpics = featureToEpics.get(featureId) ?? [];
+    let total = 0;
+    let done = 0;
+    let progressSum = 0;
+    for (const epic of fEpics) {
+      for (const t of epicToTasks.get(epic.frontmatter.id) ?? []) {
+        total++;
+        if (DONE_STATUSES.has(t.frontmatter.status)) done++;
+        progressSum += getEffectiveProgress(t.frontmatter);
+      }
+    }
+    return { epicCount: fEpics.length, total, done, avgProgress: total > 0 ? Math.round(progressSum / total) : 0 };
   }
 
   // Unique filter values
   const featureStatuses = [...new Set(features.map((d) => d.frontmatter.status))].sort();
   const featurePriorities = [...new Set(features.map((d) => (d.frontmatter.priority as string) ?? "").filter(Boolean))].sort();
   const featureEpicIds = [...new Set(
-    features.flatMap((d) => featureToEpics.get(d.frontmatter.id) ?? []),
+    features.flatMap((d) => (featureToEpics.get(d.frontmatter.id) ?? []).map((e) => e.frontmatter.id)),
   )].sort();
 
   const featuresFilters = `<div class="filters">
@@ -61,13 +99,14 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
       <div class="table-wrap table-short">
         <table id="features-table">
           <thead>
-            <tr>${sortableTh("ID", "features-table", 0)}${sortableTh("Title", "features-table", 1)}${sortableTh("Status", "features-table", 2)}${sortableTh("Priority", "features-table", 3)}<th>Linked Epics</th></tr>
+            <tr>${sortableTh("ID", "features-table", 0)}${sortableTh("Title", "features-table", 1)}${sortableTh("Status", "features-table", 2)}${sortableTh("Priority", "features-table", 3)}<th>Epics</th><th>Tasks</th><th>Progress</th></tr>
           </thead>
           <tbody>
             ${sortedFeatures.map((d) => {
-              const linkedEpics = featureToEpics.get(d.frontmatter.id) ?? [];
-              const epicLinks = linkedEpics
-                .map((eid) => `<a href="/docs/epic/${escapeHtml(eid)}">${escapeHtml(eid)}</a>`)
+              const stats = featureTaskStats(d.frontmatter.id);
+              const linkedEpicDocs = featureToEpics.get(d.frontmatter.id) ?? [];
+              const epicLinks = linkedEpicDocs
+                .map((e) => `<a href="/docs/epic/${escapeHtml(e.frontmatter.id)}">${escapeHtml(e.frontmatter.id)}</a>`)
                 .join(", ");
               return `
             <tr>
@@ -76,6 +115,8 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
               <td>${statusBadge(d.frontmatter.status)}</td>
               <td><span class="${priorityClass(d.frontmatter.priority as string)}">${escapeHtml((d.frontmatter.priority as string) ?? "—")}</span></td>
               <td>${epicLinks || '<span class="text-dim">—</span>'}</td>
+              <td>${stats.total > 0 ? `${stats.done}/${stats.total}` : '<span class="text-dim">—</span>'}</td>
+              <td>${stats.total > 0 ? miniProgressBar(stats.avgProgress) : '<span class="text-dim">—</span>'}</td>
             </tr>`;
             }).join("")}
           </tbody>
