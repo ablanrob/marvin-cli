@@ -130,6 +130,14 @@ function buildPrompt(data: SprintSummaryData): string {
     }
   }
 
+  // Risks
+  if (data.risks.length > 0) {
+    sections.push(`\n## Risks`);
+    for (const r of data.risks) {
+      sections.push(`- ${r.id} (${r.type}): ${r.title}`);
+    }
+  }
+
   // Velocity
   if (data.velocity) {
     sections.push(`\n## Velocity`);
