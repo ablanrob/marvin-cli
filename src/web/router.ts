@@ -12,6 +12,7 @@ import { documentDetailPage } from "./templates/pages/document-detail.js";
 import { sprintSummaryPage } from "./templates/pages/sprint-summary.js";
 import { personaPickerPage } from "./templates/pages/persona-picker.js";
 import { generateSprintSummary } from "../reports/sprint-summary/generator.js";
+import { generateRiskAssessment } from "../reports/sprint-summary/risk-assessment.js";
 import { getPersona } from "../personas/registry.js";
 import { renderMarkdown } from "./templates/layout.js";
 import {
@@ -286,6 +287,37 @@ export function handleRequest(
           console.error("[marvin web] Sprint summary generation error:", err);
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "Failed to generate summary" }));
+        }
+      });
+      return;
+    }
+
+    // POST /api/risk-assessment
+    if (pathname === "/api/risk-assessment" && req.method === "POST") {
+      let bodyStr = "";
+      req.on("data", (chunk) => { bodyStr += chunk; });
+      req.on("end", async () => {
+        try {
+          const { sprintId, riskId } = JSON.parse(bodyStr || "{}");
+          if (!riskId) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "riskId is required" }));
+            return;
+          }
+          const data = getSprintSummaryData(store, sprintId);
+          if (!data) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Sprint not found" }));
+            return;
+          }
+          const markdown = await generateRiskAssessment(data, riskId, store);
+          const html = renderMarkdown(markdown);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ riskId, html }));
+        } catch (err) {
+          console.error("[marvin web] Risk assessment generation error:", err);
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Failed to generate risk assessment" }));
         }
       });
       return;

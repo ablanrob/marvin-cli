@@ -275,21 +275,19 @@ export function collectSprintSummaryData(
       type: d.frontmatter.type,
     }));
 
-  // Also add items tagged as risk/blocker
-  const riskBlockers = allDocs.filter(
-    (d) =>
-      !DONE_STATUSES.has(d.frontmatter.status) &&
-      d.frontmatter.tags?.includes("risk") &&
-      d.frontmatter.tags?.some((t: string) => relevantTags.has(t)) &&
-      !blockers.some((b) => b.id === d.frontmatter.id),
-  );
-  for (const d of riskBlockers) {
-    blockers.push({
+  // --- Risks (items tagged "risk" that are open and within sprint/epic scope) ---
+  const risks = allDocs
+    .filter(
+      (d) =>
+        !DONE_STATUSES.has(d.frontmatter.status) &&
+        d.frontmatter.tags?.includes("risk") &&
+        d.frontmatter.tags?.some((t: string) => relevantTags.has(t)),
+    )
+    .map((d) => ({
       id: d.frontmatter.id,
       title: d.frontmatter.title,
       type: d.frontmatter.type,
-    });
-  }
+    }));
 
   // --- Velocity comparison ---
   let velocity: SprintSummaryData["velocity"] = null;
@@ -337,6 +335,7 @@ export function collectSprintSummaryData(
     openActions,
     openQuestions,
     blockers,
+    risks,
     velocity,
   };
 }

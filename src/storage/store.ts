@@ -199,15 +199,23 @@ export class DocumentStore {
       throw new Error(`Document ${id} not found`);
     }
 
+    // Separate explicit deletions (value === undefined) from actual updates
+    const keysToDelete = Object.entries(updates)
+      .filter(([, v]) => v === undefined)
+      .map(([k]) => k);
     const cleanedUpdates = Object.fromEntries(
       Object.entries(updates).filter(([, v]) => v !== undefined),
     );
 
-    const updatedFrontmatter: DocumentFrontmatter = {
+    const merged = {
       ...existing.frontmatter,
       ...cleanedUpdates,
       updated: new Date().toISOString(),
     };
+    for (const key of keysToDelete) {
+      delete (merged as Record<string, unknown>)[key];
+    }
+    const updatedFrontmatter = merged as DocumentFrontmatter;
 
     const doc: Document = {
       frontmatter: updatedFrontmatter,

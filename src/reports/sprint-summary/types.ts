@@ -63,6 +63,7 @@ export interface SprintSummaryData {
   openActions: { id: string; title: string; owner?: string; dueDate?: string }[];
   openQuestions: { id: string; title: string }[];
   blockers: { id: string; title: string; type: string }[];
+  risks: { id: string; title: string; type: string }[];
   velocity: {
     currentCompletionRate: number;
     previousSprintRate?: number;

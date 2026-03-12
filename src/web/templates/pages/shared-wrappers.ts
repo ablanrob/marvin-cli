@@ -14,6 +14,8 @@ import { upcomingPage } from "./upcoming.js";
 import { garPage } from "./gar.js";
 import { healthPage } from "./health.js";
 import { sprintSummaryPage } from "./sprint-summary.js";
+import { sprintBlockersPage } from "./sprint-blockers.js";
+import { sprintRisksPage } from "./sprint-risks.js";
 
 export function sharedTimelinePage(ctx: PersonaPageContext): string {
   const diagrams = getDiagramData(ctx.store);
@@ -47,4 +49,16 @@ export function sharedSprintSummaryPage(ctx: PersonaPageContext): string {
   const sprintId = ctx.searchParams?.get("sprint") ?? undefined;
   const data = getSprintSummaryData(ctx.store, sprintId);
   return sprintSummaryPage(data);
+}
+
+export function sharedSprintBlockersPage(ctx: PersonaPageContext): string {
+  const sprintId = ctx.searchParams?.get("sprint") ?? undefined;
+  const data = getSprintSummaryData(ctx.store, sprintId);
+  return sprintBlockersPage(data, ctx.store);
+}
+
+export function sharedSprintRisksPage(ctx: PersonaPageContext): string {
+  const sprintId = ctx.searchParams?.get("sprint") ?? undefined;
+  const data = getSprintSummaryData(ctx.store, sprintId);
+  return sprintRisksPage(data, ctx.store);
 }

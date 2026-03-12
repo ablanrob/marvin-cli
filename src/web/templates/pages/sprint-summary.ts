@@ -43,11 +43,16 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
         <div class="card-value">${data.linkedEpics.length}</div>
         <div class="card-sub">linked to sprint</div>
       </div>
-      <div class="card">
+      <a class="card card-link" href="sprint-blockers">
         <div class="card-label">Blockers</div>
         <div class="card-value${data.blockers.length > 0 ? " priority-high" : ""}">${data.blockers.length}</div>
-        <div class="card-sub">${data.openActions.length} open actions</div>
-      </div>
+        <div class="card-sub">${data.workItems.blocked} blocked items</div>
+      </a>
+      <a class="card card-link" href="sprint-risks">
+        <div class="card-label">Risks</div>
+        <div class="card-value${data.risks.length > 0 ? " priority-medium" : ""}">${data.risks.length}</div>
+        <div class="card-sub">open risk items</div>
+      </a>
     </div>`;
 
   // Linked epics table

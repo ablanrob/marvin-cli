@@ -197,6 +197,7 @@ a:hover { text-decoration: underline; }
 }
 
 .card a { color: inherit; text-decoration: none; display: block; }
+a.card-link { color: inherit; text-decoration: none; cursor: pointer; }
 
 .card .card-label {
   font-size: 0.75rem;
@@ -611,6 +612,68 @@ tr:hover td {
 .priority-high { color: var(--red); }
 .priority-medium { color: var(--amber); }
 .priority-low { color: var(--green); }
+
+/* Blocker / Risk detail cards */
+.blocker-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.blocker-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+.blocker-card-title {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+.blocker-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+.blocker-card-content {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  font-size: 0.9rem;
+}
+.risk-assessment-content {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+.risk-assess-btn {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.8rem;
+  margin-top: 0.75rem;
+}
+.risk-assess-loading {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+.risk-assess-error {
+  margin-top: 0.5rem;
+}
+.risk-assessment-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
 
 /* Health */
 .health-section-title {

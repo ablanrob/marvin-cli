@@ -6,6 +6,8 @@ import {
   sharedGarPage,
   sharedHealthPage,
   sharedSprintSummaryPage,
+  sharedSprintBlockersPage,
+  sharedSprintRisksPage,
 } from "./templates/pages/shared-wrappers.js";
 
 const SHARED_PAGES = [
@@ -15,6 +17,8 @@ const SHARED_PAGES = [
   { pageId: "gar", renderer: sharedGarPage },
   { pageId: "health", renderer: sharedHealthPage },
   { pageId: "sprint-summary", renderer: sharedSprintSummaryPage },
+  { pageId: "sprint-blockers", renderer: sharedSprintBlockersPage },
+  { pageId: "sprint-risks", renderer: sharedSprintRisksPage },
 ] as const;
 
 for (const persona of ["po", "dm", "tl"] as const) {
