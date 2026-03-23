@@ -4,6 +4,11 @@ export interface JiraConfig {
   apiToken: string;
 }
 
+export interface JiraLinkedIssueFields {
+  summary: string;
+  status: { name: string };
+}
+
 export interface JiraIssue {
   key: string;
   id: string;
@@ -18,6 +23,12 @@ export interface JiraIssue {
     labels: string[];
     created: string;
     updated: string;
+    subtasks?: { key: string; fields: JiraLinkedIssueFields }[];
+    issuelinks?: {
+      type: { name: string; inward: string; outward: string };
+      inwardIssue?: { key: string; fields: JiraLinkedIssueFields };
+      outwardIssue?: { key: string; fields: JiraLinkedIssueFields };
+    }[];
     [key: string]: unknown;
   };
 }
@@ -35,12 +46,64 @@ export interface JiraCreateResponse {
   self: string;
 }
 
+export interface JiraChangelogItem {
+  field: string;
+  fieldtype: string;
+  from: string | null;
+  fromString: string | null;
+  to: string | null;
+  toString: string | null;
+}
+
+export interface JiraChangelogEntry {
+  id: string;
+  author: { displayName: string };
+  created: string;
+  items: JiraChangelogItem[];
+}
+
+export interface JiraChangelog {
+  startAt: number;
+  maxResults: number;
+  total: number;
+  values: JiraChangelogEntry[];
+}
+
+export interface JiraComment {
+  id: string;
+  author: { displayName: string };
+  body: unknown;
+  created: string;
+  updated: string;
+}
+
+export interface JiraCommentsResult {
+  startAt: number;
+  maxResults: number;
+  total: number;
+  comments: JiraComment[];
+}
+
+export interface JiraRemoteLink {
+  id: number;
+  self: string;
+  object: {
+    url: string;
+    title: string;
+    icon?: { url16x16: string; title: string };
+  };
+}
+
 export class JiraClient {
   private baseUrl: string;
+  private baseUrlV3: string;
   private authHeader: string;
 
   constructor(config: JiraConfig) {
-    this.baseUrl = `https://${config.host}/rest/api/2`;
+    // Normalize host: strip protocol prefix and trailing slashes
+    const host = config.host.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    this.baseUrl = `https://${host}/rest/api/2`;
+    this.baseUrlV3 = `https://${host}/rest/api/3`;
     this.authHeader =
       "Basic " + Buffer.from(`${config.email}:${config.apiToken}`).toString("base64");
   }
@@ -51,6 +114,23 @@ export class JiraClient {
     body?: unknown,
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    return this.doRequest<T>(url, method, body);
+  }
+
+  private async requestV3<T>(
+    path: string,
+    method: string = "GET",
+    body?: unknown,
+  ): Promise<T> {
+    const url = `${this.baseUrlV3}${path}`;
+    return this.doRequest<T>(url, method, body);
+  }
+
+  private async doRequest<T>(
+    url: string,
+    method: string,
+    body?: unknown,
+  ): Promise<T> {
     const headers: Record<string, string> = {
       Authorization: this.authHeader,
       "Content-Type": "application/json",
@@ -66,7 +146,7 @@ export class JiraClient {
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       throw new Error(
-        `Jira API error ${response.status} ${method} ${path}: ${text}`,
+        `Jira API error ${response.status} ${method} ${url}: ${text}`,
       );
     }
 
@@ -82,6 +162,19 @@ export class JiraClient {
     return this.request<JiraSearchResult>(`/search?${params}`);
   }
 
+  async searchIssuesV3(
+    jql: string,
+    fields: string[] = ["summary", "status", "issuetype", "priority", "assignee", "labels"],
+    maxResults: number = 50,
+  ): Promise<JiraSearchResult> {
+    const params = new URLSearchParams({
+      jql,
+      maxResults: String(maxResults),
+      fields: fields.join(","),
+    });
+    return this.requestV3<JiraSearchResult>(`/search/jql?${params}`);
+  }
+
   async getIssue(key: string): Promise<JiraIssue> {
     return this.request<JiraIssue>(`/issue/${encodeURIComponent(key)}`);
   }
@@ -95,6 +188,32 @@ export class JiraClient {
       `/issue/${encodeURIComponent(key)}`,
       "PUT",
       { fields },
+    );
+  }
+
+  async getIssueWithLinks(key: string): Promise<JiraIssue> {
+    return this.request<JiraIssue>(
+      `/issue/${encodeURIComponent(key)}?fields=summary,status,issuetype,priority,assignee,labels,subtasks,issuelinks`,
+    );
+  }
+
+  async getChangelog(key: string): Promise<JiraChangelogEntry[]> {
+    const result = await this.request<JiraChangelog>(
+      `/issue/${encodeURIComponent(key)}/changelog?maxResults=100`,
+    );
+    return result.values;
+  }
+
+  async getComments(key: string): Promise<JiraComment[]> {
+    const result = await this.request<JiraCommentsResult>(
+      `/issue/${encodeURIComponent(key)}/comment?maxResults=100`,
+    );
+    return result.comments;
+  }
+
+  async getRemoteLinks(key: string): Promise<JiraRemoteLink[]> {
+    return this.request<JiraRemoteLink[]>(
+      `/issue/${encodeURIComponent(key)}/remotelink`,
     );
   }
 
@@ -119,5 +238,7 @@ export function createJiraClient(jiraUserConfig?: { host?: string; email?: strin
 
   if (!host || !email || !apiToken) return null;
 
-  return { client: new JiraClient({ host, email, apiToken }), host };
+  // Normalize host for consistent jiraUrl generation
+  const normalizedHost = host.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return { client: new JiraClient({ host, email, apiToken }), host: normalizedHost };
 }

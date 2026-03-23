@@ -1,61 +1,76 @@
 import type { SkillDefinition } from "../../types.js";
 import { createJiraTools } from "./tools.js";
 
+const COMMON_TOOLS = `**Available tools:**
+- \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues (JI-xxx documents)
+- \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
+- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact. For **actions and tasks**, links directly via \`jiraKey\` on the artifact (no JI-xxx intermediary). For other types, creates a JI-xxx tracking document.
+- \`link_to_jira\` — link an existing Jira issue to a Marvin action or task (sets \`jiraKey\` directly on the artifact)
+- \`fetch_jira_status\` — **read-only**: fetch current Jira status, subtask progress, and linked issues for Jira-linked actions/tasks. Returns proposed changes without applying them.
+- \`fetch_jira_daily\` — **read-only**: fetch a daily/range summary of all Jira changes — status transitions, comments, linked Confluence pages, and cross-references with Marvin artifacts. Returns proposed actions (status updates, unlinked issues, question candidates, Confluence pages to review).
+- \`fetch_jira_statuses\` — **read-only**: discover all Jira statuses in a project and show their Marvin mappings (mapped vs unmapped).
+- \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
+- \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx`;
+
+const COMMON_WORKFLOW = `**Jira sync workflow:**
+1. Call \`fetch_jira_status\` to see what Jira reports for linked artifacts
+2. Analyze the proposed changes (status transitions, subtask progress, blockers from linked issues)
+3. Use \`update_action\` / \`update_task\` to apply the changes you agree with
+
+**Daily review workflow:**
+1. Call \`fetch_jira_daily\` (optionally with \`from\`/\`to\` date range) to get a summary of all Jira activity
+2. Review the proposed actions: status updates, unlinked issues to track, questions that may be answered, Confluence pages to review
+3. Use existing tools to apply changes, create new artifacts, or link untracked issues`;
+
 export const jiraSkill: SkillDefinition = {
   id: "jira",
   name: "Jira Integration",
   description: "Bidirectional sync between Marvin artifacts and Jira issues",
   version: "1.0.0",
   format: "builtin-ts",
-  // No default persona affinity — opt-in via config.yaml skills section
   documentTypeRegistrations: [
     { type: "jira-issue", dirName: "jira-issues", idPrefix: "JI" },
   ],
   tools: (store, projectConfig) => createJiraTools(store, projectConfig),
   promptFragments: {
-    "product-owner": `You have the **Jira Integration** skill. You can pull issues from Jira and push Marvin artifacts to Jira.
+    "product-owner": `You have the **Jira Integration** skill.
 
-**Available tools:**
-- \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues
-- \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
-- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, feature, etc.). The \`projectKey\` parameter is optional when a default is configured in \`.marvin/config.yaml\` under \`jira.projectKey\`.
-- \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
-- \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx
+${COMMON_TOOLS}
+
+${COMMON_WORKFLOW}
 
 **As Product Owner, use Jira integration to:**
+- Use \`fetch_jira_daily\` for daily standups — review what changed, identify status drift, spot untracked work
 - Pull stakeholder-reported issues for triage and prioritization
 - Push approved features as Stories for development tracking
 - Link decisions to Jira issues for audit trail and traceability
-- Use JQL queries to review backlog status (e.g. \`project = PROJ AND status = "To Do"\`)`,
+- Use \`fetch_jira_statuses\` when setting up a new project to configure status mappings`,
 
-    "tech-lead": `You have the **Jira Integration** skill. You can pull issues from Jira and push Marvin artifacts to Jira.
+    "tech-lead": `You have the **Jira Integration** skill.
 
-**Available tools:**
-- \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues
-- \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
-- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, action, epic, task, etc.). The \`projectKey\` parameter is optional when a default is configured in \`.marvin/config.yaml\` under \`jira.projectKey\`.
-- \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
-- \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx
+${COMMON_TOOLS}
+
+${COMMON_WORKFLOW}
 
 **As Tech Lead, use Jira integration to:**
+- Use \`fetch_jira_daily\` to review technical progress — status transitions, new comments, Confluence design docs
 - Pull technical issues and bugs for sprint planning and estimation
 - Push epics, tasks, and technical decisions to Jira for cross-team visibility
-- Bidirectional sync to keep local governance and Jira in alignment
-- Use JQL queries to track technical debt (e.g. \`labels = "tech-debt" AND status != "Done"\`)`,
+- Use \`link_to_jira\` to connect Marvin tasks to existing Jira tickets
+- Use \`fetch_jira_statuses\` to verify status mappings match the team's Jira workflow`,
 
-    "delivery-manager": `You have the **Jira Integration** skill. You can pull issues from Jira and push Marvin artifacts to Jira.
+    "delivery-manager": `You have the **Jira Integration** skill.
 
-**Available tools:**
-- \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues
-- \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
-- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact (decision, action, etc.). The \`projectKey\` parameter is optional when a default is configured in \`.marvin/config.yaml\` under \`jira.projectKey\`.
-- \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
-- \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx
+${COMMON_TOOLS}
+
+${COMMON_WORKFLOW}
+This is a third path for progress tracking alongside Contributions and Meetings.
 
 **As Delivery Manager, use Jira integration to:**
+- Use \`fetch_jira_daily\` for daily progress reports — track what moved, identify blockers, spot untracked work
 - Pull sprint issues for tracking progress and blockers
-- Push actions, decisions, and tasks to Jira for stakeholder visibility
-- Use JQL queries for reporting (e.g. \`sprint in openSprints() AND assignee = currentUser()\`)
-- Sync status between Marvin governance items and Jira issues`,
+- Push actions and tasks to Jira for stakeholder visibility
+- Use \`fetch_jira_daily\` with a date range for sprint retrospectives (e.g. \`from: "2026-03-10", to: "2026-03-21"\`)
+- Use \`fetch_jira_statuses\` to ensure Jira workflow statuses are properly mapped`,
   },
 };

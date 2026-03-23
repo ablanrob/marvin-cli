@@ -21,8 +21,16 @@ export interface GitConfig {
   remote?: string;
 }
 
+export interface JiraStatusMap {
+  [marvinStatus: string]: string[];
+}
+
 export interface JiraProjectConfig {
   projectKey?: string;
+  statusMap?: {
+    action?: JiraStatusMap;
+    task?: JiraStatusMap;
+  };
 }
 
 export interface MarvinProjectConfig {
