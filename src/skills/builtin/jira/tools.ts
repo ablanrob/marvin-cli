@@ -242,7 +242,7 @@ export function createJiraTools(
 
     tool(
       "push_artifact_to_jira",
-      "Create a Jira issue from a Marvin artifact. For actions/tasks, links directly via jiraKey on the artifact. For other types, creates a JI-xxx tracking document.",
+      "Create a Jira issue from any Marvin artifact and link it directly via jiraKey on the artifact.",
       {
         artifactId: z.string().describe("Marvin artifact ID (e.g. 'D-001', 'A-003', 'T-002')"),
         projectKey: z.string().optional().describe("Jira project key (e.g. 'PROJ'). Falls back to jira.projectKey from .marvin/config.yaml if not provided."),
@@ -293,52 +293,19 @@ export function createJiraTools(
           issuetype: { name: args.issueType ?? "Task" },
         });
 
-        const isDirectLink = artifact.frontmatter.type === "action" || artifact.frontmatter.type === "task";
-
-        if (isDirectLink) {
-          // Direct linking: set jiraKey on the artifact itself
-          const existingTags = (artifact.frontmatter.tags as string[]) ?? [];
-          store.update(args.artifactId, {
-            jiraKey: jiraResult.key,
-            jiraUrl: `https://${jira.host}/browse/${jiraResult.key}`,
-            lastJiraSyncAt: new Date().toISOString(),
-            tags: [...existingTags.filter((t) => !t.startsWith("jira:")), `jira:${jiraResult.key}`],
-          } as any);
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Created Jira ${jiraResult.key} from ${args.artifactId}. Linked directly on the artifact.`,
-              },
-            ],
-          };
-        }
-
-        // Non-action/task: create JI-xxx tracking document
-        const jiDoc = store.create(
-          JIRA_TYPE,
-          {
-            title: artifact.frontmatter.title,
-            status: "open",
-            jiraKey: jiraResult.key,
-            jiraUrl: `https://${jira.host}/browse/${jiraResult.key}`,
-            issueType: args.issueType ?? "Task",
-            priority: "Medium",
-            assignee: "",
-            labels: [],
-            linkedArtifacts: [args.artifactId],
-            tags: [`jira:${jiraResult.key}`],
-            lastSyncedAt: new Date().toISOString(),
-          } as any,
-          "",
-        );
+        const existingTags = (artifact.frontmatter.tags as string[]) ?? [];
+        store.update(args.artifactId, {
+          jiraKey: jiraResult.key,
+          jiraUrl: `https://${jira.host}/browse/${jiraResult.key}`,
+          lastJiraSyncAt: new Date().toISOString(),
+          tags: [...existingTags.filter((t) => !t.startsWith("jira:")), `jira:${jiraResult.key}`],
+        } as any);
 
         return {
           content: [
             {
               type: "text" as const,
-              text: `Created Jira ${jiraResult.key} from ${args.artifactId}. Tracking locally as ${jiDoc.frontmatter.id}.`,
+              text: `Created Jira ${jiraResult.key} from ${args.artifactId}. Linked directly on the artifact.`,
             },
           ],
         };
@@ -459,9 +426,9 @@ export function createJiraTools(
 
     tool(
       "link_to_jira",
-      "Link an existing Jira issue to a Marvin action or task (sets jiraKey directly on the artifact)",
+      "Link an existing Jira issue to any Marvin artifact (sets jiraKey directly on the artifact)",
       {
-        artifactId: z.string().describe("Marvin artifact ID (e.g. 'A-001', 'T-003')"),
+        artifactId: z.string().describe("Marvin artifact ID (e.g. 'A-001', 'D-003', 'T-002', 'Q-005')"),
         jiraKey: z.string().describe("Jira issue key (e.g. 'PROJ-123')"),
       },
       async (args) => {
@@ -473,18 +440,6 @@ export function createJiraTools(
           return {
             content: [
               { type: "text" as const, text: `Artifact ${args.artifactId} not found` },
-            ],
-            isError: true,
-          };
-        }
-
-        if (artifact.frontmatter.type !== "action" && artifact.frontmatter.type !== "task") {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `link_to_jira only supports action and task artifacts. ${args.artifactId} is type "${artifact.frontmatter.type}". Use link_artifact_to_jira for JI-xxx documents instead.`,
-              },
             ],
             isError: true,
           };
