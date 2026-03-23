@@ -1628,6 +1628,18 @@ tr:hover td {
 .owner-badge-dm { background: rgba(52, 211, 153, 0.18); color: #34d399; }
 .owner-badge-other { background: rgba(139, 143, 164, 0.12); color: var(--text-dim); }
 
+/* Jira link icon */
+.jira-link {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 0.35rem;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.jira-link:hover { opacity: 1; }
+.jira-icon { vertical-align: middle; }
+
 /* Group header rows (PO dashboard decisions/deps) */
 .group-header-row td {
   background: var(--bg-hover);

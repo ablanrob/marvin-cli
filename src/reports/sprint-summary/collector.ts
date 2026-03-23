@@ -135,6 +135,8 @@ export function collectSprintSummaryData(
       owner: doc.frontmatter.owner as string | undefined,
       workFocus: focusTag ? focusTag.slice(6) : undefined,
       aboutArtifact: about,
+      jiraKey: doc.frontmatter.jiraKey as string | undefined,
+      jiraUrl: doc.frontmatter.jiraUrl as string | undefined,
     };
     allItemsById.set(item.id, item);
 

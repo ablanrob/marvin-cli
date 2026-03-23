@@ -1,5 +1,5 @@
 import type { DocumentListData } from "../../data.js";
-import { escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
+import { escapeHtml, formatDate, statusBadge, typeLabel, jiraIcon } from "../layout.js";
 
 export function documentsPage(data: DocumentListData): string {
   const label = typeLabel(data.type);
@@ -23,7 +23,7 @@ export function documentsPage(data: DocumentListData): string {
       (doc) => `
         <tr>
           <td><a href="/docs/${data.type}/${doc.frontmatter.id}">${escapeHtml(doc.frontmatter.id)}</a></td>
-          <td><a href="/docs/${data.type}/${doc.frontmatter.id}">${escapeHtml(doc.frontmatter.title)}</a></td>
+          <td><a href="/docs/${data.type}/${doc.frontmatter.id}">${escapeHtml(doc.frontmatter.title)}</a>${jiraIcon(doc.frontmatter.jiraKey as string | undefined, doc.frontmatter.jiraUrl as string | undefined)}</td>
           <td>${statusBadge(doc.frontmatter.status)}</td>
           <td>${escapeHtml(doc.frontmatter.owner ?? "—")}</td>
           <td>${doc.frontmatter.priority ? `<span class="priority-${doc.frontmatter.priority.toLowerCase()}">${escapeHtml(doc.frontmatter.priority)}</span>` : "—"}</td>

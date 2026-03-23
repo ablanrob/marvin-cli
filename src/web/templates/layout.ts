@@ -60,6 +60,18 @@ export function typeLabel(type: string): string {
   return type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/**
+ * Render an inline Jira icon linking to the issue.
+ * Returns empty string if no jiraKey provided.
+ */
+export function jiraIcon(jiraKey?: string, jiraUrl?: string): string {
+  if (!jiraKey) return "";
+  const href = jiraUrl ?? "#";
+  const title = escapeHtml(jiraKey);
+  // Atlassian Jira mark — simplified blue diamond
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener" title="Jira: ${title}" class="jira-link"><svg class="jira-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.005 2L6.5 7.505l5.505 5.505L17.51 7.505 12.005 2z" fill="#2684FF"/><path d="M6.5 7.505L1 13.01l5.505 5.505L12.01 13.01 6.5 7.505z" fill="url(#jira-g1)"/><path d="M17.51 7.505L12.005 13.01l5.505 5.505L23.015 13.01 17.51 7.505z" fill="url(#jira-g2)"/><path d="M12.005 13.01L6.5 18.515l5.505 5.505 5.505-5.505-5.505-5.505z" fill="#2684FF"/><defs><linearGradient id="jira-g1" x1="9.25" y1="7.51" x2="3.85" y2="12.91" gradientUnits="userSpaceOnUse"><stop stop-color="#0052CC"/><stop offset="1" stop-color="#2684FF"/></linearGradient><linearGradient id="jira-g2" x1="14.76" y1="7.51" x2="20.16" y2="12.91" gradientUnits="userSpaceOnUse"><stop stop-color="#0052CC"/><stop offset="1" stop-color="#2684FF"/></linearGradient></defs></svg></a>`;
+}
+
 /** Minimal markdown → HTML (headings, paragraphs, lists, tables, hr, bold, italic, code) */
 export function renderMarkdown(md: string): string {
   const lines = md.split("\n");
