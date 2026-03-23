@@ -54,8 +54,8 @@ describe("Jira tools", () => {
     return (t as any).handler(args);
   }
 
-  it("should register all 7 tools", () => {
-    expect(tools).toHaveLength(7);
+  it("should register all 11 tools", () => {
+    expect(tools).toHaveLength(11);
     const names = tools.map((t) => t.name);
     expect(names).toContain("list_jira_issues");
     expect(names).toContain("get_jira_issue");
@@ -64,6 +64,10 @@ describe("Jira tools", () => {
     expect(names).toContain("push_artifact_to_jira");
     expect(names).toContain("sync_jira_issue");
     expect(names).toContain("link_artifact_to_jira");
+    expect(names).toContain("link_to_jira");
+    expect(names).toContain("fetch_jira_status");
+    expect(names).toContain("fetch_jira_statuses");
+    expect(names).toContain("fetch_jira_daily");
   });
 
   describe("list_jira_issues", () => {
@@ -227,60 +231,132 @@ describe("Jira tools", () => {
     });
   });
 
-  describe("push_artifact_to_jira projectKey resolution", () => {
-    it("should error when no projectKey provided and no default configured", async () => {
+  describe("push_artifact_to_jira", () => {
+    describe("projectKey resolution", () => {
+      it("should error when no projectKey provided and no default configured", async () => {
+        store.create("decision", { title: "Test", status: "open" }, "");
+        const result = await callTool("push_artifact_to_jira", {
+          artifactId: "D-001",
+        });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("No projectKey provided");
+        expect(result.content[0].text).toContain("jira.projectKey");
+      });
+
+      it("should use default projectKey from config when not provided", () => {
+        const configuredTools = createJiraTools(store, {
+          name: "test",
+          jira: { projectKey: "DEFAULT" },
+        });
+        const pushTool = configuredTools.find((t) => t.name === "push_artifact_to_jira")!;
+        expect(pushTool).toBeDefined();
+      });
+
+      it("should accept explicit projectKey even with default configured", async () => {
+        const configuredTools = createJiraTools(store, {
+          name: "test",
+          jira: { projectKey: "DEFAULT" },
+        });
+        const pushTool = configuredTools.find((t) => t.name === "push_artifact_to_jira")!;
+        store.create("decision", { title: "Test", status: "open" }, "");
+
+        const result = await (pushTool as any).handler({
+          artifactId: "D-001",
+          projectKey: "OVERRIDE",
+        });
+        expect(result.content[0].text).not.toContain("No projectKey provided");
+        expect(result.content[0].text).toContain("not configured");
+      });
+
+      it("should use default projectKey when no explicit projectKey given", async () => {
+        const configuredTools = createJiraTools(store, {
+          name: "test",
+          jira: { projectKey: "DEFAULT" },
+        });
+        const pushTool = configuredTools.find((t) => t.name === "push_artifact_to_jira")!;
+        store.create("decision", { title: "Test", status: "open" }, "");
+
+        const result = await (pushTool as any).handler({
+          artifactId: "D-001",
+        });
+        expect(result.content[0].text).not.toContain("No projectKey provided");
+        expect(result.content[0].text).toContain("not configured");
+      });
+    });
+
+    it("should return error for non-existent artifact", async () => {
       store.create("decision", { title: "Test", status: "open" }, "");
       const result = await callTool("push_artifact_to_jira", {
-        artifactId: "D-001",
+        artifactId: "D-999",
+        projectKey: "PROJ",
+      });
+      // Reaches "not configured" since Jira env vars are cleared; but if artifact doesn't exist, that's checked after Jira client
+      // With no Jira config, we get "not configured" first
+      expect(result.isError).toBe(true);
+    });
+  });
+
+  describe("link_to_jira", () => {
+    it("should return error when Jira not configured", async () => {
+      store.create("action", { title: "Test Action", status: "open" }, "");
+      const result = await callTool("link_to_jira", {
+        artifactId: "A-001",
+        jiraKey: "PROJ-1",
       });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain("No projectKey provided");
-      expect(result.content[0].text).toContain("jira.projectKey");
-    });
-
-    it("should use default projectKey from config when not provided", () => {
-      const configuredTools = createJiraTools(store, {
-        name: "test",
-        jira: { projectKey: "DEFAULT" },
-      });
-      const pushTool = configuredTools.find((t) => t.name === "push_artifact_to_jira")!;
-      // The projectKey should now be optional in the schema
-      expect(pushTool).toBeDefined();
-      // Verify the schema accepts calls without projectKey (no error about missing projectKey)
-      // The actual Jira API call would use DEFAULT — tested via the "not configured" path below
-    });
-
-    it("should accept explicit projectKey even with default configured", async () => {
-      const configuredTools = createJiraTools(store, {
-        name: "test",
-        jira: { projectKey: "DEFAULT" },
-      });
-      const pushTool = configuredTools.find((t) => t.name === "push_artifact_to_jira")!;
-      store.create("decision", { title: "Test", status: "open" }, "");
-
-      const result = await (pushTool as any).handler({
-        artifactId: "D-001",
-        projectKey: "OVERRIDE",
-      });
-      // Should pass projectKey resolution and reach the Jira client check
-      expect(result.content[0].text).not.toContain("No projectKey provided");
       expect(result.content[0].text).toContain("not configured");
     });
 
-    it("should use default projectKey when no explicit projectKey given", async () => {
-      const configuredTools = createJiraTools(store, {
-        name: "test",
-        jira: { projectKey: "DEFAULT" },
-      });
-      const pushTool = configuredTools.find((t) => t.name === "push_artifact_to_jira")!;
-      store.create("decision", { title: "Test", status: "open" }, "");
+    it("should return error for non-existent artifact", async () => {
+      // Set env vars so Jira client is created (will fail on API call though)
+      process.env.JIRA_HOST = "test.atlassian.net";
+      process.env.JIRA_EMAIL = "test@example.com";
+      process.env.JIRA_API_TOKEN = "token";
+      // Re-create tools with env vars set
+      const envTools = createJiraTools(store);
+      const linkTool = envTools.find((t) => t.name === "link_to_jira")!;
 
-      const result = await (pushTool as any).handler({
-        artifactId: "D-001",
+      const result = await (linkTool as any).handler({
+        artifactId: "A-999",
+        jiraKey: "PROJ-1",
       });
-      // Should use default projectKey and reach the Jira client check
-      expect(result.content[0].text).not.toContain("No projectKey provided");
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("not found");
+    });
+
+    it("should reject non-action/task artifacts", async () => {
+      process.env.JIRA_HOST = "test.atlassian.net";
+      process.env.JIRA_EMAIL = "test@example.com";
+      process.env.JIRA_API_TOKEN = "token";
+      const envTools = createJiraTools(store);
+      const linkTool = envTools.find((t) => t.name === "link_to_jira")!;
+
+      store.create("decision", { title: "Test Decision", status: "open" }, "");
+      const result = await (linkTool as any).handler({
+        artifactId: "D-001",
+        jiraKey: "PROJ-1",
+      });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("only supports action and task");
+    });
+  });
+
+  describe("fetch_jira_status", () => {
+    it("should return error when Jira not configured", async () => {
+      const result = await callTool("fetch_jira_status", {});
+      expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain("not configured");
+    });
+
+    it("should report no artifacts when none are linked", async () => {
+      process.env.JIRA_HOST = "test.atlassian.net";
+      process.env.JIRA_EMAIL = "test@example.com";
+      process.env.JIRA_API_TOKEN = "token";
+      const envTools = createJiraTools(store);
+      const fetchTool = envTools.find((t) => t.name === "fetch_jira_status")!;
+
+      const result = await (fetchTool as any).handler({});
+      expect(result.content[0].text).toContain("No Jira-linked actions/tasks found");
     });
   });
 

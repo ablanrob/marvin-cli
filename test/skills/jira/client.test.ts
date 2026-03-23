@@ -112,4 +112,14 @@ describe("JiraClient", () => {
     expect(expected).toBe("dGVzdEBleGFtcGxlLmNvbTpteS1hcGktdG9rZW4=");
     expect(client).toBeInstanceOf(JiraClient);
   });
+
+  it("should have getIssueWithLinks method", () => {
+    const client = new JiraClient({
+      host: "test.atlassian.net",
+      email: "test@example.com",
+      apiToken: "my-api-token",
+    });
+
+    expect(typeof client.getIssueWithLinks).toBe("function");
+  });
 });

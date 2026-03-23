@@ -27,6 +27,7 @@ import { garReportCommand, healthReportCommand, sprintSummaryCommand } from "./c
 import { webCommand } from "./commands/web.js";
 import { generateClaudeMdCommand } from "./commands/generate.js";
 import { doctorCommand } from "./commands/doctor.js";
+import { jiraSyncCommand, jiraStatusesCommand, jiraDailyCommand } from "./commands/jira.js";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -281,6 +282,35 @@ export function createProgram(): Command {
     .option("--force", "Overwrite existing file without prompting")
     .action(async (options) => {
       await generateClaudeMdCommand(options);
+    });
+
+  const jiraCmd = program
+    .command("jira")
+    .description("Jira integration commands");
+
+  jiraCmd
+    .command("sync [artifactId]")
+    .description("Sync Jira-linked actions/tasks with their Jira issues")
+    .option("--dry-run", "Preview proposed changes without applying them")
+    .action(async (artifactId: string | undefined, options) => {
+      await jiraSyncCommand(artifactId, options);
+    });
+
+  jiraCmd
+    .command("statuses [projectKey]")
+    .description("Show Jira project statuses and their Marvin status mappings")
+    .action(async (projectKey?: string) => {
+      await jiraStatusesCommand(projectKey);
+    });
+
+  jiraCmd
+    .command("daily")
+    .description("Show daily summary of Jira changes with Marvin cross-references")
+    .option("--from <date>", "Start date (YYYY-MM-DD, default: today)")
+    .option("--to <date>", "End date (YYYY-MM-DD, default: same as --from)")
+    .option("--project <key>", "Jira project key (falls back to config)")
+    .action(async (options) => {
+      await jiraDailyCommand(options);
     });
 
   return program;
