@@ -2,15 +2,15 @@ import type { SkillDefinition } from "../../types.js";
 import { createJiraTools } from "./tools.js";
 
 const COMMON_TOOLS = `**Available tools:**
-- \`list_jira_issues\` / \`get_jira_issue\` — browse locally synced Jira issues (JI-xxx documents)
-- \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import issues from Jira by key or JQL query
-- \`push_artifact_to_jira\` — create a Jira issue from a Marvin artifact. For **actions and tasks**, links directly via \`jiraKey\` on the artifact (no JI-xxx intermediary). For other types, creates a JI-xxx tracking document.
-- \`link_to_jira\` — link an existing Jira issue to a Marvin action or task (sets \`jiraKey\` directly on the artifact)
+- \`push_artifact_to_jira\` — create a Jira issue from any Marvin artifact and link it directly via \`jiraKey\` on the artifact.
+- \`link_to_jira\` — link an existing Jira issue to any Marvin artifact (sets \`jiraKey\` directly on the artifact).
 - \`fetch_jira_status\` — **read-only**: fetch current Jira status, subtask progress, and linked issues for Jira-linked actions/tasks. Returns proposed changes without applying them.
 - \`fetch_jira_daily\` — **read-only**: fetch a daily/range summary of all Jira changes — status transitions, comments, linked Confluence pages, and cross-references with Marvin artifacts. Returns proposed actions (status updates, unlinked issues, question candidates, Confluence pages to review).
 - \`fetch_jira_statuses\` — **read-only**: discover all Jira statuses in a project and show their Marvin mappings (mapped vs unmapped).
-- \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira
-- \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx`;
+- \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import Jira issues as local JI-xxx documents (for Jira-originated items with no existing Marvin artifact).
+- \`list_jira_issues\` / \`get_jira_issue\` — browse locally imported JI-xxx documents.
+- \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira.
+- \`link_artifact_to_jira\` — link a Marvin artifact to an existing JI-xxx document.`;
 
 const COMMON_WORKFLOW = `**Jira sync workflow:**
 1. Call \`fetch_jira_status\` to see what Jira reports for linked artifacts

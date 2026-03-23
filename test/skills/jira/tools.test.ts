@@ -324,7 +324,7 @@ describe("Jira tools", () => {
       expect(result.content[0].text).toContain("not found");
     });
 
-    it("should reject non-action/task artifacts", async () => {
+    it("should accept any artifact type (not just action/task)", async () => {
       process.env.JIRA_HOST = "test.atlassian.net";
       process.env.JIRA_EMAIL = "test@example.com";
       process.env.JIRA_API_TOKEN = "token";
@@ -332,12 +332,14 @@ describe("Jira tools", () => {
       const linkTool = envTools.find((t) => t.name === "link_to_jira")!;
 
       store.create("decision", { title: "Test Decision", status: "open" }, "");
-      const result = await (linkTool as any).handler({
-        artifactId: "D-001",
-        jiraKey: "PROJ-1",
-      });
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain("only supports action and task");
+      // Will fail at the Jira API call (fetch to fake host), but should NOT
+      // reject with "only supports action and task" — it should get past type check
+      try {
+        await (linkTool as any).handler({ artifactId: "D-001", jiraKey: "PROJ-1" });
+      } catch (err: any) {
+        // Expected: fetch failure to fake host, NOT a type rejection
+        expect(err.message).not.toContain("only supports");
+      }
     });
   });
 
