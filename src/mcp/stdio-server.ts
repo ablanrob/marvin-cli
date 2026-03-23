@@ -33,8 +33,13 @@ export interface StdioServerOptions {
 export function collectTools(marvinDir: string): SdkMcpToolDefinition<any>[] {
   const config = loadProjectConfig(marvinDir);
   const plugin = resolvePlugin(config.methodology);
-  const registrations = plugin?.documentTypeRegistrations ?? [];
-  const store = new DocumentStore(marvinDir, registrations);
+  const pluginRegistrations = plugin?.documentTypeRegistrations ?? [];
+
+  const allSkills = loadAllSkills(marvinDir);
+  const allSkillIds = [...allSkills.keys()];
+  const allSkillRegs = collectSkillRegistrations(allSkillIds, allSkills);
+
+  const store = new DocumentStore(marvinDir, [...pluginRegistrations, ...allSkillRegs]);
   const sourcesDir = path.join(marvinDir, "sources");
   const hasSourcesDir = fs.existsSync(sourcesDir);
   const manifest = hasSourcesDir ? new SourceManifestManager(marvinDir) : undefined;
@@ -43,18 +48,14 @@ export function collectTools(marvinDir: string): SdkMcpToolDefinition<any>[] {
 
   const sessionStore = new SessionStore(marvinDir);
 
-  const allSkills = loadAllSkills(marvinDir);
-  const allSkillIds = [...allSkills.keys()];
   const codeSkillTools = getSkillTools(allSkillIds, allSkills, store, config);
   const skillsWithActions = allSkillIds
     .map((id) => allSkills.get(id)!)
     .filter((s) => s.actions && s.actions.length > 0);
   const projectRoot = path.dirname(marvinDir);
   const actionTools = createSkillActionTools(skillsWithActions, { store, marvinDir, projectRoot });
-
-  const allSkillRegs = collectSkillRegistrations(allSkillIds, allSkills);
   const navGroups = buildNavGroups({
-    pluginRegs: registrations,
+    pluginRegs: pluginRegistrations,
     skillRegs: allSkillRegs,
     pluginName: plugin?.name,
   });
