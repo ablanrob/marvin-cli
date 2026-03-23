@@ -15,6 +15,8 @@ export interface SprintWorkItem {
   owner?: string;
   workFocus?: string;
   aboutArtifact?: string;
+  jiraKey?: string;
+  jiraUrl?: string;
   children?: SprintWorkItem[];
 }
 

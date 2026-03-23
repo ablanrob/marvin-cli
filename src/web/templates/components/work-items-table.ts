@@ -1,5 +1,5 @@
 import type { SprintWorkItem } from "../../../reports/sprint-summary/types.js";
-import { collapsibleSection, escapeHtml, statusBadge } from "../layout.js";
+import { collapsibleSection, escapeHtml, statusBadge, jiraIcon } from "../layout.js";
 
 const FOCUS_BORDER_PALETTE = [
   "hsl(220, 60%, 55%)",
@@ -62,7 +62,7 @@ function renderItemRows(items: SprintWorkItem[], borderColor: string, showOwner:
     const row = `
               <tr class="${classes.join(" ")}" style="--focus-color: ${borderColor}">
                 <td${indent}><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
-                <td>${escapeHtml(w.title)}</td>
+                <td>${escapeHtml(w.title)}${jiraIcon(w.jiraKey, w.jiraUrl)}</td>
                 ${ownerCell}
                 <td>${statusBadge(w.status)}</td>
                 <td>${progressCell}</td>
