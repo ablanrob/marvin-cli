@@ -155,11 +155,11 @@ export class JiraClient {
   }
 
   async searchIssues(jql: string, maxResults: number = 50): Promise<JiraSearchResult> {
-    const params = new URLSearchParams({
+    return this.searchIssuesV3(
       jql,
-      maxResults: String(maxResults),
-    });
-    return this.request<JiraSearchResult>(`/search?${params}`);
+      ["summary", "description", "status", "issuetype", "priority", "assignee", "labels", "created", "updated"],
+      maxResults,
+    );
   }
 
   async searchIssuesV3(
