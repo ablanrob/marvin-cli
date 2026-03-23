@@ -7,6 +7,7 @@ const COMMON_TOOLS = `**Available tools:**
 - \`fetch_jira_status\` — **read-only**: fetch current Jira status, subtask progress, and linked issues for Jira-linked actions/tasks. Returns proposed changes without applying them.
 - \`fetch_jira_daily\` — **read-only**: fetch a daily/range summary of all Jira changes — status transitions, comments, linked Confluence pages, and cross-references with Marvin artifacts. Returns proposed actions (status updates, unlinked issues, question candidates, Confluence pages to review).
 - \`fetch_jira_statuses\` — **read-only**: discover all Jira statuses in a project and show their Marvin mappings (mapped vs unmapped).
+- \`search_jira\` — **read-only**: search Jira via JQL and return results with Marvin cross-references. No documents created — use to preview before importing or find issues for linking.
 - \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import Jira issues as local JI-xxx documents (for Jira-originated items with no existing Marvin artifact).
 - \`list_jira_issues\` / \`get_jira_issue\` — browse locally imported JI-xxx documents.
 - \`sync_jira_issue\` — bidirectional sync of a local JI-xxx with Jira.
