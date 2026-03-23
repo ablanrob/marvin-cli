@@ -131,6 +131,68 @@ export function createJiraTools(
       { annotations: { readOnlyHint: true } },
     ),
 
+    // --- Jira search (read-only) ---
+
+    tool(
+      "search_jira",
+      "Search Jira issues via JQL query. Read-only — returns results without creating any local documents. Use this to preview before importing or to find issues for linking.",
+      {
+        jql: z.string().describe("JQL query (e.g. 'project = PROJ AND status = \"In Progress\"')"),
+        maxResults: z.number().optional().describe("Max issues to return (default 20)"),
+      },
+      async (args) => {
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
+
+        const result = await jira.client.searchIssuesV3(
+          args.jql,
+          ["summary", "status", "issuetype", "priority", "assignee", "labels"],
+          args.maxResults ?? 20,
+        );
+
+        // Cross-reference with Marvin artifacts
+        const allDocs = store.registeredTypes.flatMap((t) => store.list({ type: t }));
+        const jiraKeyToArtifact = new Map<string, string>();
+        for (const doc of allDocs) {
+          const jk = doc.frontmatter.jiraKey as string | undefined;
+          if (jk) jiraKeyToArtifact.set(jk, doc.frontmatter.id);
+        }
+
+        const issues = result.issues.map((issue) => {
+          const marvinId = jiraKeyToArtifact.get(issue.key);
+          return {
+            key: issue.key,
+            summary: issue.fields.summary,
+            status: issue.fields.status.name,
+            issueType: issue.fields.issuetype.name,
+            priority: issue.fields.priority?.name ?? "None",
+            assignee: issue.fields.assignee?.displayName ?? "unassigned",
+            labels: issue.fields.labels ?? [],
+            marvinArtifact: marvinId ?? null,
+          };
+        });
+
+        const parts: string[] = [
+          `Found ${result.total ?? issues.length} issues (showing ${issues.length}).`,
+          "",
+        ];
+
+        for (const issue of issues) {
+          const linked = issue.marvinArtifact ? ` → ${issue.marvinArtifact}` : " (not linked)";
+          parts.push(`${issue.key} — ${issue.summary} [${issue.status}]${linked}`);
+          parts.push(`  Type: ${issue.issueType} | Priority: ${issue.priority} | Assignee: ${issue.assignee}`);
+        }
+
+        parts.push("");
+        parts.push("This is read-only. Use link_to_jira to link issues to Marvin artifacts, or pull_jira_issue to import as JI-xxx documents.");
+
+        return {
+          content: [{ type: "text" as const, text: parts.join("\n") }],
+        };
+      },
+      { annotations: { readOnlyHint: true } },
+    ),
+
     // --- Jira → Local tools ---
 
     tool(
