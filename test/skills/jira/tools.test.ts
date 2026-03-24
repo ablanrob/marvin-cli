@@ -54,8 +54,8 @@ describe("Jira tools", () => {
     return (t as any).handler(args);
   }
 
-  it("should register all 14 tools", () => {
-    expect(tools).toHaveLength(14);
+  it("should register all 15 tools", () => {
+    expect(tools).toHaveLength(15);
     const names = tools.map((t) => t.name);
     expect(names).toContain("list_jira_issues");
     expect(names).toContain("get_jira_issue");
@@ -71,6 +71,7 @@ describe("Jira tools", () => {
     expect(names).toContain("fetch_jira_status");
     expect(names).toContain("fetch_jira_statuses");
     expect(names).toContain("fetch_jira_daily");
+    expect(names).toContain("assess_sprint_progress");
   });
 
   describe("list_jira_issues", () => {

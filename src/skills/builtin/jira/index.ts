@@ -8,6 +8,7 @@ const COMMON_TOOLS = `**Available tools:**
 - \`read_confluence_page\` — **read-only**: fetch and return the content of a Confluence page by URL or page ID. Use this to review Confluence content for updating tasks, generating contributions, or answering questions.
 - \`fetch_jira_status\` — **read-only**: fetch current Jira status, subtask progress, and linked issues for Jira-linked actions/tasks. Returns proposed changes without applying them.
 - \`fetch_jira_daily\` — **read-only**: fetch a daily/range summary of all Jira changes — status transitions, comments, linked Confluence pages, and cross-references with Marvin artifacts. Returns proposed actions (status updates, unlinked issues, question candidates, Confluence pages to review).
+- \`assess_sprint_progress\` — fetch live Jira statuses for all sprint-scoped items, detect drift, group by focus area with rollup progress, and extract comment signals. Use \`analyzeComments=true\` for LLM summaries, \`applyUpdates=true\` to apply changes.
 - \`fetch_jira_statuses\` — **read-only**: discover all Jira statuses in a project and show their Marvin mappings (mapped vs unmapped).
 - \`search_jira\` — **read-only**: search Jira via JQL and return results with Marvin cross-references. No documents created — use to preview before importing or find issues for linking.
 - \`pull_jira_issue\` / \`pull_jira_issues_jql\` — import Jira issues as local JI-xxx documents (for Jira-originated items with no existing Marvin artifact).
@@ -19,6 +20,11 @@ const COMMON_WORKFLOW = `**Jira sync workflow:**
 1. Call \`fetch_jira_status\` to see what Jira reports for linked artifacts
 2. Analyze the proposed changes (status transitions, subtask progress, blockers from linked issues)
 3. Use \`update_action\` / \`update_task\` to apply the changes you agree with
+
+**Sprint progress workflow:**
+1. Call \`assess_sprint_progress\` to get a comprehensive view of all sprint items with live Jira data
+2. Review focus area rollups, status drift, and blockers
+3. Optionally run with \`applyUpdates=true\` to bulk-sync statuses, or \`analyzeComments=true\` for LLM-powered comment summaries
 
 **Daily review workflow:**
 1. Call \`fetch_jira_daily\` (optionally with \`from\`/\`to\` date range) to get a summary of all Jira activity
@@ -44,6 +50,7 @@ ${COMMON_WORKFLOW}
 
 **As Product Owner, use Jira integration to:**
 - Use \`fetch_jira_daily\` for daily standups — review what changed, identify status drift, spot untracked work
+- Use \`assess_sprint_progress\` for sprint reviews — see overall progress by focus area, detect drift, and identify blockers
 - Pull stakeholder-reported issues for triage and prioritization
 - Push approved features as Stories for development tracking
 - Link decisions to Jira issues for audit trail and traceability
@@ -57,6 +64,7 @@ ${COMMON_WORKFLOW}
 
 **As Tech Lead, use Jira integration to:**
 - Use \`fetch_jira_daily\` to review technical progress — status transitions, new comments, Confluence design docs
+- Use \`assess_sprint_progress\` for sprint health checks — focus area rollups, Jira drift detection, blocker tracking
 - Pull technical issues and bugs for sprint planning and estimation
 - Push epics, tasks, and technical decisions to Jira for cross-team visibility
 - Use \`link_to_jira\` to connect Marvin tasks to existing Jira tickets
@@ -71,6 +79,8 @@ This is a third path for progress tracking alongside Contributions and Meetings.
 
 **As Delivery Manager, use Jira integration to:**
 - Use \`fetch_jira_daily\` for daily progress reports — track what moved, identify blockers, spot untracked work
+- Use \`assess_sprint_progress\` for sprint reviews and stakeholder updates — comprehensive progress by focus area with Jira enrichment
+- Use \`assess_sprint_progress\` with \`applyUpdates=true\` to bulk-sync Marvin statuses from Jira
 - Pull sprint issues for tracking progress and blockers
 - Push actions and tasks to Jira for stakeholder visibility
 - Use \`fetch_jira_daily\` with a date range for sprint retrospectives (e.g. \`from: "2026-03-10", to: "2026-03-21"\`)
