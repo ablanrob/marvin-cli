@@ -94,16 +94,36 @@ export interface JiraRemoteLink {
   };
 }
 
+export interface ConfluencePage {
+  id: string;
+  title: string;
+  status: string;
+  spaceId: string;
+  version: { number: number; createdAt: string };
+  body?: {
+    atlas_doc_format?: {
+      value: string;
+    };
+  };
+  _links?: {
+    webui?: string;
+    base?: string;
+  };
+}
+
 export class JiraClient {
   private baseUrl: string;
   private baseUrlV3: string;
+  private confluenceBaseUrl: string;
   private authHeader: string;
+  private host: string;
 
   constructor(config: JiraConfig) {
     // Normalize host: strip protocol prefix and trailing slashes
-    const host = config.host.replace(/^https?:\/\//, "").replace(/\/+$/, "");
-    this.baseUrl = `https://${host}/rest/api/2`;
-    this.baseUrlV3 = `https://${host}/rest/api/3`;
+    this.host = config.host.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    this.baseUrl = `https://${this.host}/rest/api/2`;
+    this.baseUrlV3 = `https://${this.host}/rest/api/3`;
+    this.confluenceBaseUrl = `https://${this.host}/wiki/api/v2`;
     this.authHeader =
       "Basic " + Buffer.from(`${config.email}:${config.apiToken}`).toString("base64");
   }
@@ -223,6 +243,36 @@ export class JiraClient {
       "POST",
       { body },
     );
+  }
+
+  // --- Confluence methods ---
+
+  async getConfluencePage(pageId: string): Promise<ConfluencePage> {
+    return this.doRequest<ConfluencePage>(
+      `${this.confluenceBaseUrl}/pages/${encodeURIComponent(pageId)}?body-format=atlas_doc_format`,
+      "GET",
+    );
+  }
+
+  /**
+   * Extract a Confluence page ID from various URL formats.
+   * Returns null if the URL doesn't match any known pattern.
+   */
+  static extractPageId(url: string): string | null {
+    // /pages/<id> or /pages/<id>/title
+    const pagesMatch = url.match(/\/pages\/(\d+)/);
+    if (pagesMatch) return pagesMatch[1];
+    // ?pageId=<id>
+    const paramMatch = url.match(/[?&]pageId=(\d+)/);
+    if (paramMatch) return paramMatch[1];
+    return null;
+  }
+
+  /**
+   * Build a web URL for a Confluence page.
+   */
+  getConfluencePageUrl(pageId: string): string {
+    return `https://${this.host}/wiki/pages/viewpage.action?pageId=${pageId}`;
   }
 }
 

@@ -122,4 +122,32 @@ describe("JiraClient", () => {
 
     expect(typeof client.getIssueWithLinks).toBe("function");
   });
+
+  it("should have getConfluencePage method", () => {
+    const client = new JiraClient({
+      host: "test.atlassian.net",
+      email: "test@example.com",
+      apiToken: "my-api-token",
+    });
+
+    expect(typeof client.getConfluencePage).toBe("function");
+  });
+});
+
+describe("JiraClient.extractPageId", () => {
+  it("should extract from /pages/<id>", () => {
+    expect(JiraClient.extractPageId("https://myco.atlassian.net/wiki/spaces/PROJ/pages/123456")).toBe("123456");
+  });
+
+  it("should extract from /pages/<id>/title", () => {
+    expect(JiraClient.extractPageId("https://myco.atlassian.net/wiki/spaces/PROJ/pages/123456/My+Page")).toBe("123456");
+  });
+
+  it("should extract from ?pageId=<id>", () => {
+    expect(JiraClient.extractPageId("https://myco.atlassian.net/wiki/pages/viewpage.action?pageId=123456")).toBe("123456");
+  });
+
+  it("should return null for non-Confluence URLs", () => {
+    expect(JiraClient.extractPageId("https://example.com/something")).toBeNull();
+  });
 });

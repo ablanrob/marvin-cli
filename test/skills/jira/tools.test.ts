@@ -54,8 +54,8 @@ describe("Jira tools", () => {
     return (t as any).handler(args);
   }
 
-  it("should register all 12 tools", () => {
-    expect(tools).toHaveLength(12);
+  it("should register all 14 tools", () => {
+    expect(tools).toHaveLength(14);
     const names = tools.map((t) => t.name);
     expect(names).toContain("list_jira_issues");
     expect(names).toContain("get_jira_issue");
@@ -66,6 +66,8 @@ describe("Jira tools", () => {
     expect(names).toContain("sync_jira_issue");
     expect(names).toContain("link_artifact_to_jira");
     expect(names).toContain("link_to_jira");
+    expect(names).toContain("link_to_confluence");
+    expect(names).toContain("read_confluence_page");
     expect(names).toContain("fetch_jira_status");
     expect(names).toContain("fetch_jira_statuses");
     expect(names).toContain("fetch_jira_daily");

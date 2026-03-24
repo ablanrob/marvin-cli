@@ -5,7 +5,7 @@ import {
   statusBadge,
   typeLabel,
   renderMarkdown,
-  jiraIcon,
+  integrationIcons,
 } from "../layout.js";
 
 export function documentDetailPage(doc: Document): string {
@@ -42,7 +42,7 @@ export function documentDetailPage(doc: Document): string {
     </div>
 
     <div class="page-header">
-      <h2>${escapeHtml(fm.title)}${jiraIcon(fm.jiraKey as string | undefined, fm.jiraUrl as string | undefined)}</h2>
+      <h2>${escapeHtml(fm.title)}${integrationIcons(fm)}</h2>
       <div class="subtitle">${escapeHtml(fm.id)} &middot; ${escapeHtml(label)}</div>
     </div>
 

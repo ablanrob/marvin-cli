@@ -17,6 +17,8 @@ export interface SprintWorkItem {
   aboutArtifact?: string;
   jiraKey?: string;
   jiraUrl?: string;
+  confluenceUrl?: string;
+  confluenceTitle?: string;
   children?: SprintWorkItem[];
 }
 
