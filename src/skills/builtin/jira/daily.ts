@@ -6,7 +6,7 @@ import type {
   JiraRemoteLink,
 } from "./client.js";
 import type { LinkedIssueSummary } from "./sync.js";
-import { mapJiraStatusForAction, mapJiraStatusForTask } from "./sync.js";
+import { mapJiraStatusForAction, mapJiraStatusForTask, isInActiveSprint } from "./sync.js";
 import type { JiraStatusMap } from "../../../core/config.js";
 
 // --- Data structures ---
@@ -375,7 +375,7 @@ export async function fetchJiraDaily(
     const batch = issues.slice(i, i + BATCH_SIZE);
     const results = await Promise.allSettled(
       batch.map((issue) =>
-        processIssue(issue, client, host, dateRange, jiraKeyToArtifacts, allDocs, statusMap),
+        processIssue(issue, client, host, dateRange, jiraKeyToArtifacts, allDocs, statusMap, store),
       ),
     );
 
@@ -405,6 +405,7 @@ async function processIssue(
   jiraKeyToArtifacts: Map<string, { frontmatter: Record<string, any> }[]>,
   allDocs: { frontmatter: Record<string, any> }[],
   statusMap?: { action?: JiraStatusMap; task?: JiraStatusMap },
+  store?: DocumentStore,
 ): Promise<DailyIssueEntry> {
   // Fetch changelog, comments, remote links, and issue links in parallel
   const [changelogResult, commentsResult, remoteLinksResult, issueWithLinks] =
@@ -506,10 +507,13 @@ async function processIssue(
     if (artifactType === "action" || artifactType === "task") {
       const jiraStatus = issue.fields.status?.name;
       if (jiraStatus) {
+        const inSprint = store
+          ? isInActiveSprint(store, fm.tags as string[] | undefined)
+          : false;
         proposedStatus =
           artifactType === "task"
-            ? mapJiraStatusForTask(jiraStatus, statusMap?.task)
-            : mapJiraStatusForAction(jiraStatus, statusMap?.action);
+            ? mapJiraStatusForTask(jiraStatus, statusMap?.task, inSprint)
+            : mapJiraStatusForAction(jiraStatus, statusMap?.action, inSprint);
       }
     }
 
