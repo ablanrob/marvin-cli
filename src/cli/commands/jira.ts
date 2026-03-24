@@ -212,11 +212,13 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
 
   // Build lookups
   const actionLookup = new Map<string, string>();
-  for (const [marvin, jiraStatuses] of Object.entries(actionMap)) {
+  for (const [marvin, value] of Object.entries(actionMap)) {
+    const jiraStatuses = Array.isArray(value) ? value : value.default;
     for (const js of jiraStatuses) actionLookup.set(js.toLowerCase(), marvin);
   }
   const taskLookup = new Map<string, string>();
-  for (const [marvin, jiraStatuses] of Object.entries(taskMap)) {
+  for (const [marvin, value] of Object.entries(taskMap)) {
+    const jiraStatuses = Array.isArray(value) ? value : value.default;
     for (const js of jiraStatuses) taskLookup.set(js.toLowerCase(), marvin);
   }
 

@@ -1,6 +1,6 @@
 import type { DocumentStore } from "../../../storage/store.js";
 import type { JiraClient } from "./client.js";
-import type { JiraStatusMap } from "../../../core/config.js";
+import type { JiraStatusMap, ConditionalJiraStatusEntry } from "../../../core/config.js";
 import {
   propagateProgressFromTask,
   propagateProgressToAction,
@@ -25,27 +25,77 @@ const DEFAULT_TASK_STATUS_MAP: JiraStatusMap = {
 };
 
 /**
- * Build a lookup from Jira status (lowercased) → Marvin status using a status map.
+ * Check whether a value is a conditional status entry (object with `default` key)
+ * vs a simple string array.
  */
-function buildStatusLookup(configMap: JiraStatusMap | undefined, defaults: JiraStatusMap): Map<string, string> {
+function isConditionalEntry(value: string[] | ConditionalJiraStatusEntry): value is ConditionalJiraStatusEntry {
+  return !Array.isArray(value) && typeof value === "object" && "default" in value;
+}
+
+/**
+ * Build a lookup from Jira status (lowercased) → Marvin status using a status map.
+ * When `inSprint` is true, conditional entries' `inSprint` arrays override `default` entries.
+ */
+function buildStatusLookup(
+  configMap: JiraStatusMap | undefined,
+  defaults: JiraStatusMap,
+  inSprint: boolean = false,
+): Map<string, string> {
   const map = configMap ?? defaults;
   const lookup = new Map<string, string>();
-  for (const [marvinStatus, jiraStatuses] of Object.entries(map)) {
-    for (const js of jiraStatuses) {
+
+  // First pass: add default/simple mappings
+  for (const [marvinStatus, value] of Object.entries(map)) {
+    const statuses = isConditionalEntry(value) ? value.default : value;
+    for (const js of statuses) {
       lookup.set(js.toLowerCase(), marvinStatus);
     }
   }
+
+  // Second pass: if in sprint, override with inSprint mappings
+  if (inSprint) {
+    for (const [marvinStatus, value] of Object.entries(map)) {
+      if (isConditionalEntry(value) && value.inSprint) {
+        for (const js of value.inSprint) {
+          lookup.set(js.toLowerCase(), marvinStatus);
+        }
+      }
+    }
+  }
+
   return lookup;
 }
 
-export function mapJiraStatusForAction(status: string, configMap?: JiraStatusMap): string {
-  const lookup = buildStatusLookup(configMap, DEFAULT_ACTION_STATUS_MAP);
+export function mapJiraStatusForAction(status: string, configMap?: JiraStatusMap, inSprint?: boolean): string {
+  const lookup = buildStatusLookup(configMap, DEFAULT_ACTION_STATUS_MAP, inSprint ?? false);
   return lookup.get(status.toLowerCase()) ?? "open";
 }
 
-export function mapJiraStatusForTask(status: string, configMap?: JiraStatusMap): string {
-  const lookup = buildStatusLookup(configMap, DEFAULT_TASK_STATUS_MAP);
+export function mapJiraStatusForTask(status: string, configMap?: JiraStatusMap, inSprint?: boolean): string {
+  const lookup = buildStatusLookup(configMap, DEFAULT_TASK_STATUS_MAP, inSprint ?? false);
   return lookup.get(status.toLowerCase()) ?? "backlog";
+}
+
+/**
+ * Determine if an artifact is in an active or completed sprint.
+ * Checks the artifact's `sprint:SP-xxx` tags against sprint documents in the store.
+ */
+export function isInActiveSprint(store: DocumentStore, tags: string[] | undefined): boolean {
+  if (!tags) return false;
+  const sprintTags = tags.filter(t => t.startsWith("sprint:"));
+  if (sprintTags.length === 0) return false;
+
+  for (const tag of sprintTags) {
+    const sprintId = tag.slice(7); // Remove "sprint:" prefix
+    const sprintDoc = store.get(sprintId);
+    if (sprintDoc) {
+      const status = sprintDoc.frontmatter.status;
+      if (status === "active" || status === "completed") {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export { DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP };
@@ -158,10 +208,11 @@ export async function fetchJiraStatus(
     try {
       const issue = await client.getIssueWithLinks(jiraKey);
 
+      const inSprint = isInActiveSprint(store, doc.frontmatter.tags as string[] | undefined);
       const proposedStatus =
         artifactType === "task"
-          ? mapJiraStatusForTask(issue.fields.status.name, statusMap?.task)
-          : mapJiraStatusForAction(issue.fields.status.name, statusMap?.action);
+          ? mapJiraStatusForTask(issue.fields.status.name, statusMap?.task, inSprint)
+          : mapJiraStatusForAction(issue.fields.status.name, statusMap?.action, inSprint);
       const currentStatus = doc.frontmatter.status;
 
       // Collect linked issues

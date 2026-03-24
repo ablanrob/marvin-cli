@@ -21,8 +21,13 @@ export interface GitConfig {
   remote?: string;
 }
 
+export interface ConditionalJiraStatusEntry {
+  default: string[];
+  inSprint?: string[];
+}
+
 export interface JiraStatusMap {
-  [marvinStatus: string]: string[];
+  [marvinStatus: string]: string[] | ConditionalJiraStatusEntry;
 }
 
 export interface JiraProjectConfig {

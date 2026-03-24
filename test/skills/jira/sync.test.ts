@@ -9,6 +9,7 @@ import {
   computeSubtaskProgress,
   fetchJiraStatus,
   syncJiraProgress,
+  isInActiveSprint,
 } from "../../../src/skills/builtin/jira/sync.js";
 import type { JiraClient, JiraIssue } from "../../../src/skills/builtin/jira/client.js";
 
@@ -88,6 +89,273 @@ describe("Config-driven status mapping", () => {
   it("should use defaults when no custom map provided", () => {
     expect(mapJiraStatusForAction("Done")).toBe("done");
     expect(mapJiraStatusForTask("In Review")).toBe("review");
+  });
+});
+
+describe("Context-aware status mapping (conditional entries)", () => {
+  it("should resolve default entries when not in sprint", () => {
+    const map = {
+      backlog: { default: ["To Do", "Open"], inSprint: [] },
+      ready: { default: ["Ready"], inSprint: ["To Do"] },
+    };
+    expect(mapJiraStatusForTask("To Do", map, false)).toBe("backlog");
+    expect(mapJiraStatusForTask("Ready", map, false)).toBe("ready");
+  });
+
+  it("should override with inSprint entries when in sprint", () => {
+    const map = {
+      backlog: { default: ["To Do", "Open"] },
+      ready: { default: ["Ready"], inSprint: ["To Do"] },
+    };
+    // "To Do" normally maps to backlog, but in sprint maps to ready
+    expect(mapJiraStatusForTask("To Do", map, true)).toBe("ready");
+    // "Open" still maps to backlog (no inSprint override)
+    expect(mapJiraStatusForTask("Open", map, true)).toBe("backlog");
+    // "Ready" still maps to ready
+    expect(mapJiraStatusForTask("Ready", map, true)).toBe("ready");
+  });
+
+  it("should work with mixed simple and conditional entries", () => {
+    const map = {
+      done: ["Done", "Closed"],           // simple entry
+      backlog: { default: ["To Do", "New"] },  // conditional, no inSprint
+      ready: { default: ["Ready"], inSprint: ["To Do"] }, // conditional with inSprint
+    };
+    // Simple entries always work
+    expect(mapJiraStatusForTask("Done", map, false)).toBe("done");
+    expect(mapJiraStatusForTask("Done", map, true)).toBe("done");
+    // Conditional default
+    expect(mapJiraStatusForTask("To Do", map, false)).toBe("backlog");
+    // Conditional inSprint overrides
+    expect(mapJiraStatusForTask("To Do", map, true)).toBe("ready");
+    // "New" always maps to backlog (no inSprint override)
+    expect(mapJiraStatusForTask("New", map, true)).toBe("backlog");
+  });
+
+  it("should fall back to default when inSprint key is missing", () => {
+    const map = {
+      backlog: { default: ["To Do"] },
+    };
+    // No inSprint key → falls back to default even when in sprint
+    expect(mapJiraStatusForTask("To Do", map, true)).toBe("backlog");
+  });
+
+  it("should be case-insensitive with conditional entries", () => {
+    const map = {
+      ready: { default: ["Ready"], inSprint: ["TO DO"] },
+    };
+    expect(mapJiraStatusForTask("to do", map, true)).toBe("ready");
+    expect(mapJiraStatusForTask("TO DO", map, true)).toBe("ready");
+  });
+
+  it("should work for action maps too", () => {
+    const map = {
+      open: { default: ["To Do", "New"] },
+      "in-progress": { default: ["In Progress"], inSprint: ["To Do"] },
+    };
+    expect(mapJiraStatusForAction("To Do", map, false)).toBe("open");
+    expect(mapJiraStatusForAction("To Do", map, true)).toBe("in-progress");
+  });
+
+  it("should use fallback when status not in any map", () => {
+    const map = {
+      done: { default: ["Done"] },
+    };
+    expect(mapJiraStatusForTask("Unknown", map, false)).toBe("backlog");
+    expect(mapJiraStatusForTask("Unknown", map, true)).toBe("backlog");
+    expect(mapJiraStatusForAction("Unknown", map, false)).toBe("open");
+  });
+});
+
+describe("isInActiveSprint", () => {
+  let tmpDir: string;
+  let marvinDir: string;
+  let store: DocumentStore;
+
+  const SPRINT_REG = { type: "sprint", dirName: "sprints", idPrefix: "SP" };
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-sprint-ctx-test-"));
+    marvinDir = path.join(tmpDir, ".marvin");
+    fs.mkdirSync(path.join(marvinDir, "docs"), { recursive: true });
+    store = new DocumentStore(marvinDir, [SPRINT_REG]);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("should return false for undefined tags", () => {
+    expect(isInActiveSprint(store, undefined)).toBe(false);
+  });
+
+  it("should return false for empty tags", () => {
+    expect(isInActiveSprint(store, [])).toBe(false);
+  });
+
+  it("should return false for tags without sprint prefix", () => {
+    expect(isInActiveSprint(store, ["focus:Auth", "jira:PROJ-1"])).toBe(false);
+  });
+
+  it("should return false when sprint doc does not exist", () => {
+    expect(isInActiveSprint(store, ["sprint:SP-999"])).toBe(false);
+  });
+
+  it("should return true for active sprint", () => {
+    store.create("sprint", { title: "Sprint 1", status: "active" }, "");
+    expect(isInActiveSprint(store, ["sprint:SP-001"])).toBe(true);
+  });
+
+  it("should return true for completed sprint", () => {
+    store.create("sprint", { title: "Sprint 1", status: "completed" }, "");
+    expect(isInActiveSprint(store, ["sprint:SP-001"])).toBe(true);
+  });
+
+  it("should return false for planned sprint", () => {
+    store.create("sprint", { title: "Sprint 1", status: "planned" }, "");
+    expect(isInActiveSprint(store, ["sprint:SP-001"])).toBe(false);
+  });
+
+  it("should return false for cancelled sprint", () => {
+    store.create("sprint", { title: "Sprint 1", status: "cancelled" }, "");
+    expect(isInActiveSprint(store, ["sprint:SP-001"])).toBe(false);
+  });
+
+  it("should return true if any sprint is active (multiple sprint tags)", () => {
+    store.create("sprint", { title: "Sprint 1", status: "cancelled" }, "");
+    store.create("sprint", { title: "Sprint 2", status: "active" }, "");
+    expect(isInActiveSprint(store, ["sprint:SP-001", "sprint:SP-002"])).toBe(true);
+  });
+});
+
+describe("fetchJiraStatus with context-aware mapping", () => {
+  let tmpDir: string;
+  let marvinDir: string;
+  let store: DocumentStore;
+  let mockClient: JiraClient;
+
+  const TASK_REG = { type: "task", dirName: "tasks", idPrefix: "T" };
+  const SPRINT_REG = { type: "sprint", dirName: "sprints", idPrefix: "SP" };
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-ctx-fetch-test-"));
+    marvinDir = path.join(tmpDir, ".marvin");
+    fs.mkdirSync(path.join(marvinDir, "docs"), { recursive: true });
+    store = new DocumentStore(marvinDir, [TASK_REG, SPRINT_REG]);
+
+    mockClient = {
+      getIssueWithLinks: vi.fn(),
+    } as unknown as JiraClient;
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function makeIssue(overrides: Partial<JiraIssue["fields"]> = {}): JiraIssue {
+    return {
+      key: "PROJ-1",
+      id: "10001",
+      self: "https://test.atlassian.net/rest/api/2/issue/10001",
+      fields: {
+        summary: "Test issue",
+        description: null,
+        status: { name: "To Do" },
+        issuetype: { name: "Task" },
+        priority: { name: "Medium" },
+        assignee: null,
+        labels: [],
+        created: "2026-01-01T00:00:00.000Z",
+        updated: "2026-01-01T00:00:00.000Z",
+        ...overrides,
+      },
+    };
+  }
+
+  it("should map 'To Do' to ready when task is in active sprint with conditional map", async () => {
+    // Create active sprint
+    store.create("sprint", { title: "Sprint 9", status: "active" }, "");
+
+    // Create task with sprint tag
+    store.create("task", {
+      title: "Sprint Task",
+      status: "ready",
+      jiraKey: "PROJ-1",
+      tags: ["sprint:SP-001"],
+    } as any, "");
+
+    vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
+      makeIssue({ status: { name: "To Do" } }),
+    );
+
+    const statusMap = {
+      task: {
+        backlog: { default: ["To Do", "Open"] },
+        ready: { default: ["Ready"], inSprint: ["To Do"] },
+        done: ["Done"],
+      },
+    };
+
+    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, statusMap);
+    expect(result.artifacts).toHaveLength(1);
+    // "To Do" should map to "ready" because task is in active sprint
+    expect(result.artifacts[0].proposedMarvinStatus).toBe("ready");
+    expect(result.artifacts[0].statusChanged).toBe(false); // already ready
+  });
+
+  it("should map 'To Do' to backlog when task is NOT in sprint with conditional map", async () => {
+    // Create task without sprint tag
+    store.create("task", {
+      title: "Backlog Task",
+      status: "backlog",
+      jiraKey: "PROJ-1",
+      tags: [],
+    } as any, "");
+
+    vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
+      makeIssue({ status: { name: "To Do" } }),
+    );
+
+    const statusMap = {
+      task: {
+        backlog: { default: ["To Do", "Open"] },
+        ready: { default: ["Ready"], inSprint: ["To Do"] },
+        done: ["Done"],
+      },
+    };
+
+    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, statusMap);
+    expect(result.artifacts).toHaveLength(1);
+    // "To Do" should map to "backlog" because task is not in sprint
+    expect(result.artifacts[0].proposedMarvinStatus).toBe("backlog");
+    expect(result.artifacts[0].statusChanged).toBe(false); // already backlog
+  });
+
+  it("should map 'To Do' to backlog when sprint is cancelled", async () => {
+    // Create cancelled sprint
+    store.create("sprint", { title: "Sprint 9", status: "cancelled" }, "");
+
+    // Create task with sprint tag for cancelled sprint
+    store.create("task", {
+      title: "Cancelled Sprint Task",
+      status: "backlog",
+      jiraKey: "PROJ-1",
+      tags: ["sprint:SP-001"],
+    } as any, "");
+
+    vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
+      makeIssue({ status: { name: "To Do" } }),
+    );
+
+    const statusMap = {
+      task: {
+        backlog: { default: ["To Do", "Open"] },
+        ready: { default: ["Ready"], inSprint: ["To Do"] },
+      },
+    };
+
+    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, statusMap);
+    expect(result.artifacts[0].proposedMarvinStatus).toBe("backlog");
   });
 });
 

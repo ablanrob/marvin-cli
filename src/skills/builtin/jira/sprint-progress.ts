@@ -8,6 +8,7 @@ import {
   mapJiraStatusForTask,
   computeSubtaskProgress,
   extractJiraKeyFromTags,
+  isInActiveSprint,
 } from "./sync.js";
 import {
   detectCommentSignals,
@@ -287,10 +288,11 @@ export async function assessSprintProgress(
     if (jiraData) {
       jiraStatus = jiraData.issue.fields.status.name;
 
-      // Map Jira status to Marvin status
+      // Map Jira status to Marvin status (sprint-scoped items are always "in sprint")
+      const inSprint = isInActiveSprint(store, fm.tags as string[] | undefined);
       proposedMarvinStatus = fm.type === "task"
-        ? mapJiraStatusForTask(jiraStatus, options.statusMap?.task)
-        : mapJiraStatusForAction(jiraStatus, options.statusMap?.action);
+        ? mapJiraStatusForTask(jiraStatus!, options.statusMap?.task, inSprint)
+        : mapJiraStatusForAction(jiraStatus!, options.statusMap?.action, inSprint);
 
       // Compute subtask progress
       const subtasks = jiraData.issue.fields.subtasks ?? [];
