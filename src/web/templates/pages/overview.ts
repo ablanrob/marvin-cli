@@ -1,6 +1,6 @@
 import type { OverviewData, DiagramDataResult } from "../../data.js";
 import type { NavGroup } from "../layout.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel, jiraIcon } from "../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel, integrationIcons } from "../layout.js";
 import { buildArtifactFlowchart } from "../mermaid.js";
 
 function renderCard(t: { type: string; total: number; open: number }): string {
@@ -53,7 +53,7 @@ export function overviewPage(data: OverviewData, diagrams: DiagramDataResult, na
       (doc) => `
         <tr>
           <td><a href="/docs/${doc.frontmatter.type}/${doc.frontmatter.id}">${escapeHtml(doc.frontmatter.id)}</a></td>
-          <td>${escapeHtml(doc.frontmatter.title)}${jiraIcon(doc.frontmatter.jiraKey as string | undefined, doc.frontmatter.jiraUrl as string | undefined)}</td>
+          <td>${escapeHtml(doc.frontmatter.title)}${integrationIcons(doc.frontmatter)}</td>
           <td>${escapeHtml(typeLabel(doc.frontmatter.type))}</td>
           <td>${statusBadge(doc.frontmatter.status)}</td>
           <td>${formatDate(doc.frontmatter.updated ?? doc.frontmatter.created)}</td>

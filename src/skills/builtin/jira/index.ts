@@ -4,6 +4,8 @@ import { createJiraTools } from "./tools.js";
 const COMMON_TOOLS = `**Available tools:**
 - \`push_artifact_to_jira\` — create a Jira issue from any Marvin artifact and link it directly via \`jiraKey\` on the artifact.
 - \`link_to_jira\` — link an existing Jira issue to any Marvin artifact (sets \`jiraKey\` directly on the artifact).
+- \`link_to_confluence\` — link a Confluence page to any Marvin artifact. Validates the page exists and fetches its title.
+- \`read_confluence_page\` — **read-only**: fetch and return the content of a Confluence page by URL or page ID. Use this to review Confluence content for updating tasks, generating contributions, or answering questions.
 - \`fetch_jira_status\` — **read-only**: fetch current Jira status, subtask progress, and linked issues for Jira-linked actions/tasks. Returns proposed changes without applying them.
 - \`fetch_jira_daily\` — **read-only**: fetch a daily/range summary of all Jira changes — status transitions, comments, linked Confluence pages, and cross-references with Marvin artifacts. Returns proposed actions (status updates, unlinked issues, question candidates, Confluence pages to review).
 - \`fetch_jira_statuses\` — **read-only**: discover all Jira statuses in a project and show their Marvin mappings (mapped vs unmapped).

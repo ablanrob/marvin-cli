@@ -2,7 +2,8 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 import { loadUserConfig, type MarvinProjectConfig } from "../../../core/config.js";
-import { createJiraClient, type JiraIssue } from "./client.js";
+import { createJiraClient, JiraClient, type JiraIssue } from "./client.js";
+import { extractCommentText } from "./daily.js";
 import { fetchJiraStatus, DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP } from "./sync.js";
 import { fetchJiraDaily, type DailySummary, type DailyIssueEntry } from "./daily.js";
 
@@ -527,6 +528,128 @@ export function createJiraTools(
           ],
         };
       },
+    ),
+
+    // --- Confluence tools ---
+
+    tool(
+      "link_to_confluence",
+      "Link a Confluence page to any Marvin artifact. Validates the page exists and fetches its title.",
+      {
+        artifactId: z.string().describe("Marvin artifact ID (e.g. 'D-001', 'A-003', 'T-002')"),
+        confluenceUrl: z.string().describe("Confluence page URL"),
+      },
+      async (args) => {
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
+
+        const artifact = store.get(args.artifactId);
+        if (!artifact) {
+          return {
+            content: [
+              { type: "text" as const, text: `Artifact ${args.artifactId} not found` },
+            ],
+            isError: true,
+          };
+        }
+
+        const pageId = JiraClient.extractPageId(args.confluenceUrl);
+        if (!pageId) {
+          return {
+            content: [
+              { type: "text" as const, text: `Could not extract page ID from URL: ${args.confluenceUrl}` },
+            ],
+            isError: true,
+          };
+        }
+
+        // Validate page exists and get real title
+        const page = await jira.client.getConfluencePage(pageId);
+
+        const existingTags = (artifact.frontmatter.tags as string[]) ?? [];
+        store.update(args.artifactId, {
+          confluenceUrl: args.confluenceUrl,
+          confluencePageId: pageId,
+          confluenceTitle: page.title,
+          tags: [...existingTags.filter((t) => !t.startsWith("confluence:")), `confluence:${page.title}`],
+        } as any);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Linked ${args.artifactId} to Confluence page "${page.title}" (ID: ${pageId}).`,
+            },
+          ],
+        };
+      },
+    ),
+
+    tool(
+      "read_confluence_page",
+      "Read the content of a Confluence page by URL or page ID. Returns the page title, metadata, and body as plain text.",
+      {
+        pageUrl: z.string().optional().describe("Confluence page URL"),
+        pageId: z.string().optional().describe("Confluence page ID (alternative to URL)"),
+      },
+      async (args) => {
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
+
+        const resolvedId = args.pageId ?? (args.pageUrl ? JiraClient.extractPageId(args.pageUrl) : null);
+        if (!resolvedId) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Provide either pageUrl or pageId. Could not extract page ID from the given URL.",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const page = await jira.client.getConfluencePage(resolvedId);
+
+        // Extract text from ADF body
+        let bodyText = "";
+        if (page.body?.atlas_doc_format?.value) {
+          try {
+            const adf = JSON.parse(page.body.atlas_doc_format.value);
+            bodyText = extractCommentText(adf);
+          } catch {
+            bodyText = page.body.atlas_doc_format.value;
+          }
+        }
+
+        const parts: string[] = [
+          `# ${page.title}`,
+          "",
+          `Page ID: ${page.id}`,
+          `Status: ${page.status}`,
+          `Version: ${page.version.number} (${page.version.createdAt.slice(0, 10)})`,
+          "",
+          "---",
+          "",
+          bodyText || "(empty page)",
+        ];
+
+        // Check if any Marvin artifacts link to this page
+        const allDocs = store.registeredTypes.flatMap((t) => store.list({ type: t }));
+        const linkedArtifacts = allDocs.filter(
+          (d) => d.frontmatter.confluencePageId === resolvedId || d.frontmatter.confluenceUrl === args.pageUrl,
+        );
+        if (linkedArtifacts.length > 0) {
+          parts.push("");
+          parts.push("---");
+          parts.push(`Linked Marvin artifacts: ${linkedArtifacts.map((d) => d.frontmatter.id).join(", ")}`);
+        }
+
+        return {
+          content: [{ type: "text" as const, text: parts.join("\n") }],
+        };
+      },
+      { annotations: { readOnlyHint: true } },
     ),
 
     // --- Jira status fetch (read-only) ---

@@ -137,6 +137,8 @@ export function collectSprintSummaryData(
       aboutArtifact: about,
       jiraKey: doc.frontmatter.jiraKey as string | undefined,
       jiraUrl: doc.frontmatter.jiraUrl as string | undefined,
+      confluenceUrl: doc.frontmatter.confluenceUrl as string | undefined,
+      confluenceTitle: doc.frontmatter.confluenceTitle as string | undefined,
     };
     allItemsById.set(item.id, item);
 

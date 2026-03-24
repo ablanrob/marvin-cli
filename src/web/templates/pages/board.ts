@@ -1,5 +1,5 @@
 import type { BoardData } from "../../data.js";
-import { escapeHtml, typeLabel, jiraIcon } from "../layout.js";
+import { escapeHtml, typeLabel, integrationIcons } from "../layout.js";
 
 export function boardPage(data: BoardData, basePath = "/board"): string {
   const typeOptions = data.types
@@ -24,7 +24,7 @@ export function boardPage(data: BoardData, basePath = "/board"): string {
           <div class="board-card">
             <a href="/docs/${doc.frontmatter.type}/${doc.frontmatter.id}">
               <div class="bc-id">${escapeHtml(doc.frontmatter.id)}</div>
-              <div class="bc-title">${escapeHtml(doc.frontmatter.title)}${jiraIcon(doc.frontmatter.jiraKey as string | undefined, doc.frontmatter.jiraUrl as string | undefined)}</div>
+              <div class="bc-title">${escapeHtml(doc.frontmatter.title)}${integrationIcons(doc.frontmatter)}</div>
               ${doc.frontmatter.owner ? `<div class="bc-owner">${escapeHtml(doc.frontmatter.owner)}</div>` : ""}
             </a>
           </div>`,
