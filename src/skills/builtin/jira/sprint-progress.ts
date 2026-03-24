@@ -23,12 +23,19 @@ import { getEffectiveProgress } from "../../../storage/progress.js";
 
 // --- Types ---
 
+export type ProgressSource = "explicit" | "comment-analysis" | "status-default";
+export type WeightSource = "complexity" | "default";
+
 export interface SprintProgressItemReport {
   id: string;
   title: string;
   type: string;
   marvinStatus: string;
   marvinProgress: number;
+  progress: number;
+  progressSource: ProgressSource;
+  weight: number;
+  weightSource: WeightSource;
   jiraKey: string | null;
   jiraStatus: string | null;
   jiraSubtaskProgress: number | null;
@@ -44,11 +51,13 @@ export interface SprintProgressItemReport {
 
 export interface FocusAreaRollup {
   name: string;
-  items: SprintProgressItemReport[];
-  totalCount: number;
+  progress: number;
+  taskCount: number;
   doneCount: number;
   blockedCount: number;
-  avgProgress: number;
+  blockedWeightPct: number;
+  riskWarning: string | null;
+  items: SprintProgressItemReport[];
 }
 
 export interface ProposedUpdate {
@@ -84,6 +93,84 @@ export interface SprintProgressReport {
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "obsolete", "wont do", "cancelled"]);
 const BATCH_SIZE = 5;
+const BLOCKED_WEIGHT_RISK_THRESHOLD = 0.3;
+
+// --- Complexity → Weight mapping ---
+
+export const COMPLEXITY_WEIGHTS: Record<string, number> = {
+  trivial: 1,
+  simple: 2,
+  moderate: 3,
+  complex: 5,
+  "very-complex": 8,
+};
+const DEFAULT_WEIGHT = 3;
+
+// --- Status → Default Progress mapping ---
+
+export const STATUS_PROGRESS_DEFAULTS: Record<string, number> = {
+  done: 100,
+  closed: 100,
+  resolved: 100,
+  obsolete: 100,
+  "wont do": 100,
+  cancelled: 100,
+  review: 80,
+  "in-progress": 40,
+  ready: 5,
+  backlog: 0,
+  open: 0,
+};
+const BLOCKED_DEFAULT_PROGRESS = 10;
+
+// --- Resolution helpers ---
+
+export function resolveWeight(complexity: string | undefined): { weight: number; weightSource: WeightSource } {
+  if (complexity && complexity in COMPLEXITY_WEIGHTS) {
+    return { weight: COMPLEXITY_WEIGHTS[complexity], weightSource: "complexity" };
+  }
+  return { weight: DEFAULT_WEIGHT, weightSource: "default" };
+}
+
+export function resolveProgress(
+  frontmatter: Record<string, any>,
+  commentAnalysisProgress: number | null,
+): { progress: number; progressSource: ProgressSource } {
+  // 1. Explicit progress field (check if truly set, not just 0-from-default)
+  const hasExplicitProgress = "progress" in frontmatter && typeof frontmatter.progress === "number";
+  if (hasExplicitProgress) {
+    return { progress: Math.max(0, Math.min(100, Math.round(frontmatter.progress))), progressSource: "explicit" };
+  }
+
+  // 2. LLM comment analysis
+  if (commentAnalysisProgress !== null) {
+    return { progress: Math.max(0, Math.min(100, Math.round(commentAnalysisProgress))), progressSource: "comment-analysis" };
+  }
+
+  // 3. Status-based fallback
+  const status = frontmatter.status as string;
+  if (status === "blocked") {
+    return { progress: BLOCKED_DEFAULT_PROGRESS, progressSource: "status-default" };
+  }
+  const defaultProgress = STATUS_PROGRESS_DEFAULTS[status] ?? 0;
+  return { progress: defaultProgress, progressSource: "status-default" };
+}
+
+/**
+ * Compute weighted average progress for a set of items.
+ * Returns 0 if total weight is 0.
+ */
+export function computeWeightedProgress(items: SprintProgressItemReport[]): number {
+  if (items.length === 0) return 0;
+  let totalWeight = 0;
+  let weightedSum = 0;
+  for (const item of items) {
+    totalWeight += item.weight;
+    weightedSum += item.weight * item.progress;
+  }
+  if (totalWeight === 0) return 0;
+  return Math.round(weightedSum / totalWeight);
+}
 
 // --- Core function ---
 
@@ -248,12 +335,22 @@ export async function assessSprintProgress(
     const tags = (fm.tags as string[]) ?? [];
     const focusTag = tags.find(t => t.startsWith("focus:"));
 
+    // Resolve weight from complexity
+    const { weight, weightSource } = resolveWeight(fm.complexity as string | undefined);
+
+    // Resolve progress with priority cascade (comment-analysis applied later)
+    const { progress: resolvedProgress, progressSource } = resolveProgress(fm, null);
+
     const report: SprintProgressItemReport = {
       id: fm.id,
       title: fm.title,
       type: fm.type,
       marvinStatus: fm.status,
       marvinProgress: currentProgress,
+      progress: resolvedProgress,
+      progressSource,
+      weight,
+      weightSource,
       jiraKey,
       jiraStatus,
       jiraSubtaskProgress,
@@ -294,12 +391,25 @@ export async function assessSprintProgress(
   }
   const rootReports = itemReports.filter(r => !childIds.has(r.id));
 
-  // 6. Focus area grouping
+  // 6a. Action-level rollup: actions with children get weighted average of child tasks
+  //     unless the action has an explicit progress override
+  for (const report of rootReports) {
+    if (report.children.length > 0) {
+      const doc = store.get(report.id);
+      const hasExplicitOverride = doc?.frontmatter.progressOverride;
+      if (!hasExplicitOverride) {
+        report.progress = computeWeightedProgress(report.children);
+        report.progressSource = "status-default"; // derived from children
+      }
+    }
+  }
+
+  // 6b. Focus area grouping with weighted rollup
   const focusAreaMap = new Map<string, SprintProgressItemReport[]>();
   for (const report of rootReports) {
-    const area = report.focusArea ?? "Uncategorized";
-    if (!focusAreaMap.has(area)) focusAreaMap.set(area, []);
-    focusAreaMap.get(area)!.push(report);
+    if (!report.focusArea) continue; // items without focus tag excluded from focus rollups
+    if (!focusAreaMap.has(report.focusArea)) focusAreaMap.set(report.focusArea, []);
+    focusAreaMap.get(report.focusArea)!.push(report);
   }
 
   const focusAreas: FocusAreaRollup[] = [];
@@ -307,26 +417,37 @@ export async function assessSprintProgress(
     const allFlatItems = items.flatMap(i => [i, ...i.children]);
     const doneCount = allFlatItems.filter(i => DONE_STATUSES.has(i.marvinStatus)).length;
     const blockedCount = allFlatItems.filter(i => i.marvinStatus === "blocked").length;
-    const avgProgress = allFlatItems.length > 0
-      ? Math.round(allFlatItems.reduce((s, i) => s + i.marvinProgress, 0) / allFlatItems.length)
+
+    // Weighted rollup using top-level items only (no double-counting children)
+    const progress = computeWeightedProgress(items);
+
+    // Blocked weight percentage
+    const totalWeight = items.reduce((s, i) => s + i.weight, 0);
+    const blockedWeight = items
+      .filter(i => i.marvinStatus === "blocked")
+      .reduce((s, i) => s + i.weight, 0);
+    const blockedWeightPct = totalWeight > 0
+      ? Math.round((blockedWeight / totalWeight) * 100)
       : 0;
+
+    const riskWarning = blockedWeightPct > BLOCKED_WEIGHT_RISK_THRESHOLD * 100
+      ? `${blockedWeightPct}% of scope is blocked`
+      : null;
 
     focusAreas.push({
       name,
-      items,
-      totalCount: allFlatItems.length,
+      progress,
+      taskCount: allFlatItems.length,
       doneCount,
       blockedCount,
-      avgProgress,
+      blockedWeightPct,
+      riskWarning,
+      items,
     });
   }
 
-  // Sort focus areas: Uncategorized last, others alphabetically
-  focusAreas.sort((a, b) => {
-    if (a.name === "Uncategorized") return 1;
-    if (b.name === "Uncategorized") return -1;
-    return a.name.localeCompare(b.name);
-  });
+  // Sort focus areas alphabetically
+  focusAreas.sort((a, b) => a.name.localeCompare(b.name));
 
   // Drift and blocker items
   const driftItems = itemReports.filter(r => r.statusDrift || r.progressDrift);
@@ -347,7 +468,21 @@ export async function assessSprintProgress(
         );
         for (const [artifactId, summary] of summaries) {
           const report = itemReports.find(r => r.id === artifactId);
-          if (report) report.commentSummary = summary;
+          if (report) {
+            report.commentSummary = summary;
+            // If this item didn't have explicit progress, upgrade to comment-analysis source
+            if (report.progressSource === "status-default") {
+              // Try to extract a percentage from the summary
+              const pctMatch = summary.match(/(\d{1,3})%/);
+              if (pctMatch) {
+                const pct = parseInt(pctMatch[1], 10);
+                if (pct >= 0 && pct <= 100) {
+                  report.progress = pct;
+                  report.progressSource = "comment-analysis";
+                }
+              }
+            }
+          }
         }
       } catch (err) {
         errors.push(`Comment analysis failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -396,7 +531,7 @@ export async function assessSprintProgress(
       totalDays: sprintData.timeline.totalDays,
       percentComplete: sprintData.timeline.percentComplete,
     },
-    overallProgress: sprintData.workItems.completionPct,
+    overallProgress: rootReports.length > 0 ? computeWeightedProgress(rootReports) : sprintData.workItems.completionPct,
     itemReports: rootReports,
     focusAreas,
     driftItems,
@@ -521,9 +656,12 @@ export function formatProgressReport(report: SprintProgressReport): string {
     parts.push("");
 
     for (const area of report.focusAreas) {
-      const bar = progressBar(area.avgProgress);
-      parts.push(`### ${area.name} ${bar} ${area.avgProgress}%`);
-      parts.push(`${area.doneCount}/${area.totalCount} done${area.blockedCount > 0 ? ` | ${area.blockedCount} blocked` : ""}`);
+      const bar = progressBar(area.progress);
+      parts.push(`### ${area.name} ${bar} ${area.progress}%`);
+      parts.push(`${area.doneCount}/${area.taskCount} done${area.blockedCount > 0 ? ` | ${area.blockedCount} blocked` : ""}`);
+      if (area.riskWarning) {
+        parts.push(`  ⚠ ${area.riskWarning}`);
+      }
       parts.push("");
 
       for (const item of area.items) {
@@ -602,9 +740,12 @@ function formatItemLine(parts: string[], item: SprintProgressItemReport, depth: 
 
   const jiraLabel = item.jiraKey ? ` [${item.jiraKey}: ${item.jiraStatus}]` : "";
   const driftFlag = item.statusDrift ? " ⚠drift" : "";
-  const progressLabel = item.marvinProgress > 0 ? ` ${item.marvinProgress}%` : "";
+  const progressLabel = ` ${item.progress}%`;
+  const weightLabel = `w${item.weight}`;
+  const sourceLabel = item.progressSource === "explicit" ? "" :
+    item.progressSource === "comment-analysis" ? " (llm)" : " (est)";
 
-  parts.push(`${indent}${statusIcon} ${item.id} — ${item.title} [${item.marvinStatus}]${progressLabel}${jiraLabel}${driftFlag}`);
+  parts.push(`${indent}${statusIcon} ${item.id} — ${item.title} [${item.marvinStatus}]${progressLabel}${sourceLabel} (${weightLabel})${jiraLabel}${driftFlag}`);
 
   if (item.commentSummary) {
     parts.push(`${indent}  💬 ${item.commentSummary}`);
