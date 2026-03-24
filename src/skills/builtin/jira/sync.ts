@@ -50,6 +50,15 @@ export function mapJiraStatusForTask(status: string, configMap?: JiraStatusMap):
 
 export { DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP };
 
+/**
+ * Extract a Jira key from a tags array using the `jira:KEY` convention.
+ */
+export function extractJiraKeyFromTags(tags: string[] | undefined): string | undefined {
+  if (!tags) return undefined;
+  const tag = tags.find(t => /^jira:[A-Z]+-\d+$/i.test(t));
+  return tag ? tag.slice(5) : undefined;
+}
+
 export interface LinkedIssueSummary {
   key: string;
   summary: string;

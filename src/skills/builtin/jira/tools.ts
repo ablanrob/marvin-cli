@@ -6,6 +6,7 @@ import { createJiraClient, JiraClient, type JiraIssue } from "./client.js";
 import { extractCommentText } from "./daily.js";
 import { fetchJiraStatus, DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP } from "./sync.js";
 import { fetchJiraDaily, type DailySummary, type DailyIssueEntry } from "./daily.js";
+import { assessSprintProgress, formatProgressReport } from "./sprint-progress.js";
 
 const JIRA_TYPE = "jira-issue";
 
@@ -899,6 +900,40 @@ export function createJiraTools(
         };
       },
       { annotations: { readOnlyHint: true } },
+    ),
+
+    // --- Sprint progress assessment ---
+
+    tool(
+      "assess_sprint_progress",
+      "Assess sprint progress by fetching live Jira statuses for all sprint-scoped items, detecting drift between Marvin and Jira, grouping by focus area with rollup progress, and extracting comment signals. Optionally applies updates and uses LLM for comment analysis.",
+      {
+        sprintId: z.string().optional().describe("Sprint ID (e.g. 'SP-001'). Defaults to active sprint."),
+        analyzeComments: z.boolean().optional().describe("Use LLM to summarize Jira comments for progress signals (default false)"),
+        applyUpdates: z.boolean().optional().describe("Apply proposed status/progress updates to Marvin artifacts (default false)"),
+      },
+      async (args) => {
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
+
+        const report = await assessSprintProgress(
+          store,
+          jira.client,
+          jira.host,
+          {
+            sprintId: args.sprintId,
+            analyzeComments: args.analyzeComments ?? false,
+            applyUpdates: args.applyUpdates ?? false,
+            statusMap,
+          },
+        );
+
+        return {
+          content: [{ type: "text" as const, text: formatProgressReport(report) }],
+          isError: report.errors.length > 0 && report.itemReports.length === 0,
+        };
+      },
+      { annotations: { readOnlyHint: false } },
     ),
   ];
 }
