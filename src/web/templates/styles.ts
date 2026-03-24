@@ -1632,9 +1632,9 @@ tr:hover td {
 .integration-icons {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.25rem;
   vertical-align: middle;
-  margin-left: 0.35rem;
+  margin-left: 0.5rem;
 }
 .integration-link {
   display: inline-flex;

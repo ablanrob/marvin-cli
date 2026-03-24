@@ -89,7 +89,7 @@ export function collectSprintSummaryData(
 
   // --- Work Items (tagged sprint:SP-xxx) ---
   const sprintTag = `sprint:${fm.id}`;
-  const workItemDocs = allDocs.filter(
+  const sprintTaggedDocs = allDocs.filter(
     (d) =>
       d.frontmatter.type !== "sprint" &&
       d.frontmatter.type !== "epic" &&
@@ -98,6 +98,19 @@ export function collectSprintSummaryData(
       d.frontmatter.type !== "question" &&
       d.frontmatter.tags?.includes(sprintTag),
   );
+
+  // Include all contributions whose aboutArtifact is a sprint item,
+  // regardless of whether the contribution itself is tagged to the sprint.
+  const sprintTaggedIds = new Set(sprintTaggedDocs.map((d) => d.frontmatter.id));
+  const orphanContributions = allDocs.filter(
+    (d) =>
+      d.frontmatter.type === "contribution" &&
+      !sprintTaggedIds.has(d.frontmatter.id) &&
+      d.frontmatter.aboutArtifact &&
+      sprintTaggedIds.has(d.frontmatter.aboutArtifact as string),
+  );
+
+  const workItemDocs = [...sprintTaggedDocs, ...orphanContributions];
 
   // Completion stats count only primary items (contributions are supplementary)
   const primaryDocs = workItemDocs.filter((d) => d.frontmatter.type !== "contribution");
@@ -121,7 +134,7 @@ export function collectSprintSummaryData(
   // Build a tree from aboutArtifact references (action → task → contribution)
   const allItemsById = new Map<string, SprintWorkItem>();
   const childrenByParent = new Map<string, SprintWorkItem[]>();
-  const sprintItemIds = new Set(workItemDocs.map((d) => d.frontmatter.id));
+  const workItemIds = new Set(workItemDocs.map((d) => d.frontmatter.id));
 
   for (const doc of workItemDocs) {
     const about = doc.frontmatter.aboutArtifact as string | undefined;
@@ -142,8 +155,8 @@ export function collectSprintSummaryData(
     };
     allItemsById.set(item.id, item);
 
-    // Only nest if the parent is also in this sprint
-    if (about && sprintItemIds.has(about)) {
+    // Nest if the parent is also in the work items set
+    if (about && workItemIds.has(about)) {
       if (!childrenByParent.has(about)) childrenByParent.set(about, []);
       childrenByParent.get(about)!.push(item);
     }
