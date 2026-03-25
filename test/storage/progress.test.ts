@@ -44,8 +44,13 @@ describe("getEffectiveProgress", () => {
     expect(getEffectiveProgress(makeFrontmatter({ progress: 33.7 } as any))).toBe(34);
   });
 
-  it("returns 0 when no progress field and not done", () => {
-    expect(getEffectiveProgress(makeFrontmatter({ status: "in-progress" }))).toBe(0);
+  it("returns status-based default when no progress field and not done", () => {
+    expect(getEffectiveProgress(makeFrontmatter({ status: "in-progress" }))).toBe(40);
+    expect(getEffectiveProgress(makeFrontmatter({ status: "review" }))).toBe(80);
+    expect(getEffectiveProgress(makeFrontmatter({ status: "ready" }))).toBe(5);
+    expect(getEffectiveProgress(makeFrontmatter({ status: "blocked" }))).toBe(10);
+    expect(getEffectiveProgress(makeFrontmatter({ status: "backlog" }))).toBe(0);
+    expect(getEffectiveProgress(makeFrontmatter({ status: "open" }))).toBe(0);
   });
 
   it("done status trumps explicit progress", () => {

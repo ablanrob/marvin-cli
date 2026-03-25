@@ -1,8 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 import type { JiraClient, JiraComment } from "./client.js";
-import type { JiraStatusMap } from "../../../core/config.js";
-import type { LinkedIssueSummary } from "./sync.js";
+import type { LinkedIssueSummary, ResolvedStatusMap } from "./sync.js";
 import {
   mapJiraStatusForAction,
   mapJiraStatusForTask,
@@ -19,8 +18,9 @@ import { collectSprintSummaryData } from "../../../reports/sprint-summary/collec
 import {
   propagateProgressFromTask,
   propagateProgressToAction,
+  getEffectiveProgress,
+  STATUS_PROGRESS_DEFAULTS,
 } from "../../../storage/progress.js";
-import { getEffectiveProgress } from "../../../storage/progress.js";
 
 // --- Types ---
 
@@ -107,22 +107,8 @@ export const COMPLEXITY_WEIGHTS: Record<string, number> = {
 };
 const DEFAULT_WEIGHT = 3;
 
-// --- Status → Default Progress mapping ---
-
-export const STATUS_PROGRESS_DEFAULTS: Record<string, number> = {
-  done: 100,
-  closed: 100,
-  resolved: 100,
-  obsolete: 100,
-  "wont do": 100,
-  cancelled: 100,
-  review: 80,
-  "in-progress": 40,
-  ready: 5,
-  backlog: 0,
-  open: 0,
-};
-const BLOCKED_DEFAULT_PROGRESS = 10;
+// Re-export STATUS_PROGRESS_DEFAULTS from progress.ts (single source of truth)
+export { STATUS_PROGRESS_DEFAULTS };
 
 // --- Resolution helpers ---
 
@@ -148,11 +134,8 @@ export function resolveProgress(
     return { progress: Math.max(0, Math.min(100, Math.round(commentAnalysisProgress))), progressSource: "comment-analysis" };
   }
 
-  // 3. Status-based fallback
+  // 3. Status-based fallback (using shared STATUS_PROGRESS_DEFAULTS)
   const status = frontmatter.status as string;
-  if (status === "blocked") {
-    return { progress: BLOCKED_DEFAULT_PROGRESS, progressSource: "status-default" };
-  }
   const defaultProgress = STATUS_PROGRESS_DEFAULTS[status] ?? 0;
   return { progress: defaultProgress, progressSource: "status-default" };
 }
@@ -179,7 +162,7 @@ export interface AssessSprintProgressOptions {
   sprintId?: string;
   analyzeComments?: boolean;
   applyUpdates?: boolean;
-  statusMap?: { action?: JiraStatusMap; task?: JiraStatusMap };
+  statusMap?: ResolvedStatusMap;
 }
 
 export async function assessSprintProgress(
@@ -290,9 +273,10 @@ export async function assessSprintProgress(
 
       // Map Jira status to Marvin status (sprint-scoped items are always "in sprint")
       const inSprint = isInActiveSprint(store, fm.tags as string[] | undefined);
+      const resolved = options.statusMap ?? {};
       proposedMarvinStatus = fm.type === "task"
-        ? mapJiraStatusForTask(jiraStatus!, options.statusMap?.task, inSprint)
-        : mapJiraStatusForAction(jiraStatus!, options.statusMap?.action, inSprint);
+        ? mapJiraStatusForTask(jiraStatus!, resolved, inSprint)
+        : mapJiraStatusForAction(jiraStatus!, resolved, inSprint);
 
       // Compute subtask progress
       const subtasks = jiraData.issue.fields.subtasks ?? [];
@@ -332,6 +316,22 @@ export async function assessSprintProgress(
         proposedValue: jiraSubtaskProgress,
         reason: `Jira ${jiraKey} subtask progress is ${jiraSubtaskProgress}%`,
       });
+    } else if (statusDrift && proposedMarvinStatus && !fm.progressOverride) {
+      // When status changes and no Jira subtask progress available,
+      // propose the status-based default progress for the new status
+      const hasExplicitProgress = "progress" in fm && typeof fm.progress === "number";
+      if (!hasExplicitProgress) {
+        const proposedProgress = STATUS_PROGRESS_DEFAULTS[proposedMarvinStatus] ?? 0;
+        if (proposedProgress !== currentProgress) {
+          proposedUpdates.push({
+            artifactId: fm.id,
+            field: "progress",
+            currentValue: currentProgress,
+            proposedValue: proposedProgress,
+            reason: `Status changing to "${proposedMarvinStatus}" → default progress ${proposedProgress}%`,
+          });
+        }
+      }
     }
 
     const tags = (fm.tags as string[]) ?? [];
