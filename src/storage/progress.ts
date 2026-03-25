@@ -4,16 +4,36 @@ import type { DocumentFrontmatter } from "./types.js";
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
 /**
+ * Shared status → default progress mapping.
+ * Used by getEffectiveProgress (dashboard) and assess_sprint_progress (assessment)
+ * so both calculate identical baseline values.
+ */
+export const STATUS_PROGRESS_DEFAULTS: Record<string, number> = {
+  done: 100,
+  closed: 100,
+  resolved: 100,
+  obsolete: 100,
+  "wont do": 100,
+  cancelled: 100,
+  review: 80,
+  "in-progress": 40,
+  ready: 5,
+  blocked: 10,
+  backlog: 0,
+  open: 0,
+};
+
+/**
  * Single source of truth for any artifact's effective progress.
  * - Done status → 100
  * - Explicit `progress` field → clamped 0-100
- * - Otherwise → 0
+ * - Otherwise → status-based default (e.g. in-progress=40, review=80, ready=5)
  */
 export function getEffectiveProgress(frontmatter: DocumentFrontmatter): number {
   if (DONE_STATUSES.has(frontmatter.status)) return 100;
   const raw = frontmatter.progress as number | undefined;
   if (typeof raw === "number") return Math.max(0, Math.min(100, Math.round(raw)));
-  return 0;
+  return STATUS_PROGRESS_DEFAULTS[frontmatter.status] ?? 0;
 }
 
 /**

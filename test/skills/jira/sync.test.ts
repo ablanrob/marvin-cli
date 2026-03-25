@@ -10,10 +10,12 @@ import {
   fetchJiraStatus,
   syncJiraProgress,
   isInActiveSprint,
+  normalizeStatusMap,
+  type ResolvedStatusMap,
 } from "../../../src/skills/builtin/jira/sync.js";
 import type { JiraClient, JiraIssue } from "../../../src/skills/builtin/jira/client.js";
 
-describe("Status mappers", () => {
+describe("Status mappers (defaults)", () => {
   describe("mapJiraStatusForAction", () => {
     it.each([
       ["Done", "done"],
@@ -32,7 +34,7 @@ describe("Status mappers", () => {
       ["Open", "open"],
       ["Backlog", "open"],
     ])("maps '%s' → '%s'", (input, expected) => {
-      expect(mapJiraStatusForAction(input)).toBe(expected);
+      expect(mapJiraStatusForAction(input, {})).toBe(expected);
     });
   });
 
@@ -59,111 +61,202 @@ describe("Status mappers", () => {
       ["Open", "backlog"],
       ["Backlog", "backlog"],
     ])("maps '%s' → '%s'", (input, expected) => {
-      expect(mapJiraStatusForTask(input)).toBe(expected);
+      expect(mapJiraStatusForTask(input, {})).toBe(expected);
     });
   });
 });
 
-describe("Config-driven status mapping", () => {
+describe("Config-driven status mapping (legacy format)", () => {
   it("should use custom action map when provided", () => {
-    const customMap = { done: ["Finito", "Kaput"], "in-progress": ["Working"] };
-    expect(mapJiraStatusForAction("Finito", customMap)).toBe("done");
-    expect(mapJiraStatusForAction("Working", customMap)).toBe("in-progress");
-    expect(mapJiraStatusForAction("Unknown", customMap)).toBe("open"); // fallback
+    const resolved: ResolvedStatusMap = {
+      legacy: { action: { done: ["Finito", "Kaput"], "in-progress": ["Working"] } },
+    };
+    expect(mapJiraStatusForAction("Finito", resolved)).toBe("done");
+    expect(mapJiraStatusForAction("Working", resolved)).toBe("in-progress");
+    expect(mapJiraStatusForAction("Unknown", resolved)).toBe("open"); // fallback
   });
 
   it("should use custom task map when provided", () => {
-    const customMap = { done: ["Complete"], review: ["QA"] };
-    expect(mapJiraStatusForTask("Complete", customMap)).toBe("done");
-    expect(mapJiraStatusForTask("QA", customMap)).toBe("review");
-    expect(mapJiraStatusForTask("Unknown", customMap)).toBe("backlog"); // fallback
+    const resolved: ResolvedStatusMap = {
+      legacy: { task: { done: ["Complete"], review: ["QA"] } },
+    };
+    expect(mapJiraStatusForTask("Complete", resolved)).toBe("done");
+    expect(mapJiraStatusForTask("QA", resolved)).toBe("review");
+    expect(mapJiraStatusForTask("Unknown", resolved)).toBe("backlog"); // fallback
   });
 
   it("should be case-insensitive with custom maps", () => {
-    const customMap = { done: ["FINISHED"] };
-    expect(mapJiraStatusForAction("finished", customMap)).toBe("done");
-    expect(mapJiraStatusForAction("FINISHED", customMap)).toBe("done");
-    expect(mapJiraStatusForAction("Finished", customMap)).toBe("done");
+    const resolved: ResolvedStatusMap = {
+      legacy: { action: { done: ["FINISHED"] } },
+    };
+    expect(mapJiraStatusForAction("finished", resolved)).toBe("done");
+    expect(mapJiraStatusForAction("FINISHED", resolved)).toBe("done");
+    expect(mapJiraStatusForAction("Finished", resolved)).toBe("done");
   });
 
   it("should use defaults when no custom map provided", () => {
-    expect(mapJiraStatusForAction("Done")).toBe("done");
-    expect(mapJiraStatusForTask("In Review")).toBe("review");
+    expect(mapJiraStatusForAction("Done", {})).toBe("done");
+    expect(mapJiraStatusForTask("In Review", {})).toBe("review");
+  });
+});
+
+describe("Config-driven status mapping (flat/spec format)", () => {
+  it("should use flat Jira→Marvin mapping", () => {
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "In Progress": "in-progress",
+        "Done": "done",
+        "To Do": "backlog",
+      },
+    };
+    expect(mapJiraStatusForTask("In Progress", resolved)).toBe("in-progress");
+    expect(mapJiraStatusForTask("Done", resolved)).toBe("done");
+    expect(mapJiraStatusForTask("To Do", resolved)).toBe("backlog");
+    expect(mapJiraStatusForTask("Unknown", resolved)).toBe("backlog"); // fallback
+  });
+
+  it("should be case-insensitive with flat format", () => {
+    const resolved: ResolvedStatusMap = {
+      flat: { "DONE": "done" },
+    };
+    expect(mapJiraStatusForAction("done", resolved)).toBe("done");
+    expect(mapJiraStatusForAction("Done", resolved)).toBe("done");
+  });
+
+  it("should apply same mapping to both actions and tasks", () => {
+    const resolved: ResolvedStatusMap = {
+      flat: { "In Progress": "in-progress" },
+    };
+    expect(mapJiraStatusForAction("In Progress", resolved)).toBe("in-progress");
+    expect(mapJiraStatusForTask("In Progress", resolved)).toBe("in-progress");
+  });
+});
+
+describe("normalizeStatusMap", () => {
+  it("should return empty for undefined", () => {
+    expect(normalizeStatusMap(undefined)).toEqual({});
+  });
+
+  it("should detect flat format (Jira→Marvin strings)", () => {
+    const raw = {
+      "In Progress": "in-progress",
+      "Done": "done",
+      "To Do": { default: "backlog", inSprint: "ready" },
+    };
+    const result = normalizeStatusMap(raw);
+    expect(result.flat).toEqual(raw);
+    expect(result.legacy).toBeUndefined();
+  });
+
+  it("should detect legacy format (action/task with string arrays)", () => {
+    const raw = {
+      action: { done: ["Done", "Closed"], open: ["To Do"] },
+      task: { backlog: ["To Do", "Open"] },
+    };
+    const result = normalizeStatusMap(raw);
+    expect(result.legacy).toEqual(raw);
+    expect(result.flat).toBeUndefined();
+  });
+
+  it("should detect legacy format with only task key", () => {
+    const raw = { task: { done: ["Done"] } };
+    const result = normalizeStatusMap(raw);
+    expect(result.legacy).toEqual(raw);
+  });
+
+  it("should treat as flat format when keys are not action/task", () => {
+    const raw = { "Done": "done", "Open": "backlog" };
+    const result = normalizeStatusMap(raw);
+    expect(result.flat).toEqual(raw);
   });
 });
 
 describe("Context-aware status mapping (conditional entries)", () => {
-  it("should resolve default entries when not in sprint", () => {
-    const map = {
-      backlog: { default: ["To Do", "Open"], inSprint: [] },
-      ready: { default: ["Ready"], inSprint: ["To Do"] },
+  it("should resolve default when not in sprint", () => {
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "To Do": { default: "backlog", inSprint: "ready" },
+        "Ready": "ready",
+      },
     };
-    expect(mapJiraStatusForTask("To Do", map, false)).toBe("backlog");
-    expect(mapJiraStatusForTask("Ready", map, false)).toBe("ready");
+    expect(mapJiraStatusForTask("To Do", resolved, false)).toBe("backlog");
+    expect(mapJiraStatusForTask("Ready", resolved, false)).toBe("ready");
   });
 
-  it("should override with inSprint entries when in sprint", () => {
-    const map = {
-      backlog: { default: ["To Do", "Open"] },
-      ready: { default: ["Ready"], inSprint: ["To Do"] },
+  it("should resolve inSprint when in sprint", () => {
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "To Do": { default: "backlog", inSprint: "ready" },
+        "Open": "backlog",
+        "Ready": "ready",
+      },
     };
     // "To Do" normally maps to backlog, but in sprint maps to ready
-    expect(mapJiraStatusForTask("To Do", map, true)).toBe("ready");
-    // "Open" still maps to backlog (no inSprint override)
-    expect(mapJiraStatusForTask("Open", map, true)).toBe("backlog");
+    expect(mapJiraStatusForTask("To Do", resolved, true)).toBe("ready");
+    // "Open" still maps to backlog (simple mapping, no override)
+    expect(mapJiraStatusForTask("Open", resolved, true)).toBe("backlog");
     // "Ready" still maps to ready
-    expect(mapJiraStatusForTask("Ready", map, true)).toBe("ready");
+    expect(mapJiraStatusForTask("Ready", resolved, true)).toBe("ready");
   });
 
   it("should work with mixed simple and conditional entries", () => {
-    const map = {
-      done: ["Done", "Closed"],           // simple entry
-      backlog: { default: ["To Do", "New"] },  // conditional, no inSprint
-      ready: { default: ["Ready"], inSprint: ["To Do"] }, // conditional with inSprint
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "Done": "done",
+        "Closed": "done",
+        "To Do": { default: "backlog", inSprint: "ready" },
+        "New": "backlog",
+        "Ready": "ready",
+      },
     };
     // Simple entries always work
-    expect(mapJiraStatusForTask("Done", map, false)).toBe("done");
-    expect(mapJiraStatusForTask("Done", map, true)).toBe("done");
+    expect(mapJiraStatusForTask("Done", resolved, false)).toBe("done");
+    expect(mapJiraStatusForTask("Done", resolved, true)).toBe("done");
     // Conditional default
-    expect(mapJiraStatusForTask("To Do", map, false)).toBe("backlog");
-    // Conditional inSprint overrides
-    expect(mapJiraStatusForTask("To Do", map, true)).toBe("ready");
-    // "New" always maps to backlog (no inSprint override)
-    expect(mapJiraStatusForTask("New", map, true)).toBe("backlog");
+    expect(mapJiraStatusForTask("To Do", resolved, false)).toBe("backlog");
+    // Conditional inSprint
+    expect(mapJiraStatusForTask("To Do", resolved, true)).toBe("ready");
+    // "New" always maps to backlog
+    expect(mapJiraStatusForTask("New", resolved, true)).toBe("backlog");
   });
 
   it("should fall back to default when inSprint key is missing", () => {
-    const map = {
-      backlog: { default: ["To Do"] },
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "To Do": { default: "backlog" },
+      },
     };
     // No inSprint key → falls back to default even when in sprint
-    expect(mapJiraStatusForTask("To Do", map, true)).toBe("backlog");
+    expect(mapJiraStatusForTask("To Do", resolved, true)).toBe("backlog");
   });
 
   it("should be case-insensitive with conditional entries", () => {
-    const map = {
-      ready: { default: ["Ready"], inSprint: ["TO DO"] },
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "TO DO": { default: "backlog", inSprint: "ready" },
+      },
     };
-    expect(mapJiraStatusForTask("to do", map, true)).toBe("ready");
-    expect(mapJiraStatusForTask("TO DO", map, true)).toBe("ready");
+    expect(mapJiraStatusForTask("to do", resolved, true)).toBe("ready");
+    expect(mapJiraStatusForTask("TO DO", resolved, true)).toBe("ready");
   });
 
   it("should work for action maps too", () => {
-    const map = {
-      open: { default: ["To Do", "New"] },
-      "in-progress": { default: ["In Progress"], inSprint: ["To Do"] },
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "To Do": { default: "open", inSprint: "in-progress" },
+      },
     };
-    expect(mapJiraStatusForAction("To Do", map, false)).toBe("open");
-    expect(mapJiraStatusForAction("To Do", map, true)).toBe("in-progress");
+    expect(mapJiraStatusForAction("To Do", resolved, false)).toBe("open");
+    expect(mapJiraStatusForAction("To Do", resolved, true)).toBe("in-progress");
   });
 
   it("should use fallback when status not in any map", () => {
-    const map = {
-      done: { default: ["Done"] },
+    const resolved: ResolvedStatusMap = {
+      flat: { "Done": "done" },
     };
-    expect(mapJiraStatusForTask("Unknown", map, false)).toBe("backlog");
-    expect(mapJiraStatusForTask("Unknown", map, true)).toBe("backlog");
-    expect(mapJiraStatusForAction("Unknown", map, false)).toBe("open");
+    expect(mapJiraStatusForTask("Unknown", resolved, false)).toBe("backlog");
+    expect(mapJiraStatusForTask("Unknown", resolved, true)).toBe("backlog");
+    expect(mapJiraStatusForAction("Unknown", resolved, false)).toBe("open");
   });
 });
 
@@ -288,15 +381,16 @@ describe("fetchJiraStatus with context-aware mapping", () => {
       makeIssue({ status: { name: "To Do" } }),
     );
 
-    const statusMap = {
-      task: {
-        backlog: { default: ["To Do", "Open"] },
-        ready: { default: ["Ready"], inSprint: ["To Do"] },
-        done: ["Done"],
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "To Do": { default: "backlog", inSprint: "ready" },
+        "Open": "backlog",
+        "Ready": "ready",
+        "Done": "done",
       },
     };
 
-    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, statusMap);
+    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, resolved);
     expect(result.artifacts).toHaveLength(1);
     // "To Do" should map to "ready" because task is in active sprint
     expect(result.artifacts[0].proposedMarvinStatus).toBe("ready");
@@ -316,15 +410,16 @@ describe("fetchJiraStatus with context-aware mapping", () => {
       makeIssue({ status: { name: "To Do" } }),
     );
 
-    const statusMap = {
-      task: {
-        backlog: { default: ["To Do", "Open"] },
-        ready: { default: ["Ready"], inSprint: ["To Do"] },
-        done: ["Done"],
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "To Do": { default: "backlog", inSprint: "ready" },
+        "Open": "backlog",
+        "Ready": "ready",
+        "Done": "done",
       },
     };
 
-    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, statusMap);
+    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, resolved);
     expect(result.artifacts).toHaveLength(1);
     // "To Do" should map to "backlog" because task is not in sprint
     expect(result.artifacts[0].proposedMarvinStatus).toBe("backlog");
@@ -347,14 +442,15 @@ describe("fetchJiraStatus with context-aware mapping", () => {
       makeIssue({ status: { name: "To Do" } }),
     );
 
-    const statusMap = {
-      task: {
-        backlog: { default: ["To Do", "Open"] },
-        ready: { default: ["Ready"], inSprint: ["To Do"] },
+    const resolved: ResolvedStatusMap = {
+      flat: {
+        "To Do": { default: "backlog", inSprint: "ready" },
+        "Open": "backlog",
+        "Ready": "ready",
       },
     };
 
-    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, statusMap);
+    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, resolved);
     expect(result.artifacts[0].proposedMarvinStatus).toBe("backlog");
   });
 });

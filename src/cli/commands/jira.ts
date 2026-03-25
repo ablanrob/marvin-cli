@@ -7,8 +7,7 @@ import { createJiraClient } from "../../skills/builtin/jira/client.js";
 import {
   fetchJiraStatus,
   syncJiraProgress,
-  mapJiraStatusForAction,
-  mapJiraStatusForTask,
+  normalizeStatusMap,
   DEFAULT_ACTION_STATUS_MAP,
   DEFAULT_TASK_STATUS_MAP,
 } from "../../skills/builtin/jira/sync.js";
@@ -35,7 +34,7 @@ export async function jiraSyncCommand(
     return;
   }
 
-  const statusMap = project.config.jira?.statusMap;
+  const statusMap = normalizeStatusMap(project.config.jira?.statusMap);
 
   const label = artifactId
     ? `Checking ${artifactId} against Jira...`
@@ -173,9 +172,7 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
 
   console.log(chalk.dim(`Fetching statuses from Jira project ${resolvedProjectKey}...`));
 
-  const statusMap = project.config.jira?.statusMap;
-  const actionMap = statusMap?.action ?? DEFAULT_ACTION_STATUS_MAP;
-  const taskMap = statusMap?.task ?? DEFAULT_TASK_STATUS_MAP;
+  const statusMap = normalizeStatusMap(project.config.jira?.statusMap);
 
   // Fetch via v3 API
   const email = jiraUserConfig?.email ?? process.env.JIRA_EMAIL!;
@@ -212,14 +209,31 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
 
   // Build lookups
   const actionLookup = new Map<string, string>();
-  for (const [marvin, value] of Object.entries(actionMap)) {
-    const jiraStatuses = Array.isArray(value) ? value : value.default;
-    for (const js of jiraStatuses) actionLookup.set(js.toLowerCase(), marvin);
-  }
   const taskLookup = new Map<string, string>();
-  for (const [marvin, value] of Object.entries(taskMap)) {
-    const jiraStatuses = Array.isArray(value) ? value : value.default;
-    for (const js of jiraStatuses) taskLookup.set(js.toLowerCase(), marvin);
+
+  if (statusMap.flat) {
+    for (const [jiraStatus, value] of Object.entries(statusMap.flat)) {
+      const lower = jiraStatus.toLowerCase();
+      if (typeof value === "string") {
+        actionLookup.set(lower, value);
+        taskLookup.set(lower, value);
+      } else {
+        const label = value.inSprint
+          ? `${value.default} / ${value.inSprint} (inSprint)`
+          : value.default;
+        actionLookup.set(lower, label);
+        taskLookup.set(lower, label);
+      }
+    }
+  } else {
+    const actionMap = statusMap.legacy?.action ?? DEFAULT_ACTION_STATUS_MAP;
+    const taskMap = statusMap.legacy?.task ?? DEFAULT_TASK_STATUS_MAP;
+    for (const [marvin, jiraStatuses] of Object.entries(actionMap)) {
+      for (const js of jiraStatuses) actionLookup.set(js.toLowerCase(), marvin);
+    }
+    for (const [marvin, jiraStatuses] of Object.entries(taskMap)) {
+      for (const js of jiraStatuses) taskLookup.set(js.toLowerCase(), marvin);
+    }
   }
 
   console.log(
@@ -250,15 +264,12 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
     console.log(chalk.yellow("\nSome statuses are unmapped. Add jira.statusMap to .marvin/config.yaml:"));
     console.log(chalk.dim("  jira:"));
     console.log(chalk.dim("    statusMap:"));
-    console.log(chalk.dim("      action:"));
-    console.log(chalk.dim('        <marvin-status>: ["<Jira Status>", ...]'));
-    console.log(chalk.dim("      task:"));
-    console.log(chalk.dim('        <marvin-status>: ["<Jira Status>", ...]'));
+    console.log(chalk.dim('      "<Jira Status>": <marvin-status>'));
   } else {
     console.log(chalk.green("\nAll statuses are mapped."));
   }
 
-  const usingConfig = statusMap?.action || statusMap?.task;
+  const usingConfig = statusMap.flat || statusMap.legacy;
   console.log(
     chalk.dim(
       usingConfig
@@ -303,7 +314,7 @@ export async function jiraDailyCommand(options: {
   const today = new Date().toISOString().slice(0, 10);
   const fromDate = options.from ?? today;
   const toDate = options.to ?? fromDate;
-  const statusMap = proj.config.jira?.statusMap;
+  const statusMap = normalizeStatusMap(proj.config.jira?.statusMap);
 
   const rangeLabel =
     fromDate === toDate ? fromDate : `${fromDate} to ${toDate}`;

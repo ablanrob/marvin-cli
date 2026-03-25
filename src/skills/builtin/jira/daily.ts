@@ -5,9 +5,8 @@ import type {
   JiraComment,
   JiraRemoteLink,
 } from "./client.js";
-import type { LinkedIssueSummary } from "./sync.js";
+import type { LinkedIssueSummary, ResolvedStatusMap } from "./sync.js";
 import { mapJiraStatusForAction, mapJiraStatusForTask, isInActiveSprint } from "./sync.js";
-import type { JiraStatusMap } from "../../../core/config.js";
 
 // --- Data structures ---
 
@@ -315,7 +314,7 @@ export async function fetchJiraDaily(
   host: string,
   projectKey: string,
   dateRange: DateRange,
-  statusMap?: { action?: JiraStatusMap; task?: JiraStatusMap },
+  statusMap?: ResolvedStatusMap,
 ): Promise<DailySummary> {
   const summary: DailySummary = {
     dateRange,
@@ -404,7 +403,7 @@ async function processIssue(
   dateRange: DateRange,
   jiraKeyToArtifacts: Map<string, { frontmatter: Record<string, any> }[]>,
   allDocs: { frontmatter: Record<string, any> }[],
-  statusMap?: { action?: JiraStatusMap; task?: JiraStatusMap },
+  statusMap?: ResolvedStatusMap,
   store?: DocumentStore,
 ): Promise<DailyIssueEntry> {
   // Fetch changelog, comments, remote links, and issue links in parallel
@@ -510,10 +509,11 @@ async function processIssue(
         const inSprint = store
           ? isInActiveSprint(store, fm.tags as string[] | undefined)
           : false;
+        const resolved = statusMap ?? {};
         proposedStatus =
           artifactType === "task"
-            ? mapJiraStatusForTask(jiraStatus, statusMap?.task, inSprint)
-            : mapJiraStatusForAction(jiraStatus, statusMap?.action, inSprint);
+            ? mapJiraStatusForTask(jiraStatus, resolved, inSprint)
+            : mapJiraStatusForAction(jiraStatus, resolved, inSprint);
       }
     }
 

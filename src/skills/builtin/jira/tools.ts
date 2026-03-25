@@ -4,7 +4,7 @@ import type { DocumentStore } from "../../../storage/store.js";
 import { loadUserConfig, type MarvinProjectConfig } from "../../../core/config.js";
 import { createJiraClient, JiraClient, type JiraIssue } from "./client.js";
 import { extractCommentText } from "./daily.js";
-import { fetchJiraStatus, DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP } from "./sync.js";
+import { fetchJiraStatus, DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP, normalizeStatusMap } from "./sync.js";
 import { fetchJiraDaily, type DailySummary, type DailyIssueEntry } from "./daily.js";
 import { assessSprintProgress, formatProgressReport } from "./sprint-progress.js";
 
@@ -60,7 +60,7 @@ export function createJiraTools(
 ): SdkMcpToolDefinition<any>[] {
   const jiraUserConfig = loadUserConfig().jira;
   const defaultProjectKey = projectConfig?.jira?.projectKey;
-  const statusMap = projectConfig?.jira?.statusMap;
+  const statusMap = normalizeStatusMap(projectConfig?.jira?.statusMap);
 
   return [
     // --- Local read tools ---
@@ -789,24 +789,36 @@ export function createJiraTools(
           statusCounts.set(s, (statusCounts.get(s) ?? 0) + 1);
         }
 
-        // Build effective maps
-        const actionMap = statusMap?.action ?? DEFAULT_ACTION_STATUS_MAP;
-        const taskMap = statusMap?.task ?? DEFAULT_TASK_STATUS_MAP;
-
+        // Build effective lookups from either flat or legacy format
         const actionLookup = new Map<string, string>();
-        for (const [marvin, value] of Object.entries(actionMap)) {
-          const jiraStatuses = Array.isArray(value) ? value : value.default;
-          for (const js of jiraStatuses) actionLookup.set(js.toLowerCase(), marvin);
-          if (!Array.isArray(value) && value.inSprint) {
-            for (const js of value.inSprint) actionLookup.set(js.toLowerCase(), `${marvin} (inSprint)`);
-          }
-        }
         const taskLookup = new Map<string, string>();
-        for (const [marvin, value] of Object.entries(taskMap)) {
-          const jiraStatuses = Array.isArray(value) ? value : value.default;
-          for (const js of jiraStatuses) taskLookup.set(js.toLowerCase(), marvin);
-          if (!Array.isArray(value) && value.inSprint) {
-            for (const js of value.inSprint) taskLookup.set(js.toLowerCase(), `${marvin} (inSprint)`);
+
+        if (statusMap.flat) {
+          // Flat format: same map for both action and task
+          for (const [jiraStatus, value] of Object.entries(statusMap.flat)) {
+            const lower = jiraStatus.toLowerCase();
+            if (typeof value === "string") {
+              actionLookup.set(lower, value);
+              taskLookup.set(lower, value);
+            } else {
+              actionLookup.set(lower, value.default);
+              taskLookup.set(lower, value.default);
+              if (value.inSprint) {
+                // Show both mappings for discovery
+                actionLookup.set(lower, `${value.default} / ${value.inSprint} (inSprint)`);
+                taskLookup.set(lower, `${value.default} / ${value.inSprint} (inSprint)`);
+              }
+            }
+          }
+        } else {
+          // Legacy format or defaults
+          const actionMap = statusMap.legacy?.action ?? DEFAULT_ACTION_STATUS_MAP;
+          const taskMap = statusMap.legacy?.task ?? DEFAULT_TASK_STATUS_MAP;
+          for (const [marvin, jiraStatuses] of Object.entries(actionMap)) {
+            for (const js of jiraStatuses) actionLookup.set(js.toLowerCase(), marvin);
+          }
+          for (const [marvin, jiraStatuses] of Object.entries(taskMap)) {
+            for (const js of jiraStatuses) taskLookup.set(js.toLowerCase(), marvin);
           }
         }
 
@@ -832,26 +844,21 @@ export function createJiraTools(
         }
 
         if (unmappedAction.length > 0 || unmappedTask.length > 0) {
+          const allUnmapped = [...new Set([...unmappedAction, ...unmappedTask])];
           parts.push("");
           parts.push("To fix unmapped statuses, add jira.statusMap to .marvin/config.yaml:");
           parts.push("  jira:");
           parts.push("    statusMap:");
-          if (unmappedAction.length > 0) {
-            parts.push("      action:");
-            parts.push(`        # Map these: ${unmappedAction.join(", ")}`);
-            parts.push("        # <marvin-status>: [<jira-status>, ...]");
+          for (const s of allUnmapped) {
+            parts.push(`      "${s}": <marvin-status>`);
           }
-          if (unmappedTask.length > 0) {
-            parts.push("      task:");
-            parts.push(`        # Map these: ${unmappedTask.join(", ")}`);
-            parts.push("        # <marvin-status>: [<jira-status>, ...]");
-          }
+          parts.push("  # Supported marvin statuses: done, in-progress, review, ready, blocked, backlog, open");
         } else {
           parts.push("");
           parts.push("All statuses are mapped.");
         }
 
-        const usingConfig = statusMap?.action || statusMap?.task;
+        const usingConfig = statusMap.flat || statusMap.legacy;
         parts.push("");
         parts.push(usingConfig ? "Using status maps from .marvin/config.yaml." : "Using built-in default status maps (no jira.statusMap in config).");
 

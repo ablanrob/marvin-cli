@@ -21,20 +21,42 @@ export interface GitConfig {
   remote?: string;
 }
 
-export interface ConditionalJiraStatusEntry {
-  default: string[];
-  inSprint?: string[];
+/**
+ * Conditional status mapping: Jira status → Marvin status with sprint context.
+ * Used when a Jira status should map differently based on sprint membership.
+ */
+export interface ConditionalJiraStatusMapping {
+  default: string;
+  inSprint?: string;
 }
 
-export interface JiraStatusMap {
-  [marvinStatus: string]: string[] | ConditionalJiraStatusEntry;
+/**
+ * Flat Jira→Marvin status map (spec format).
+ * Keys are Jira status names, values are Marvin status strings or conditional objects.
+ *
+ * Example:
+ *   "In Progress": in-progress
+ *   "To Do":
+ *     default: backlog
+ *     inSprint: ready
+ */
+export interface FlatJiraStatusMap {
+  [jiraStatus: string]: string | ConditionalJiraStatusMapping;
+}
+
+/**
+ * Legacy Marvin→Jira[] status map (nested format).
+ * Keys are Marvin status names, values are arrays of Jira status names.
+ */
+export interface LegacyJiraStatusMap {
+  [marvinStatus: string]: string[];
 }
 
 export interface JiraProjectConfig {
   projectKey?: string;
-  statusMap?: {
-    action?: JiraStatusMap;
-    task?: JiraStatusMap;
+  statusMap?: FlatJiraStatusMap | {
+    action?: LegacyJiraStatusMap;
+    task?: LegacyJiraStatusMap;
   };
 }
 
