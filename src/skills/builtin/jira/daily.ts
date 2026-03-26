@@ -6,7 +6,7 @@ import type {
   JiraRemoteLink,
 } from "./client.js";
 import type { LinkedIssueSummary, ResolvedStatusMap } from "./sync.js";
-import { mapJiraStatusForAction, mapJiraStatusForTask, isInActiveSprint } from "./sync.js";
+import { mapJiraStatusForAction, mapJiraStatusForTask, isInActiveSprint, collectLinkedIssues } from "./sync.js";
 
 // --- Data structures ---
 
@@ -304,7 +304,6 @@ function isConfluenceUrl(url: string): boolean {
   return /atlassian\.net\/wiki\//i.test(url) || /\/confluence\//i.test(url);
 }
 
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "obsolete", "wont do"]);
 
 // --- Core function ---
 
@@ -458,42 +457,9 @@ async function processIssue(
   }
 
   // Collect linked issues
-  const linkedIssues: LinkedIssueSummary[] = [];
-  if (issueWithLinks) {
-    if (issueWithLinks.fields.subtasks) {
-      for (const sub of issueWithLinks.fields.subtasks) {
-        linkedIssues.push({
-          key: sub.key,
-          summary: sub.fields.summary,
-          status: sub.fields.status.name,
-          relationship: "subtask",
-          isDone: DONE_STATUSES.has(sub.fields.status.name.toLowerCase()),
-        });
-      }
-    }
-    if (issueWithLinks.fields.issuelinks) {
-      for (const link of issueWithLinks.fields.issuelinks) {
-        if (link.outwardIssue) {
-          linkedIssues.push({
-            key: link.outwardIssue.key,
-            summary: link.outwardIssue.fields.summary,
-            status: link.outwardIssue.fields.status.name,
-            relationship: link.type.outward,
-            isDone: DONE_STATUSES.has(link.outwardIssue.fields.status.name.toLowerCase()),
-          });
-        }
-        if (link.inwardIssue) {
-          linkedIssues.push({
-            key: link.inwardIssue.key,
-            summary: link.inwardIssue.fields.summary,
-            status: link.inwardIssue.fields.status.name,
-            relationship: link.type.inward,
-            isDone: DONE_STATUSES.has(link.inwardIssue.fields.status.name.toLowerCase()),
-          });
-        }
-      }
-    }
-  }
+  const linkedIssues: LinkedIssueSummary[] = issueWithLinks
+    ? collectLinkedIssues(issueWithLinks)
+    : [];
 
   // Cross-reference with Marvin artifacts (by jiraKey)
   const marvinArtifacts: MarvinArtifactMatch[] = [];
