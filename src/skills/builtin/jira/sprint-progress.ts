@@ -1106,3 +1106,710 @@ function progressBar(pct: number): string {
   const empty = 10 - filled;
   return `[${"█".repeat(filled)}${"░".repeat(empty)}]`;
 }
+
+// ========================================================================
+// Single-Artifact Assessment
+// ========================================================================
+
+export interface ArtifactAssessmentReport {
+  artifactId: string;
+  title: string;
+  type: string;
+  marvinStatus: string;
+  marvinProgress: number;
+  sprint: string | null;
+  parent: string | null;
+  jiraKey: string | null;
+  jiraStatus: string | null;
+  jiraAssignee: string | null;
+  jiraSubtaskProgress: number | null;
+  proposedMarvinStatus: string | null;
+  statusDrift: boolean;
+  progressDrift: boolean;
+  commentSignals: CommentSignal[];
+  commentSummary: string | null;
+  linkedIssues: LinkedIssueSummary[];
+  linkedIssueSignals: LinkedIssueSignal[];
+  children: ArtifactAssessmentReport[];
+  proposedUpdates: ProposedUpdate[];
+  appliedUpdates: ProposedUpdate[];
+  signals: string[];
+  errors: string[];
+}
+
+export interface AssessArtifactOptions {
+  artifactId: string;
+  applyUpdates?: boolean;
+  statusMap?: ResolvedStatusMap;
+}
+
+const MAX_ARTIFACT_NODES = 50;
+const MAX_LLM_DEPTH = 3;            // LLM analysis for depth 0, 1, 2
+const MAX_LLM_COMMENT_CHARS = 8000; // skip LLM if collected comment text exceeds this
+
+export async function assessArtifact(
+  store: DocumentStore,
+  client: JiraClient,
+  host: string,
+  options: AssessArtifactOptions,
+): Promise<ArtifactAssessmentReport> {
+  const visited = new Set<string>();
+  return _assessArtifactRecursive(store, client, host, options, visited, 0);
+}
+
+/**
+ * Internal recursive assessment. Each node in the artifact tree gets a full
+ * Jira assessment (status, drift, links, signals). LLM comment analysis
+ * runs for nodes within MAX_LLM_DEPTH, gated by a token budget check.
+ * Cycle-safe via visited set, capped at MAX_ARTIFACT_NODES total nodes.
+ */
+async function _assessArtifactRecursive(
+  store: DocumentStore,
+  client: JiraClient,
+  host: string,
+  options: AssessArtifactOptions,
+  visited: Set<string>,
+  depth: number,
+): Promise<ArtifactAssessmentReport> {
+  const errors: string[] = [];
+
+  // Cycle detection
+  if (visited.has(options.artifactId)) {
+    return emptyArtifactReport(options.artifactId, [`Cycle detected: ${options.artifactId} already visited`]);
+  }
+
+  // Cap check
+  if (visited.size >= MAX_ARTIFACT_NODES) {
+    return emptyArtifactReport(options.artifactId, [`Node cap reached (${MAX_ARTIFACT_NODES}), skipping ${options.artifactId}`]);
+  }
+
+  visited.add(options.artifactId);
+
+  // 1. Load the artifact
+  const doc = store.get(options.artifactId);
+  if (!doc) {
+    return emptyArtifactReport(options.artifactId, [`Artifact ${options.artifactId} not found`]);
+  }
+
+  const fm = doc.frontmatter;
+  const jiraKey = (fm.jiraKey as string | undefined)
+    ?? extractJiraKeyFromTags(fm.tags as string[] | undefined)
+    ?? null;
+
+  const tags = (fm.tags as string[]) ?? [];
+  const sprintTag = tags.find(t => t.startsWith("sprint:"));
+  const sprint = sprintTag ? sprintTag.slice(7) : null;
+  const parent = (fm.aboutArtifact as string | undefined) ?? null;
+
+  // 2. Fetch Jira data for primary artifact
+  let jiraStatus: string | null = null;
+  let jiraAssignee: string | null = null;
+  let proposedMarvinStatus: string | null = null;
+  let jiraSubtaskProgress: number | null = null;
+  const commentSignals: CommentSignal[] = [];
+  let commentSummary: string | null = null;
+  let linkedIssues: LinkedIssueSummary[] = [];
+  let linkedIssueSignals: LinkedIssueSignal[] = [];
+  const proposedUpdates: ProposedUpdate[] = [];
+
+  const jiraIssues = new Map<string, { issue: any; comments: JiraComment[] }>();
+  const linkedJiraIssues = new Map<string, { issue: any; comments: JiraComment[] }>();
+
+  if (jiraKey) {
+    try {
+      const [issue, comments] = await Promise.all([
+        client.getIssueWithLinks(jiraKey),
+        client.getComments(jiraKey),
+      ]);
+      jiraIssues.set(jiraKey, { issue, comments });
+      jiraStatus = issue.fields.status.name;
+      jiraAssignee = issue.fields.assignee?.displayName ?? null;
+
+      // Status mapping
+      const inSprint = isInActiveSprint(store, fm.tags as string[] | undefined);
+      const resolved = options.statusMap ?? {};
+      proposedMarvinStatus = fm.type === "task"
+        ? mapJiraStatusForTask(jiraStatus!, resolved, inSprint)
+        : mapJiraStatusForAction(jiraStatus!, resolved, inSprint);
+
+      // Subtask progress
+      const subtasks = issue.fields.subtasks ?? [];
+      if (subtasks.length > 0) {
+        jiraSubtaskProgress = computeSubtaskProgress(subtasks);
+      }
+
+      // Comment signals
+      for (const comment of comments) {
+        const text = extractCommentText(comment.body);
+        const signals = detectCommentSignals(text);
+        commentSignals.push(...signals);
+      }
+
+      // Recursive link traversal (always on for single artifact)
+      const jiraVisited = new Set<string>([jiraKey]);
+      const queue: string[] = [];
+
+      const directLinks = collectLinkedIssues(issue)
+        .filter(l => l.relationship !== "subtask");
+      for (const link of directLinks) {
+        if (!jiraVisited.has(link.key)) {
+          jiraVisited.add(link.key);
+          queue.push(link.key);
+        }
+      }
+
+      while (queue.length > 0 && linkedJiraIssues.size < MAX_LINKED_ISSUES) {
+        const remaining = MAX_LINKED_ISSUES - linkedJiraIssues.size;
+        const batch = queue.splice(0, Math.min(BATCH_SIZE, remaining));
+        const results = await Promise.allSettled(
+          batch.map(async (key) => {
+            const [li, lc] = await Promise.all([
+              client.getIssueWithLinks(key),
+              client.getComments(key),
+            ]);
+            return { key, issue: li, comments: lc };
+          }),
+        );
+
+        for (const result of results) {
+          if (result.status === "fulfilled") {
+            const { key, issue: li, comments: lc } = result.value;
+            linkedJiraIssues.set(key, { issue: li, comments: lc });
+
+            const newLinks = collectLinkedIssues(li)
+              .filter(l => l.relationship !== "subtask" && !jiraVisited.has(l.key));
+            for (const nl of newLinks) {
+              jiraVisited.add(nl.key);
+              queue.push(nl.key);
+            }
+          } else {
+            const batchKey = batch[results.indexOf(result)];
+            errors.push(`Failed to fetch linked issue ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+          }
+        }
+      }
+
+      // Collect transitive links and signals
+      const { allLinks, allSignals } = collectTransitiveLinks(
+        issue, jiraIssues, linkedJiraIssues,
+      );
+      linkedIssues = allLinks;
+      linkedIssueSignals = allSignals;
+
+      // Analyze link signals for proposed updates
+      analyzeLinkedIssueSignals(allLinks, fm, jiraKey, proposedUpdates);
+
+    } catch (err) {
+      errors.push(`Failed to fetch ${jiraKey}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // 3. Drift detection
+  const currentProgress = getEffectiveProgress(fm);
+  const statusDrift = proposedMarvinStatus !== null && proposedMarvinStatus !== fm.status;
+  const progressDrift = jiraSubtaskProgress !== null &&
+    !fm.progressOverride &&
+    jiraSubtaskProgress !== currentProgress;
+
+  if (statusDrift && proposedMarvinStatus) {
+    proposedUpdates.push({
+      artifactId: fm.id,
+      field: "status",
+      currentValue: fm.status,
+      proposedValue: proposedMarvinStatus,
+      reason: `Jira ${jiraKey} is "${jiraStatus}" → maps to "${proposedMarvinStatus}"`,
+    });
+  }
+  if (progressDrift && jiraSubtaskProgress !== null) {
+    proposedUpdates.push({
+      artifactId: fm.id,
+      field: "progress",
+      currentValue: currentProgress,
+      proposedValue: jiraSubtaskProgress,
+      reason: `Jira ${jiraKey} subtask progress is ${jiraSubtaskProgress}%`,
+    });
+  } else if (statusDrift && proposedMarvinStatus && !fm.progressOverride) {
+    const hasExplicitProgress = "progress" in fm && typeof fm.progress === "number";
+    if (!hasExplicitProgress) {
+      const proposedProgress = STATUS_PROGRESS_DEFAULTS[proposedMarvinStatus] ?? 0;
+      if (proposedProgress !== currentProgress) {
+        proposedUpdates.push({
+          artifactId: fm.id,
+          field: "progress",
+          currentValue: currentProgress,
+          proposedValue: proposedProgress,
+          reason: `Status changing to "${proposedMarvinStatus}" → default progress ${proposedProgress}%`,
+        });
+      }
+    }
+  }
+
+  // 4. LLM comment analysis (depth < MAX_LLM_DEPTH, gated by token budget)
+  //    Only runs when the primary issue has comments (avoids hallucination from
+  //    linked-only data). Linked issue comments enrich the analysis when present.
+  const primaryHasComments = jiraKey ? (jiraIssues.get(jiraKey)?.comments.length ?? 0) > 0 : false;
+  if (depth < MAX_LLM_DEPTH && jiraKey && primaryHasComments) {
+    const estimatedChars = estimateCommentTextSize(jiraIssues, linkedJiraIssues, linkedIssueSignals);
+    if (estimatedChars <= MAX_LLM_COMMENT_CHARS) {
+      try {
+        const summary = await analyzeSingleArtifactComments(
+          fm.id, fm.title, jiraKey, jiraStatus,
+          jiraIssues, linkedJiraIssues, linkedIssueSignals,
+        );
+        commentSummary = summary;
+      } catch (err) {
+        errors.push(`Comment analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  // 5. Recursive child assessment (actions → tasks; epics → actions/tasks)
+  const childIds = findChildIds(store, fm);
+  const children: ArtifactAssessmentReport[] = [];
+  for (const childId of childIds) {
+    if (visited.size >= MAX_ARTIFACT_NODES) {
+      errors.push(`Node cap reached (${MAX_ARTIFACT_NODES}), ${childIds.length - children.length} children skipped`);
+      break;
+    }
+    const childReport = await _assessArtifactRecursive(
+      store, client, host,
+      { ...options, artifactId: childId },
+      visited,
+      depth + 1,
+    );
+    children.push(childReport);
+  }
+
+  // 6. Build contextual signals summary
+  const signals = buildSignals(commentSignals, linkedIssues, statusDrift, proposedMarvinStatus);
+
+  // 7. Apply updates
+  const appliedUpdates: ProposedUpdate[] = [];
+  if (options.applyUpdates && proposedUpdates.length > 0) {
+    for (const update of proposedUpdates) {
+      if (update.field === "review") continue; // review flags are informational only
+      try {
+        store.update(update.artifactId, {
+          [update.field]: update.proposedValue,
+          lastJiraSyncAt: new Date().toISOString(),
+        } as any);
+
+        const updatedDoc = store.get(update.artifactId);
+        if (updatedDoc) {
+          if (updatedDoc.frontmatter.type === "task") {
+            propagateProgressFromTask(store, update.artifactId);
+          } else if (updatedDoc.frontmatter.type === "action") {
+            propagateProgressToAction(store, update.artifactId);
+          }
+        }
+        appliedUpdates.push(update);
+      } catch (err) {
+        errors.push(`Failed to apply update: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  return {
+    artifactId: fm.id,
+    title: fm.title,
+    type: fm.type,
+    marvinStatus: fm.status,
+    marvinProgress: currentProgress,
+    sprint,
+    parent,
+    jiraKey,
+    jiraStatus,
+    jiraAssignee,
+    jiraSubtaskProgress,
+    proposedMarvinStatus,
+    statusDrift,
+    progressDrift,
+    commentSignals,
+    commentSummary,
+    linkedIssues,
+    linkedIssueSignals,
+    children,
+    proposedUpdates: options.applyUpdates ? [] : proposedUpdates,
+    appliedUpdates,
+    signals,
+    errors,
+  };
+}
+
+// --- Child ID discovery ---
+
+function findChildIds(store: DocumentStore, fm: Record<string, any>): string[] {
+  if (fm.type === "action") {
+    return store.list({ type: "task" })
+      .filter(d => d.frontmatter.aboutArtifact === fm.id)
+      .map(d => d.frontmatter.id);
+  }
+
+  if (fm.type === "epic") {
+    const epicTag = `epic:${fm.id}`;
+    const isLinked = (d: { frontmatter: Record<string, any> }) => {
+      const le = d.frontmatter.linkedEpic as string[] | undefined;
+      if (le?.includes(fm.id)) return true;
+      const t = (d.frontmatter.tags as string[]) ?? [];
+      return t.includes(epicTag);
+    };
+    return [
+      ...store.list({ type: "action" }).filter(isLinked),
+      ...store.list({ type: "task" }).filter(isLinked),
+    ].map(d => d.frontmatter.id);
+  }
+
+  return [];
+}
+
+// --- Contextual signals builder (FR-4) ---
+
+function buildSignals(
+  commentSignals: CommentSignal[],
+  linkedIssues: LinkedIssueSummary[],
+  statusDrift: boolean,
+  proposedStatus: string | null,
+): string[] {
+  const signals: string[] = [];
+
+  // Blocker signals from comments
+  const blockerSignals = commentSignals.filter(s => s.type === "blocker");
+  if (blockerSignals.length > 0) {
+    for (const s of blockerSignals) {
+      signals.push(`🚫 Blocker — "${s.snippet}"`);
+    }
+  }
+
+  // Check blocking links
+  const blockingLinks = linkedIssues.filter(l =>
+    l.relationship.toLowerCase().includes("block"),
+  );
+  const activeBlockers = blockingLinks.filter(l => !l.isDone);
+  const resolvedBlockers = blockingLinks.filter(l => l.isDone);
+
+  if (activeBlockers.length > 0) {
+    for (const b of activeBlockers) {
+      signals.push(`🚫 Blocker — ${b.relationship} ${b.key} "${b.summary}" [${b.status}]`);
+    }
+  }
+  if (resolvedBlockers.length > 0 && activeBlockers.length === 0) {
+    signals.push(`✅ Unblocked — all blocking issues resolved: ${resolvedBlockers.map(l => l.key).join(", ")}`);
+  }
+
+  // Won't Do / Cancelled links → superseded signal
+  const wontDoLinks = linkedIssues.filter(l => WONT_DO_STATUSES.has(l.status.toLowerCase()));
+  for (const l of wontDoLinks) {
+    signals.push(`🔄 Superseded — ${l.key} "${l.summary}" is ${l.status}`);
+  }
+
+  // Question signals from comments (may indicate waiting for input)
+  const questionSignals = commentSignals.filter(s => s.type === "question");
+  for (const s of questionSignals) {
+    signals.push(`⏳ Waiting — "${s.snippet}"`);
+  }
+
+  // Handoff: related links that are in progress (work moved elsewhere)
+  const relatedInProgress = linkedIssues.filter(l =>
+    l.relationship.toLowerCase().includes("relate") && !l.isDone,
+  );
+  if (relatedInProgress.length > 0) {
+    for (const l of relatedInProgress) {
+      signals.push(`📋 Handoff — related work on ${l.key} "${l.summary}" [${l.status}]`);
+    }
+  }
+
+  // If no signals detected at all
+  if (signals.length === 0) {
+    if (statusDrift && proposedStatus) {
+      signals.push(`⚠ Drift detected — Marvin and Jira statuses diverge`);
+    } else {
+      signals.push(`✅ No active blockers or concerns detected`);
+    }
+  }
+
+  return signals;
+}
+
+// --- Single-artifact LLM comment analysis ---
+
+/**
+ * Estimate total comment text size (chars) for a node's primary + linked issues.
+ * Used to decide whether to send to LLM or skip.
+ */
+function estimateCommentTextSize(
+  jiraIssues: Map<string, { issue: any; comments: JiraComment[] }>,
+  linkedJiraIssues: Map<string, { issue: any; comments: JiraComment[] }>,
+  linkedIssueSignals: LinkedIssueSignal[],
+): number {
+  let total = 0;
+
+  for (const [, data] of jiraIssues) {
+    for (const c of data.comments) {
+      total += typeof c.body === "string" ? c.body.length : JSON.stringify(c.body).length;
+    }
+  }
+
+  for (const signal of linkedIssueSignals) {
+    const linkedData = linkedJiraIssues.get(signal.sourceKey);
+    if (!linkedData) continue;
+    for (const c of linkedData.comments) {
+      total += typeof c.body === "string" ? c.body.length : JSON.stringify(c.body).length;
+    }
+  }
+
+  return total;
+}
+
+const SINGLE_ARTIFACT_COMMENT_PROMPT = `You are a delivery management assistant analyzing Jira comments for a single work item.
+
+Produce a 2-3 sentence progress summary covering:
+- What work has been completed
+- What is pending or blocked
+- Any decisions, handoffs, or scheduling mentioned
+- Relevant context from linked issue comments (if provided)
+
+Return ONLY the summary text, no JSON or formatting.`;
+
+async function analyzeSingleArtifactComments(
+  artifactId: string,
+  title: string,
+  jiraKey: string,
+  jiraStatus: string | null,
+  jiraIssues: Map<string, { issue: any; comments: JiraComment[] }>,
+  linkedJiraIssues: Map<string, { issue: any; comments: JiraComment[] }>,
+  linkedIssueSignals: LinkedIssueSignal[],
+): Promise<string | null> {
+  const promptParts: string[] = [];
+
+  // Primary issue comments
+  const primaryData = jiraIssues.get(jiraKey);
+  if (primaryData && primaryData.comments.length > 0) {
+    const commentTexts = primaryData.comments
+      .map(c => {
+        const text = extractCommentText(c.body);
+        return `[${c.author.displayName}, ${c.created.slice(0, 10)}]: ${text.slice(0, 500)}`;
+      })
+      .join("\n");
+    promptParts.push(`## ${artifactId} — ${title} (${jiraKey}, status: ${jiraStatus})\nComments:\n${commentTexts}`);
+  }
+
+  // Linked issue comments
+  for (const signal of linkedIssueSignals) {
+    const linkedData = linkedJiraIssues.get(signal.sourceKey);
+    if (!linkedData || linkedData.comments.length === 0) continue;
+
+    const commentTexts = linkedData.comments
+      .map(c => {
+        const text = extractCommentText(c.body);
+        return `  [${c.author.displayName}, ${c.created.slice(0, 10)}]: ${text.slice(0, 300)}`;
+      })
+      .join("\n");
+    promptParts.push(`### Linked: ${signal.sourceKey} (${signal.linkType})\n${commentTexts}`);
+  }
+
+  if (promptParts.length === 0) return null;
+
+  const prompt = promptParts.join("\n\n");
+
+  const result = query({
+    prompt,
+    options: {
+      systemPrompt: SINGLE_ARTIFACT_COMMENT_PROMPT,
+      maxTurns: 1,
+      tools: [],
+      allowedTools: [],
+    },
+  });
+
+  for await (const msg of result) {
+    if (msg.type === "assistant") {
+      const textBlock = msg.message.content.find(
+        (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
+      );
+      if (textBlock) {
+        return textBlock.text.trim();
+      }
+    }
+  }
+
+  return null;
+}
+
+// --- Empty report helper ---
+
+function emptyArtifactReport(artifactId: string, errors: string[]): ArtifactAssessmentReport {
+  return {
+    artifactId,
+    title: "Not found",
+    type: "unknown",
+    marvinStatus: "unknown",
+    marvinProgress: 0,
+    sprint: null,
+    parent: null,
+    jiraKey: null,
+    jiraStatus: null,
+    jiraAssignee: null,
+    jiraSubtaskProgress: null,
+    proposedMarvinStatus: null,
+    statusDrift: false,
+    progressDrift: false,
+    commentSignals: [],
+    commentSummary: null,
+    linkedIssues: [],
+    linkedIssueSignals: [],
+    children: [],
+    proposedUpdates: [],
+    appliedUpdates: [],
+    signals: [],
+    errors,
+  };
+}
+
+// --- Artifact report formatter ---
+
+export function formatArtifactReport(report: ArtifactAssessmentReport): string {
+  const parts: string[] = [];
+
+  // Header
+  parts.push(`# Artifact Assessment — ${report.artifactId}`);
+  parts.push(report.title);
+  parts.push("");
+
+  // Marvin state
+  parts.push(`## Marvin State`);
+  const marvinParts = [`Status: ${report.marvinStatus}`, `Progress: ${report.marvinProgress}%`];
+  if (report.sprint) marvinParts.push(`Sprint: ${report.sprint}`);
+  if (report.parent) marvinParts.push(`Parent: ${report.parent}`);
+  parts.push(marvinParts.join(" | "));
+  parts.push("");
+
+  // Jira state
+  if (report.jiraKey) {
+    parts.push(`## Jira State (${report.jiraKey})`);
+    const jiraParts = [`Status: ${report.jiraStatus ?? "unknown"}`];
+    if (report.jiraAssignee) jiraParts.push(`Assignee: ${report.jiraAssignee}`);
+    if (report.jiraSubtaskProgress !== null) jiraParts.push(`Subtask progress: ${report.jiraSubtaskProgress}%`);
+    parts.push(jiraParts.join(" | "));
+
+    if (report.statusDrift) {
+      parts.push(`⚠ Drift: ${report.marvinStatus} → ${report.proposedMarvinStatus}`);
+    }
+    if (report.progressDrift && report.jiraSubtaskProgress !== null) {
+      parts.push(`⚠ Progress drift: ${report.marvinProgress}% → ${report.jiraSubtaskProgress}%`);
+    }
+    parts.push("");
+  }
+
+  // Comment summary
+  if (report.commentSummary) {
+    parts.push(`## Comments`);
+    parts.push(report.commentSummary);
+    parts.push("");
+  }
+
+  // Children
+  if (report.children.length > 0) {
+    const doneCount = report.children.filter(c => DONE_STATUSES.has(c.marvinStatus)).length;
+    const childWeights = report.children.map(c => {
+      const { weight } = resolveWeight(undefined); // children have their own assessment
+      return { weight, progress: c.marvinProgress };
+    });
+    const childProgress = childWeights.length > 0
+      ? Math.round(childWeights.reduce((s, c) => s + c.weight * c.progress, 0) / childWeights.reduce((s, c) => s + c.weight, 0))
+      : 0;
+    const bar = progressBar(childProgress);
+
+    parts.push(`## Children (${doneCount}/${report.children.length} done) ${bar} ${childProgress}%`);
+    for (const child of report.children) {
+      formatArtifactChild(parts, child, 1);
+    }
+    parts.push("");
+  }
+
+  // Linked issues
+  if (report.linkedIssues.length > 0) {
+    parts.push(`## Linked Issues (${report.linkedIssues.length})`);
+    for (const link of report.linkedIssues) {
+      const doneMarker = link.isDone ? " ✓" : "";
+      parts.push(`  ${link.relationship} ${link.key} "${link.summary}" [${link.status}]${doneMarker}`);
+      const signal = report.linkedIssueSignals.find(s => s.sourceKey === link.key);
+      if (signal?.commentSummary) {
+        parts.push(`    💬 ${signal.commentSummary}`);
+      }
+    }
+    parts.push("");
+  }
+
+  // Signals
+  if (report.signals.length > 0) {
+    parts.push(`## Signals`);
+    for (const s of report.signals) {
+      parts.push(`  ${s}`);
+    }
+    parts.push("");
+  }
+
+  // Proposed / Applied updates
+  if (report.proposedUpdates.length > 0) {
+    parts.push(`## Proposed Updates (${report.proposedUpdates.length})`);
+    for (const update of report.proposedUpdates) {
+      parts.push(`  ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`);
+      parts.push(`    Reason: ${update.reason}`);
+    }
+    parts.push("");
+    parts.push("Run with applyUpdates=true to apply these changes.");
+    parts.push("");
+  }
+
+  if (report.appliedUpdates.length > 0) {
+    parts.push(`## Applied Updates (${report.appliedUpdates.length})`);
+    for (const update of report.appliedUpdates) {
+      parts.push(`  ✓ ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`);
+    }
+    parts.push("");
+  }
+
+  // Errors
+  if (report.errors.length > 0) {
+    parts.push(`## Errors`);
+    for (const err of report.errors) {
+      parts.push(`  ${err}`);
+    }
+    parts.push("");
+  }
+
+  return parts.join("\n");
+}
+
+function formatArtifactChild(parts: string[], child: ArtifactAssessmentReport, depth: number): void {
+  const indent = "  ".repeat(depth);
+  const icon = DONE_STATUSES.has(child.marvinStatus) ? "✓" :
+    child.marvinStatus === "blocked" ? "🚫" :
+    child.marvinStatus === "in-progress" ? "▶" : "○";
+  const jiraLabel = child.jiraKey
+    ? ` [${child.jiraKey}: ${child.jiraStatus ?? "?"}]`
+    : "";
+  const driftLabel = child.statusDrift
+    ? ` ⚠drift → ${child.proposedMarvinStatus}`
+    : "";
+  const signalHints: string[] = [];
+  for (const s of child.signals) {
+    if (s.startsWith("✅ No active")) continue; // skip the "all clear" default
+    signalHints.push(s);
+  }
+
+  parts.push(`${indent}${icon} ${child.artifactId} — ${child.title} [${child.marvinStatus}] ${child.marvinProgress}%${jiraLabel}${driftLabel}`);
+
+  if (child.commentSummary) {
+    parts.push(`${indent}  💬 ${child.commentSummary}`);
+  }
+
+  for (const hint of signalHints) {
+    parts.push(`${indent}  ${hint}`);
+  }
+
+  // Recurse into grandchildren
+  for (const grandchild of child.children) {
+    formatArtifactChild(parts, grandchild, depth + 1);
+  }
+}
