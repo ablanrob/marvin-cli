@@ -6,7 +6,7 @@ import { createJiraClient, JiraClient, type JiraIssue } from "./client.js";
 import { extractCommentText } from "./daily.js";
 import { fetchJiraStatus, DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP, normalizeStatusMap } from "./sync.js";
 import { fetchJiraDaily, type DailySummary, type DailyIssueEntry } from "./daily.js";
-import { assessSprintProgress, formatProgressReport } from "./sprint-progress.js";
+import { assessSprintProgress, formatProgressReport, assessArtifact, formatArtifactReport } from "./sprint-progress.js";
 
 const JIRA_TYPE = "jira-issue";
 
@@ -948,6 +948,38 @@ export function createJiraTools(
         return {
           content: [{ type: "text" as const, text: formatProgressReport(report) }],
           isError: report.errors.length > 0 && report.itemReports.length === 0,
+        };
+      },
+      { annotations: { readOnlyHint: false } },
+    ),
+
+    // --- Single-artifact assessment ---
+
+    tool(
+      "assess_artifact",
+      "Deep assessment of a single Marvin artifact (task, action, or epic). Fetches live Jira status, analyzes comments with LLM, traverses all linked issues, detects drift, rolls up child progress, and extracts contextual signals (blockers, unblocks, handoffs, superseded work).",
+      {
+        artifactId: z.string().describe("Marvin artifact ID (e.g. 'T-063', 'A-151', 'E-003')"),
+        applyUpdates: z.boolean().optional().describe("Apply proposed status/progress updates to the artifact (default false)"),
+      },
+      async (args) => {
+        const jira = createJiraClient(jiraUserConfig);
+        if (!jira) return jiraNotConfiguredError();
+
+        const report = await assessArtifact(
+          store,
+          jira.client,
+          jira.host,
+          {
+            artifactId: args.artifactId,
+            applyUpdates: args.applyUpdates ?? false,
+            statusMap,
+          },
+        );
+
+        return {
+          content: [{ type: "text" as const, text: formatArtifactReport(report) }],
+          isError: report.errors.length > 0 && report.type === "unknown",
         };
       },
       { annotations: { readOnlyHint: false } },

@@ -7,6 +7,8 @@ import { extractJiraKeyFromTags } from "../../../src/skills/builtin/jira/sync.js
 import {
   assessSprintProgress,
   formatProgressReport,
+  assessArtifact,
+  formatArtifactReport,
   resolveWeight,
   resolveProgress,
   computeWeightedProgress,
@@ -16,6 +18,7 @@ import {
   type SprintProgressItemReport,
   type FocusAreaRollup,
   type LinkedIssueSignal,
+  type ArtifactAssessmentReport,
 } from "../../../src/skills/builtin/jira/sprint-progress.js";
 import { collectLinkedIssues } from "../../../src/skills/builtin/jira/sync.js";
 import type { JiraClient, JiraIssue } from "../../../src/skills/builtin/jira/client.js";
@@ -27,6 +30,35 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
 }));
 
 // --- Helpers ---
+
+function makeArtifactReport(overrides: Partial<ArtifactAssessmentReport> = {}): ArtifactAssessmentReport {
+  return {
+    artifactId: "T-001",
+    title: "Test task",
+    type: "task",
+    marvinStatus: "in-progress",
+    marvinProgress: 40,
+    sprint: null,
+    parent: null,
+    jiraKey: null,
+    jiraStatus: null,
+    jiraAssignee: null,
+    jiraSubtaskProgress: null,
+    proposedMarvinStatus: null,
+    statusDrift: false,
+    progressDrift: false,
+    commentSignals: [],
+    commentSummary: null,
+    linkedIssues: [],
+    linkedIssueSignals: [],
+    children: [],
+    proposedUpdates: [],
+    appliedUpdates: [],
+    signals: [],
+    errors: [],
+    ...overrides,
+  };
+}
 
 function makeItem(overrides: Partial<SprintProgressItemReport> = {}): SprintProgressItemReport {
   return {
@@ -1319,5 +1351,302 @@ describe("assessSprintProgress with traverseLinks", () => {
 
     // Report should still be valid
     expect(report.errors).toHaveLength(0);
+  });
+});
+
+// ========================================================================
+// assessArtifact tests
+// ========================================================================
+
+describe("assessArtifact", () => {
+  let tmpDir: string;
+  let marvinDir: string;
+  let store: DocumentStore;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-assess-artifact-"));
+    marvinDir = path.join(tmpDir, ".marvin");
+    store = setupStore(marvinDir);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns error for unknown artifact", async () => {
+    const mockClient = createMockJiraClient();
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-999",
+    });
+    expect(report.errors).toHaveLength(1);
+    expect(report.errors[0]).toContain("not found");
+    expect(report.type).toBe("unknown");
+  });
+
+  it("loads artifact and fetches Jira status", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    expect(report.artifactId).toBe("T-001");
+    expect(report.title).toBe("Implement JWT tokens");
+    expect(report.type).toBe("task");
+    expect(report.jiraKey).toBe("PROJ-101");
+    expect(report.jiraStatus).toBe("In Review");
+    expect(report.marvinStatus).toBe("in-progress");
+  });
+
+  it("detects status drift", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    expect(report.statusDrift).toBe(true);
+    expect(report.proposedMarvinStatus).toBe("review");
+    expect(report.proposedUpdates.some(u => u.field === "status")).toBe(true);
+  });
+
+  it("traverses linked issues recursively", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    // T-001 (PROJ-101) → PROJ-302 → PROJ-305 (2nd hop)
+    expect(report.linkedIssues.some(l => l.key === "PROJ-302")).toBe(true);
+    expect(report.linkedIssues.some(l => l.key === "PROJ-305")).toBe(true);
+  });
+
+  it("recursively assesses children with Jira data and drift detection", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "A-001",
+    });
+
+    // A-001 has T-001 as a child (aboutArtifact: A-001)
+    expect(report.children.length).toBeGreaterThanOrEqual(1);
+    const t001Child = report.children.find(c => c.artifactId === "T-001");
+    expect(t001Child).toBeDefined();
+
+    // Child should have Jira data fetched (not null like before)
+    expect(t001Child!.jiraKey).toBe("PROJ-101");
+    expect(t001Child!.jiraStatus).toBe("In Review");
+
+    // Child should detect drift (in-progress → review)
+    expect(t001Child!.statusDrift).toBe(true);
+    expect(t001Child!.proposedMarvinStatus).toBe("review");
+
+    // Child should have linked issues (traverseLinks always on)
+    expect(t001Child!.linkedIssues.some(l => l.key === "PROJ-302")).toBe(true);
+  });
+
+  it("resolves sprint and parent from tags/frontmatter", async () => {
+    const mockClient = createMockJiraClient();
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    expect(report.sprint).toBe("SP-001");
+    expect(report.parent).toBe("A-001");
+  });
+
+  it("builds contextual signals", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+
+    // Test blocked artifact with resolved blocker
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-002",
+    });
+
+    // T-002 is blocked, PROJ-303 (blocker) is Done → unblock signal
+    expect(report.signals.some(s => s.includes("Unblocked"))).toBe(true);
+    // PROJ-304 is "Wont Do" → superseded signal
+    expect(report.signals.some(s => s.includes("Superseded"))).toBe(true);
+  });
+
+  it("proposes unblock when all blockers are resolved", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-002",
+    });
+
+    const unblockUpdate = report.proposedUpdates.find(
+      u => u.field === "status" && u.reason.includes("blocking issues resolved"),
+    );
+    expect(unblockUpdate).toBeDefined();
+    expect(unblockUpdate!.proposedValue).toBe("in-progress");
+  });
+
+  it("applies updates when applyUpdates=true", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+      applyUpdates: true,
+    });
+
+    expect(report.appliedUpdates.length).toBeGreaterThan(0);
+    expect(report.proposedUpdates).toHaveLength(0);
+
+    const t001 = store.get("T-001");
+    expect(t001?.frontmatter.status).toBe("review");
+  });
+
+  it("works for artifact without Jira key", async () => {
+    // Add a task with no Jira key
+    const docsDir = path.join(marvinDir, "docs");
+    fs.writeFileSync(
+      path.join(docsDir, "tasks", "T-010.md"),
+      `---
+id: T-010
+title: Local only task
+type: task
+status: in-progress
+progress: 50
+created: "2026-03-11T00:00:00Z"
+updated: "2026-03-14T00:00:00Z"
+tags:
+  - sprint:SP-001
+---
+No Jira link.
+`,
+    );
+    const newStore = new DocumentStore(marvinDir, [
+      { type: "sprint", dirName: "sprints", idPrefix: "SP" },
+      { type: "task", dirName: "tasks", idPrefix: "T" },
+    ]);
+
+    const mockClient = createMockJiraClient();
+    const report = await assessArtifact(newStore, mockClient, "jira.example.com", {
+      artifactId: "T-010",
+    });
+
+    expect(report.jiraKey).toBeNull();
+    expect(report.jiraStatus).toBeNull();
+    expect(report.statusDrift).toBe(false);
+    expect(report.errors).toHaveLength(0);
+  });
+});
+
+describe("formatArtifactReport", () => {
+  it("formats a basic artifact report", () => {
+    const report: ArtifactAssessmentReport = {
+      artifactId: "T-063",
+      title: "Show Planner Group description",
+      type: "task",
+      marvinStatus: "backlog",
+      marvinProgress: 0,
+      sprint: "SP-009",
+      parent: "A-151",
+      jiraKey: "MCB1-277",
+      jiraStatus: "Done",
+      jiraAssignee: "Alvaro",
+      jiraSubtaskProgress: null,
+      proposedMarvinStatus: "done",
+      statusDrift: true,
+      progressDrift: false,
+      commentSignals: [],
+      commentSummary: "S/4 setup completed on Gamma. No blockers.",
+      linkedIssues: [
+        { key: "MCB1-293", summary: "Setup Planner Groups API", status: "Done", relationship: "implements", isDone: true },
+      ],
+      linkedIssueSignals: [],
+      children: [],
+      proposedUpdates: [
+        { artifactId: "T-063", field: "status", currentValue: "backlog", proposedValue: "done", reason: 'Jira MCB1-277 is "Done"' },
+        { artifactId: "T-063", field: "progress", currentValue: 0, proposedValue: 100, reason: 'Status changing to "done"' },
+      ],
+      appliedUpdates: [],
+      signals: ["✅ No active blockers or concerns detected"],
+      errors: [],
+    };
+
+    const text = formatArtifactReport(report);
+    expect(text).toContain("Artifact Assessment — T-063");
+    expect(text).toContain("Status: backlog");
+    expect(text).toContain("Sprint: SP-009");
+    expect(text).toContain("Parent: A-151");
+    expect(text).toContain("Jira State (MCB1-277)");
+    expect(text).toContain("Assignee: Alvaro");
+    expect(text).toContain("Drift: backlog → done");
+    expect(text).toContain("S/4 setup completed");
+    expect(text).toContain("Linked Issues (1)");
+    expect(text).toContain('implements MCB1-293 "Setup Planner Groups API" [Done] ✓');
+    expect(text).toContain("Proposed Updates (2)");
+    expect(text).toContain("applyUpdates=true");
+  });
+
+  it("renders children with progress bar", () => {
+    const report: ArtifactAssessmentReport = {
+      artifactId: "A-001",
+      title: "Build user auth",
+      type: "action",
+      marvinStatus: "in-progress",
+      marvinProgress: 50,
+      sprint: "SP-001",
+      parent: null,
+      jiraKey: null,
+      jiraStatus: null,
+      jiraAssignee: null,
+      jiraSubtaskProgress: null,
+      proposedMarvinStatus: null,
+      statusDrift: false,
+      progressDrift: false,
+      commentSignals: [],
+      commentSummary: null,
+      linkedIssues: [],
+      linkedIssueSignals: [],
+      children: [
+        makeArtifactReport({ artifactId: "T-001", title: "JWT tokens", marvinStatus: "done", marvinProgress: 100, jiraKey: "PROJ-101" }),
+        makeArtifactReport({ artifactId: "T-002", title: "DB migration", marvinStatus: "blocked", marvinProgress: 30, jiraKey: "PROJ-102" }),
+      ],
+      proposedUpdates: [],
+      appliedUpdates: [],
+      signals: ["✅ No active blockers or concerns detected"],
+      errors: [],
+    };
+
+    const text = formatArtifactReport(report);
+    expect(text).toContain("Children (1/2 done)");
+    expect(text).toContain("█"); // progress bar
+    expect(text).toContain("✓ T-001");
+    expect(text).toContain("🚫 T-002");
+  });
+
+  it("renders signals section", () => {
+    const report: ArtifactAssessmentReport = {
+      artifactId: "T-002",
+      title: "DB migration",
+      type: "task",
+      marvinStatus: "blocked",
+      marvinProgress: 30,
+      sprint: "SP-001",
+      parent: null,
+      jiraKey: "PROJ-102",
+      jiraStatus: "Blocked",
+      jiraAssignee: null,
+      jiraSubtaskProgress: null,
+      proposedMarvinStatus: "in-progress",
+      statusDrift: true,
+      progressDrift: false,
+      commentSignals: [],
+      commentSummary: null,
+      linkedIssues: [],
+      linkedIssueSignals: [],
+      children: [],
+      proposedUpdates: [],
+      appliedUpdates: [],
+      signals: [
+        "✅ Unblocked — all blocking issues resolved: PROJ-303",
+        "🔄 Superseded — PROJ-304 \"Cancelled feature\" is Wont Do",
+      ],
+      errors: [],
+    };
+
+    const text = formatArtifactReport(report);
+    expect(text).toContain("## Signals");
+    expect(text).toContain("✅ Unblocked");
+    expect(text).toContain("🔄 Superseded");
   });
 });
