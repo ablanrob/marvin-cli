@@ -20,23 +20,38 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
-function countFocusStats(items: SprintWorkItem[]): { total: number; done: number; inProgress: number } {
+const DONE_STATUS_SET = new Set(["done", "closed", "resolved", "decided"]);
+const DEFAULT_WEIGHT = 3;
+
+function countFocusStats(items: SprintWorkItem[]): { total: number; done: number; inProgress: number; weightedProgress: number } {
   let total = 0;
   let done = 0;
   let inProgress = 0;
-  function walk(list: SprintWorkItem[]) {
+  let totalWeight = 0;
+  let weightedSum = 0;
+  // Count children for done/inProgress stats, but use only root items for weighted progress
+  // (matches assessSprintProgress which uses root items to avoid double-counting)
+  function walkStats(list: SprintWorkItem[]) {
     for (const w of list) {
       if (w.type !== "contribution") {
         total++;
         const s = w.status.toLowerCase();
-        if (s === "done" || s === "closed" || s === "resolved" || s === "decided") done++;
+        if (DONE_STATUS_SET.has(s)) done++;
         else if (s === "in-progress" || s === "in progress") inProgress++;
       }
-      if (w.children) walk(w.children);
+      if (w.children) walkStats(w.children);
     }
   }
-  walk(items);
-  return { total, done, inProgress };
+  walkStats(items);
+  // Weighted progress from root items only (children are already rolled into parent progress)
+  for (const w of items) {
+    if (w.type === "contribution") continue;
+    const weight = w.weight ?? DEFAULT_WEIGHT;
+    const progress = w.progress ?? (DONE_STATUS_SET.has(w.status.toLowerCase()) ? 100 : 0);
+    totalWeight += weight;
+    weightedSum += weight * progress;
+  }
+  return { total, done, inProgress, weightedProgress: totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0 };
 }
 
 const KNOWN_OWNERS = new Set(["po", "tl", "dm"]);
@@ -103,7 +118,7 @@ export function renderWorkItemsTable(
   for (const [focus, groupItems] of focusGroups) {
     const color = focusColorMap.get(focus)!;
     const stats = countFocusStats(groupItems);
-    const pct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
+    const pct = stats.weightedProgress;
     const summaryParts: string[] = [];
     if (stats.done > 0) summaryParts.push(`${stats.done} done`);
     if (stats.inProgress > 0) summaryParts.push(`${stats.inProgress} in progress`);

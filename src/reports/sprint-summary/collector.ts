@@ -15,6 +15,11 @@ import type {
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
+const COMPLEXITY_WEIGHTS: Record<string, number> = {
+  trivial: 1, simple: 2, moderate: 3, complex: 5, "very-complex": 8,
+};
+const DEFAULT_WEIGHT = 3;
+
 export function collectSprintSummaryData(
   store: DocumentStore,
   sprintId?: string,
@@ -139,12 +144,16 @@ export function collectSprintSummaryData(
   for (const doc of workItemDocs) {
     const about = doc.frontmatter.aboutArtifact as string | undefined;
     const focusTag = (doc.frontmatter.tags as string[] ?? []).find((t) => t.startsWith("focus:"));
+    const complexity = doc.frontmatter.complexity as string | undefined;
     const item: SprintWorkItem = {
       id: doc.frontmatter.id,
       title: doc.frontmatter.title,
       type: doc.frontmatter.type,
       status: doc.frontmatter.status,
       progress: getEffectiveProgress(doc.frontmatter),
+      weight: complexity && complexity in COMPLEXITY_WEIGHTS
+        ? COMPLEXITY_WEIGHTS[complexity]
+        : DEFAULT_WEIGHT,
       owner: doc.frontmatter.owner as string | undefined,
       workFocus: focusTag ? focusTag.slice(6) : undefined,
       aboutArtifact: about,
