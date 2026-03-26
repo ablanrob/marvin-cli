@@ -15,8 +15,10 @@ import {
   type SprintProgressReport,
   type SprintProgressItemReport,
   type FocusAreaRollup,
+  type LinkedIssueSignal,
 } from "../../../src/skills/builtin/jira/sprint-progress.js";
-import type { JiraClient } from "../../../src/skills/builtin/jira/client.js";
+import { collectLinkedIssues } from "../../../src/skills/builtin/jira/sync.js";
+import type { JiraClient, JiraIssue } from "../../../src/skills/builtin/jira/client.js";
 
 // Mock the LLM query so tests don't call the real API
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
@@ -45,6 +47,8 @@ function makeItem(overrides: Partial<SprintProgressItemReport> = {}): SprintProg
     progressDrift: false,
     commentSignals: [],
     commentSummary: null,
+    linkedIssues: [],
+    linkedIssueSignals: [],
     children: [],
     owner: null,
     focusArea: null,
@@ -165,7 +169,7 @@ Blocked on DBA approval.
   ]);
 }
 
-function createMockJiraClient(): JiraClient {
+function createMockJiraClient(options?: { withLinks?: boolean }): JiraClient {
   const issues: Record<string, any> = {
     "PROJ-100": {
       key: "PROJ-100",
@@ -177,7 +181,12 @@ function createMockJiraClient(): JiraClient {
           { key: "PROJ-100-1", fields: { summary: "Sub 1", status: { name: "Done" } } },
           { key: "PROJ-100-2", fields: { summary: "Sub 2", status: { name: "In Progress" } } },
         ],
-        issuelinks: [],
+        issuelinks: options?.withLinks ? [
+          {
+            type: { name: "Blocks", inward: "is blocked by", outward: "blocks" },
+            outwardIssue: { key: "PROJ-301", fields: { summary: "Setup infra", status: { name: "Done" } } },
+          },
+        ] : [],
       },
     },
     "PROJ-101": {
@@ -187,7 +196,12 @@ function createMockJiraClient(): JiraClient {
         status: { name: "In Review" },
         issuetype: { name: "Task" },
         subtasks: [],
-        issuelinks: [],
+        issuelinks: options?.withLinks ? [
+          {
+            type: { name: "Relates", inward: "relates to", outward: "relates to" },
+            outwardIssue: { key: "PROJ-302", fields: { summary: "DBA approval", status: { name: "In Progress" } } },
+          },
+        ] : [],
       },
     },
     "PROJ-102": {
@@ -197,7 +211,16 @@ function createMockJiraClient(): JiraClient {
         status: { name: "Blocked" },
         issuetype: { name: "Task" },
         subtasks: [],
-        issuelinks: [],
+        issuelinks: options?.withLinks ? [
+          {
+            type: { name: "Blocks", inward: "is blocked by", outward: "blocks" },
+            inwardIssue: { key: "PROJ-303", fields: { summary: "DBA sign-off", status: { name: "Done" } } },
+          },
+          {
+            type: { name: "Relates", inward: "relates to", outward: "relates to" },
+            outwardIssue: { key: "PROJ-304", fields: { summary: "Cancelled feature", status: { name: "Wont Do" } } },
+          },
+        ] : [],
       },
     },
     "PROJ-200": {
@@ -210,6 +233,81 @@ function createMockJiraClient(): JiraClient {
         issuelinks: [],
       },
     },
+    // Linked issues (fetched during traversal)
+    "PROJ-301": {
+      key: "PROJ-301",
+      fields: {
+        summary: "Setup infra",
+        status: { name: "Done" },
+        issuetype: { name: "Task" },
+        subtasks: [],
+        issuelinks: [],
+      },
+    },
+    "PROJ-302": {
+      key: "PROJ-302",
+      fields: {
+        summary: "DBA approval",
+        status: { name: "In Progress" },
+        issuetype: { name: "Task" },
+        subtasks: [],
+        // 2nd hop: PROJ-302 links to PROJ-305 (only discovered via recursive traversal)
+        issuelinks: options?.withLinks ? [
+          {
+            type: { name: "Relates", inward: "relates to", outward: "relates to" },
+            outwardIssue: { key: "PROJ-305", fields: { summary: "Schema design doc", status: { name: "Done" } } },
+          },
+        ] : [],
+      },
+    },
+    "PROJ-303": {
+      key: "PROJ-303",
+      fields: {
+        summary: "DBA sign-off",
+        status: { name: "Done" },
+        issuetype: { name: "Task" },
+        subtasks: [],
+        issuelinks: [],
+      },
+    },
+    "PROJ-304": {
+      key: "PROJ-304",
+      fields: {
+        summary: "Cancelled feature",
+        status: { name: "Wont Do" },
+        issuetype: { name: "Task" },
+        subtasks: [],
+        issuelinks: [],
+      },
+    },
+    // 2nd-hop issue: only reachable via PROJ-302 → PROJ-305
+    "PROJ-305": {
+      key: "PROJ-305",
+      fields: {
+        summary: "Schema design doc",
+        status: { name: "Done" },
+        issuetype: { name: "Task" },
+        subtasks: [],
+        // Circular link back to PROJ-302 — tests cycle safety
+        issuelinks: options?.withLinks ? [
+          {
+            type: { name: "Relates", inward: "relates to", outward: "relates to" },
+            inwardIssue: { key: "PROJ-302", fields: { summary: "DBA approval", status: { name: "In Progress" } } },
+          },
+        ] : [],
+      },
+    },
+  };
+
+  const comments: Record<string, any[]> = {
+    "PROJ-303": [
+      {
+        id: "1",
+        author: { displayName: "DBA Team" },
+        created: "2026-03-18T10:00:00Z",
+        body: "DBA review completed, migration approved.",
+      },
+    ],
   };
 
   return {
@@ -218,7 +316,7 @@ function createMockJiraClient(): JiraClient {
       if (!issue) throw new Error(`Issue ${key} not found`);
       return issue;
     }),
-    getComments: vi.fn(async () => []),
+    getComments: vi.fn(async (key: string) => comments[key] ?? []),
   } as unknown as JiraClient;
 }
 
@@ -878,5 +976,348 @@ describe("formatProgressReport", () => {
     expect(text).toContain("(est)");
     // Comment-analysis shows (llm)
     expect(text).toContain("(llm)");
+  });
+
+  it("renders linked issues section", () => {
+    const item = makeItem({
+      id: "A-001",
+      title: "Build auth",
+      type: "action",
+      marvinStatus: "in-progress",
+      progress: 50,
+      jiraKey: "PROJ-100",
+      jiraStatus: "In Progress",
+      linkedIssues: [
+        { key: "PROJ-301", summary: "Setup infra", status: "Done", relationship: "blocks", isDone: true },
+        { key: "PROJ-302", summary: "DBA approval", status: "In Progress", relationship: "is blocked by", isDone: false },
+      ],
+      linkedIssueSignals: [
+        { sourceKey: "PROJ-301", linkType: "blocks", commentSignals: [], commentSummary: null },
+        { sourceKey: "PROJ-302", linkType: "is blocked by", commentSignals: [], commentSummary: "DBA review scheduled for Thursday" },
+      ],
+    });
+
+    const report: SprintProgressReport = {
+      sprintId: "SP-001",
+      sprintTitle: "Sprint 1",
+      generatedAt: "2026-03-20T10:00:00Z",
+      timeline: { startDate: null, endDate: null, daysRemaining: 0, totalDays: 0, percentComplete: 0 },
+      overallProgress: 50,
+      itemReports: [item],
+      focusAreas: [{
+        name: "Auth",
+        progress: 50,
+        taskCount: 1,
+        doneCount: 0,
+        blockedCount: 0,
+        blockedWeightPct: 0,
+        riskWarning: null,
+        items: [item],
+      }],
+      driftItems: [],
+      blockers: [],
+      proposedUpdates: [],
+      appliedUpdates: [],
+      errors: [],
+    };
+
+    const text = formatProgressReport(report);
+    expect(text).toContain("🔗 Linked Issues:");
+    expect(text).toContain('blocks PROJ-301 "Setup infra" [Done] ✓ unblock signal');
+    expect(text).toContain('is blocked by PROJ-302 "DBA approval" [In Progress]');
+    expect(text).toContain("💬 DBA review scheduled for Thursday");
+  });
+
+  it("renders won't do warning on linked issues", () => {
+    const item = makeItem({
+      id: "T-001",
+      title: "Task",
+      linkedIssues: [
+        { key: "PROJ-304", summary: "Cancelled feature", status: "Wont Do", relationship: "relates to", isDone: false },
+      ],
+      linkedIssueSignals: [],
+    });
+
+    const report: SprintProgressReport = {
+      sprintId: "SP-001",
+      sprintTitle: "Sprint 1",
+      generatedAt: "2026-03-20T10:00:00Z",
+      timeline: { startDate: null, endDate: null, daysRemaining: 0, totalDays: 0, percentComplete: 0 },
+      overallProgress: 0,
+      itemReports: [item],
+      focusAreas: [{
+        name: "Test",
+        progress: 0,
+        taskCount: 1,
+        doneCount: 0,
+        blockedCount: 0,
+        blockedWeightPct: 0,
+        riskWarning: null,
+        items: [item],
+      }],
+      driftItems: [],
+      blockers: [],
+      proposedUpdates: [],
+      appliedUpdates: [],
+      errors: [],
+    };
+
+    const text = formatProgressReport(report);
+    expect(text).toContain("⚠ needs review");
+  });
+});
+
+// --- collectLinkedIssues unit tests ---
+
+describe("collectLinkedIssues", () => {
+  it("extracts subtasks", () => {
+    const issue = {
+      key: "PROJ-100",
+      id: "1",
+      self: "",
+      fields: {
+        summary: "Test",
+        description: null,
+        status: { name: "In Progress" },
+        issuetype: { name: "Story" },
+        priority: null,
+        assignee: null,
+        labels: [],
+        created: "",
+        updated: "",
+        subtasks: [
+          { key: "PROJ-100-1", fields: { summary: "Sub 1", status: { name: "Done" } } },
+        ],
+        issuelinks: [],
+      },
+    } as JiraIssue;
+
+    const result = collectLinkedIssues(issue);
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe("PROJ-100-1");
+    expect(result[0].relationship).toBe("subtask");
+    expect(result[0].isDone).toBe(true);
+  });
+
+  it("extracts outward and inward issue links", () => {
+    const issue = {
+      key: "PROJ-100",
+      id: "1",
+      self: "",
+      fields: {
+        summary: "Test",
+        description: null,
+        status: { name: "In Progress" },
+        issuetype: { name: "Story" },
+        priority: null,
+        assignee: null,
+        labels: [],
+        created: "",
+        updated: "",
+        subtasks: [],
+        issuelinks: [
+          {
+            type: { name: "Blocks", inward: "is blocked by", outward: "blocks" },
+            outwardIssue: { key: "PROJ-200", fields: { summary: "Blocked task", status: { name: "To Do" } } },
+          },
+          {
+            type: { name: "Relates", inward: "relates to", outward: "relates to" },
+            inwardIssue: { key: "PROJ-300", fields: { summary: "Related task", status: { name: "Done" } } },
+          },
+        ],
+      },
+    } as JiraIssue;
+
+    const result = collectLinkedIssues(issue);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({
+      key: "PROJ-200",
+      summary: "Blocked task",
+      status: "To Do",
+      relationship: "blocks",
+      isDone: false,
+    });
+    expect(result[1]).toEqual({
+      key: "PROJ-300",
+      summary: "Related task",
+      status: "Done",
+      relationship: "relates to",
+      isDone: true,
+    });
+  });
+
+  it("returns empty array for issue with no links", () => {
+    const issue = {
+      key: "PROJ-100",
+      id: "1",
+      self: "",
+      fields: {
+        summary: "Test",
+        description: null,
+        status: { name: "Open" },
+        issuetype: { name: "Task" },
+        priority: null,
+        assignee: null,
+        labels: [],
+        created: "",
+        updated: "",
+      },
+    } as JiraIssue;
+
+    const result = collectLinkedIssues(issue);
+    expect(result).toHaveLength(0);
+  });
+});
+
+// --- Link traversal integration tests ---
+
+describe("assessSprintProgress with traverseLinks", () => {
+  let tmpDir: string;
+  let marvinDir: string;
+  let store: DocumentStore;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-sprint-links-"));
+    marvinDir = path.join(tmpDir, ".marvin");
+    store = setupStore(marvinDir);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("traverseLinks=false (default) → no linked issues fetched", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessSprintProgress(store, mockClient, "jira.example.com", {
+      sprintId: "SP-001",
+      traverseLinks: false,
+    });
+
+    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
+    for (const item of allItems) {
+      expect(item.linkedIssues).toHaveLength(0);
+      expect(item.linkedIssueSignals).toHaveLength(0);
+    }
+  });
+
+  it("traverseLinks=true → linked issues populated", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessSprintProgress(store, mockClient, "jira.example.com", {
+      sprintId: "SP-001",
+      traverseLinks: true,
+    });
+
+    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
+
+    // A-001 has one outward link: blocks PROJ-301
+    const a001 = allItems.find(r => r.id === "A-001");
+    expect(a001?.linkedIssues).toHaveLength(1);
+    expect(a001?.linkedIssues[0].key).toBe("PROJ-301");
+    expect(a001?.linkedIssues[0].relationship).toBe("blocks");
+
+    // T-001 links to PROJ-302, which transitively links to PROJ-305
+    const t001 = allItems.find(r => r.id === "T-001");
+    expect(t001?.linkedIssues.length).toBeGreaterThanOrEqual(1);
+    expect(t001?.linkedIssues.some(l => l.key === "PROJ-302")).toBe(true);
+    // 2nd hop: PROJ-305 is discovered via PROJ-302
+    expect(t001?.linkedIssues.some(l => l.key === "PROJ-305")).toBe(true);
+  });
+
+  it("traverseLinks=true → linked issues fetched via client", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    await assessSprintProgress(store, mockClient, "jira.example.com", {
+      sprintId: "SP-001",
+      traverseLinks: true,
+    });
+
+    // Linked issue keys should have been fetched
+    const fetchedKeys = (mockClient.getIssueWithLinks as any).mock.calls.map((c: any[]) => c[0]);
+    expect(fetchedKeys).toContain("PROJ-301");
+    expect(fetchedKeys).toContain("PROJ-302");
+    expect(fetchedKeys).toContain("PROJ-303");
+    expect(fetchedKeys).toContain("PROJ-304");
+  });
+
+  it("blocker-resolved signal detection → proposes unblock", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessSprintProgress(store, mockClient, "jira.example.com", {
+      sprintId: "SP-001",
+      traverseLinks: true,
+    });
+
+    // T-002 is blocked and has a blocker link (PROJ-303) that is Done
+    const unblockUpdate = report.proposedUpdates.find(
+      u => u.artifactId === "T-002" && u.field === "status" && u.reason.includes("blocking issues resolved"),
+    );
+    expect(unblockUpdate).toBeDefined();
+    expect(unblockUpdate!.proposedValue).toBe("in-progress");
+    expect(unblockUpdate!.reason).toContain("PROJ-303");
+  });
+
+  it("won't do linked issue → flags for review", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessSprintProgress(store, mockClient, "jira.example.com", {
+      sprintId: "SP-001",
+      traverseLinks: true,
+    });
+
+    // T-002 has a linked issue PROJ-304 with status "Wont Do"
+    const reviewUpdate = report.proposedUpdates.find(
+      u => u.artifactId === "T-002" && u.field === "review",
+    );
+    expect(reviewUpdate).toBeDefined();
+    expect(reviewUpdate!.reason).toContain("PROJ-304");
+    expect(reviewUpdate!.reason).toContain("cancelled/won't do");
+  });
+
+  it("linked issue comments are extracted as signals", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessSprintProgress(store, mockClient, "jira.example.com", {
+      sprintId: "SP-001",
+      traverseLinks: true,
+    });
+
+    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
+    const t002 = allItems.find(r => r.id === "T-002");
+    // T-002 links to PROJ-303 which has comments
+    const signal303 = t002?.linkedIssueSignals.find(s => s.sourceKey === "PROJ-303");
+    expect(signal303).toBeDefined();
+    expect(signal303!.linkType).toBe("is blocked by");
+  });
+
+  it("multi-hop: discovers 2nd-hop linked issues via recursive traversal", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    const report = await assessSprintProgress(store, mockClient, "jira.example.com", {
+      sprintId: "SP-001",
+      traverseLinks: true,
+    });
+
+    // T-001 → PROJ-302 → PROJ-305 (2nd hop)
+    // PROJ-305 should be fetched and appear in T-001's linked issues
+    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
+    const t001 = allItems.find(r => r.id === "T-001");
+    expect(t001?.linkedIssues.some(l => l.key === "PROJ-305")).toBe(true);
+
+    // PROJ-305 was fetched via getIssueWithLinks
+    const fetchedKeys = (mockClient.getIssueWithLinks as any).mock.calls.map((c: any[]) => c[0]);
+    expect(fetchedKeys).toContain("PROJ-305");
+  });
+
+  it("handles circular links without infinite loop", async () => {
+    const mockClient = createMockJiraClient({ withLinks: true });
+    // PROJ-302 → PROJ-305 → PROJ-302 (circular)
+    // Should complete without hanging
+    const report = await assessSprintProgress(store, mockClient, "jira.example.com", {
+      sprintId: "SP-001",
+      traverseLinks: true,
+    });
+
+    // Verify PROJ-302 was fetched exactly once (not re-fetched via circular link)
+    const fetchCalls = (mockClient.getIssueWithLinks as any).mock.calls.map((c: any[]) => c[0]);
+    const proj302Fetches = fetchCalls.filter((k: string) => k === "PROJ-302");
+    expect(proj302Fetches).toHaveLength(1);
+
+    // Report should still be valid
+    expect(report.errors).toHaveLength(0);
   });
 });

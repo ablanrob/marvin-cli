@@ -1,5 +1,5 @@
 import type { DocumentStore } from "../../../storage/store.js";
-import type { JiraClient } from "./client.js";
+import type { JiraClient, JiraIssue } from "./client.js";
 import type {
   FlatJiraStatusMap,
   LegacyJiraStatusMap,
@@ -185,6 +185,55 @@ export interface LinkedIssueSummary {
   isDone: boolean;
 }
 
+/**
+ * Extract linked issues (subtasks + issuelinks) from a Jira issue.
+ * Shared helper used by sync, daily, and sprint-progress.
+ */
+export function collectLinkedIssues(issue: JiraIssue): LinkedIssueSummary[] {
+  const linkedIssues: LinkedIssueSummary[] = [];
+
+  if (issue.fields.subtasks) {
+    for (const sub of issue.fields.subtasks) {
+      linkedIssues.push({
+        key: sub.key,
+        summary: sub.fields.summary,
+        status: sub.fields.status.name,
+        relationship: "subtask",
+        isDone: DONE_STATUSES.has(sub.fields.status.name.toLowerCase()),
+      });
+    }
+  }
+
+  if (issue.fields.issuelinks) {
+    for (const link of issue.fields.issuelinks) {
+      if (link.outwardIssue) {
+        linkedIssues.push({
+          key: link.outwardIssue.key,
+          summary: link.outwardIssue.fields.summary,
+          status: link.outwardIssue.fields.status.name,
+          relationship: link.type.outward,
+          isDone: DONE_STATUSES.has(
+            link.outwardIssue.fields.status.name.toLowerCase(),
+          ),
+        });
+      }
+      if (link.inwardIssue) {
+        linkedIssues.push({
+          key: link.inwardIssue.key,
+          summary: link.inwardIssue.fields.summary,
+          status: link.inwardIssue.fields.status.name,
+          relationship: link.type.inward,
+          isDone: DONE_STATUSES.has(
+            link.inwardIssue.fields.status.name.toLowerCase(),
+          ),
+        });
+      }
+    }
+  }
+
+  return linkedIssues;
+}
+
 export interface FetchedArtifactStatus {
   id: string;
   type: string;
@@ -285,46 +334,7 @@ export async function fetchJiraStatus(
       const currentStatus = doc.frontmatter.status;
 
       // Collect linked issues
-      const linkedIssues: LinkedIssueSummary[] = [];
-
-      if (issue.fields.subtasks) {
-        for (const sub of issue.fields.subtasks) {
-          linkedIssues.push({
-            key: sub.key,
-            summary: sub.fields.summary,
-            status: sub.fields.status.name,
-            relationship: "subtask",
-            isDone: DONE_STATUSES.has(sub.fields.status.name.toLowerCase()),
-          });
-        }
-      }
-
-      if (issue.fields.issuelinks) {
-        for (const link of issue.fields.issuelinks) {
-          if (link.outwardIssue) {
-            linkedIssues.push({
-              key: link.outwardIssue.key,
-              summary: link.outwardIssue.fields.summary,
-              status: link.outwardIssue.fields.status.name,
-              relationship: link.type.outward,
-              isDone: DONE_STATUSES.has(
-                link.outwardIssue.fields.status.name.toLowerCase(),
-              ),
-            });
-          }
-          if (link.inwardIssue) {
-            linkedIssues.push({
-              key: link.inwardIssue.key,
-              summary: link.inwardIssue.fields.summary,
-              status: link.inwardIssue.fields.status.name,
-              relationship: link.type.inward,
-              isDone: DONE_STATUSES.has(
-                link.inwardIssue.fields.status.name.toLowerCase(),
-              ),
-            });
-          }
-        }
-      }
+      const linkedIssues = collectLinkedIssues(issue);
 
       // Compute proposed progress from subtasks
       const subtasks = issue.fields.subtasks ?? [];

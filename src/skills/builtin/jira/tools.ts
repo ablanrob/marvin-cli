@@ -926,6 +926,7 @@ export function createJiraTools(
         sprintId: z.string().optional().describe("Sprint ID (e.g. 'SP-001'). Defaults to active sprint."),
         analyzeComments: z.boolean().optional().describe("Use LLM to summarize Jira comments for progress signals (default false)"),
         applyUpdates: z.boolean().optional().describe("Apply proposed status/progress updates to Marvin artifacts (default false)"),
+        traverseLinks: z.boolean().optional().describe("Traverse Jira issue links (1 hop) to surface context from connected issues — blockers, related work, cancelled items (default false)"),
       },
       async (args) => {
         const jira = createJiraClient(jiraUserConfig);
@@ -939,6 +940,7 @@ export function createJiraTools(
             sprintId: args.sprintId,
             analyzeComments: args.analyzeComments ?? false,
             applyUpdates: args.applyUpdates ?? false,
+            traverseLinks: args.traverseLinks ?? false,
             statusMap,
           },
         );

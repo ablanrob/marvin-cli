@@ -8,6 +8,7 @@ import {
   computeSubtaskProgress,
   extractJiraKeyFromTags,
   isInActiveSprint,
+  collectLinkedIssues,
 } from "./sync.js";
 import {
   detectCommentSignals,
@@ -27,6 +28,13 @@ import {
 export type ProgressSource = "explicit" | "comment-analysis" | "status-default";
 export type WeightSource = "complexity" | "default";
 
+export interface LinkedIssueSignal {
+  sourceKey: string;
+  linkType: string;
+  commentSignals: CommentSignal[];
+  commentSummary: string | null;
+}
+
 export interface SprintProgressItemReport {
   id: string;
   title: string;
@@ -45,6 +53,8 @@ export interface SprintProgressItemReport {
   progressDrift: boolean;
   commentSignals: CommentSignal[];
   commentSummary: string | null;
+  linkedIssues: LinkedIssueSummary[];
+  linkedIssueSignals: LinkedIssueSignal[];
   children: SprintProgressItemReport[];
   owner: string | null;
   focusArea: string | null;
@@ -94,6 +104,7 @@ export interface SprintProgressReport {
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "obsolete", "wont do", "cancelled"]);
 const BATCH_SIZE = 5;
+const MAX_LINKED_ISSUES = 50;
 const BLOCKED_WEIGHT_RISK_THRESHOLD = 0.3;
 
 // --- Complexity → Weight mapping ---
@@ -162,6 +173,7 @@ export interface AssessSprintProgressOptions {
   sprintId?: string;
   analyzeComments?: boolean;
   applyUpdates?: boolean;
+  traverseLinks?: boolean;
   statusMap?: ResolvedStatusMap;
 }
 
@@ -250,6 +262,65 @@ export async function assessSprintProgress(
         const batchKey = batch[results.indexOf(result)];
         errors.push(`Failed to fetch ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
       }
+    }
+  }
+
+  // 4b. Recursive linked issue traversal (BFS) when traverseLinks=true
+  //     Follows all non-subtask issue links until no new keys are discovered.
+  //     Cycle-safe via visited set, capped at MAX_LINKED_ISSUES to bound API calls.
+  const linkedJiraIssues = new Map<string, { issue: any; comments: JiraComment[] }>();
+
+  if (options.traverseLinks) {
+    const visited = new Set<string>(jiraIssues.keys());
+    const queue: string[] = [];
+
+    // Seed the BFS queue from primary issues
+    for (const [, data] of jiraIssues) {
+      const links = collectLinkedIssues(data.issue);
+      for (const link of links) {
+        if (link.relationship !== "subtask" && !visited.has(link.key)) {
+          visited.add(link.key);
+          queue.push(link.key);
+        }
+      }
+    }
+
+    // BFS: fetch, discover new links, repeat until exhausted or cap reached
+    while (queue.length > 0 && linkedJiraIssues.size < MAX_LINKED_ISSUES) {
+      const remaining = MAX_LINKED_ISSUES - linkedJiraIssues.size;
+      const batch = queue.splice(0, Math.min(BATCH_SIZE, remaining));
+      const results = await Promise.allSettled(
+        batch.map(async (key) => {
+          const [issue, comments] = await Promise.all([
+            client.getIssueWithLinks(key),
+            client.getComments(key),
+          ]);
+          return { key, issue, comments };
+        }),
+      );
+
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          const { key, issue, comments } = result.value;
+          linkedJiraIssues.set(key, { issue, comments });
+
+          // Discover new links from this issue and enqueue them
+          const newLinks = collectLinkedIssues(issue);
+          for (const link of newLinks) {
+            if (link.relationship !== "subtask" && !visited.has(link.key)) {
+              visited.add(link.key);
+              queue.push(link.key);
+            }
+          }
+        } else {
+          const batchKey = batch[results.indexOf(result)];
+          errors.push(`Failed to fetch linked issue ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+        }
+      }
+    }
+
+    if (queue.length > 0) {
+      errors.push(`Link traversal capped at ${MAX_LINKED_ISSUES} linked issues (${queue.length} remaining undiscovered)`);
     }
   }
 
@@ -343,6 +414,30 @@ export async function assessSprintProgress(
     // Resolve progress with priority cascade (comment-analysis applied later)
     const { progress: resolvedProgress, progressSource } = resolveProgress(fm, null);
 
+    // 5b. Linked issue enrichment when traverseLinks=true
+    //     Walks the full transitive link graph (BFS) from this item's Jira issue,
+    //     collecting all reachable linked issues and their comment signals.
+    let itemLinkedIssues: LinkedIssueSummary[] = [];
+    const itemLinkedIssueSignals: LinkedIssueSignal[] = [];
+
+    if (options.traverseLinks && jiraData) {
+      const { allLinks, allSignals } = collectTransitiveLinks(
+        jiraData.issue,
+        jiraIssues,
+        linkedJiraIssues,
+      );
+      itemLinkedIssues = allLinks;
+      itemLinkedIssueSignals.push(...allSignals);
+
+      // 6. Link signal analysis for proposed updates (uses full transitive chain)
+      analyzeLinkedIssueSignals(
+        allLinks,
+        fm,
+        jiraKey!,
+        proposedUpdates,
+      );
+    }
+
     const report: SprintProgressItemReport = {
       id: fm.id,
       title: fm.title,
@@ -361,6 +456,8 @@ export async function assessSprintProgress(
       progressDrift,
       commentSignals,
       commentSummary: null,
+      linkedIssues: itemLinkedIssues,
+      linkedIssueSignals: itemLinkedIssueSignals,
       children: [],
       owner: (fm.owner as string) ?? null,
       focusArea: focusTag ? focusTag.slice(6) : null,
@@ -488,6 +585,28 @@ export async function assessSprintProgress(
         }
       } catch (err) {
         errors.push(`Comment analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // 7b. LLM comment analysis for linked issues
+    if (options.traverseLinks) {
+      try {
+        const linkedSummaries = await analyzeLinkedIssueComments(
+          itemReports,
+          linkedJiraIssues,
+        );
+        for (const [artifactId, signalSummaries] of linkedSummaries) {
+          const report = itemReports.find(r => r.id === artifactId);
+          if (!report) continue;
+          for (const [sourceKey, summary] of signalSummaries) {
+            const signal = report.linkedIssueSignals.find(s => s.sourceKey === sourceKey);
+            if (signal) {
+              signal.commentSummary = summary;
+            }
+          }
+        }
+      } catch (err) {
+        errors.push(`Linked issue comment analysis failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }
@@ -632,6 +751,212 @@ async function analyzeCommentsForProgress(
   return summaries;
 }
 
+// --- Link Signal Analysis (FR-4) ---
+
+// --- Transitive Link Collection ---
+
+/**
+ * BFS walk from a primary issue through all reachable non-subtask links.
+ * Returns deduplicated linked issues and their comment signals.
+ * Cycle-safe via visited set.
+ */
+function collectTransitiveLinks(
+  primaryIssue: any,
+  primaryIssues: Map<string, { issue: any; comments: JiraComment[] }>,
+  linkedJiraIssues: Map<string, { issue: any; comments: JiraComment[] }>,
+): { allLinks: LinkedIssueSummary[]; allSignals: LinkedIssueSignal[] } {
+  const allLinks: LinkedIssueSummary[] = [];
+  const allSignals: LinkedIssueSignal[] = [];
+  const visited = new Set<string>([primaryIssue.key]);
+
+  // Seed with direct links from primary issue
+  const directLinks = collectLinkedIssues(primaryIssue)
+    .filter(l => l.relationship !== "subtask");
+  const queue = [...directLinks];
+
+  // Mark direct links as visited
+  for (const link of directLinks) {
+    visited.add(link.key);
+  }
+
+  while (queue.length > 0) {
+    const link = queue.shift()!;
+    allLinks.push(link);
+
+    // Look up fetched data for this linked issue
+    const linkedData = linkedJiraIssues.get(link.key) ?? primaryIssues.get(link.key);
+    if (!linkedData) continue;
+
+    // Extract comment signals
+    const linkedCommentSignals: CommentSignal[] = [];
+    for (const comment of linkedData.comments) {
+      const text = extractCommentText(comment.body);
+      const signals = detectCommentSignals(text);
+      linkedCommentSignals.push(...signals);
+    }
+
+    if (linkedCommentSignals.length > 0 || linkedData.comments.length > 0) {
+      allSignals.push({
+        sourceKey: link.key,
+        linkType: link.relationship,
+        commentSignals: linkedCommentSignals,
+        commentSummary: null,
+      });
+    }
+
+    // Discover further links from this issue (next hop)
+    const nextLinks = collectLinkedIssues(linkedData.issue)
+      .filter(l => l.relationship !== "subtask" && !visited.has(l.key));
+    for (const next of nextLinks) {
+      visited.add(next.key);
+      queue.push(next);
+    }
+  }
+
+  return { allLinks, allSignals };
+}
+
+const BLOCKER_LINK_PATTERNS = ["blocks", "is blocked by"];
+const WONT_DO_STATUSES = new Set(["wont do", "won't do", "cancelled"]);
+
+function analyzeLinkedIssueSignals(
+  linkedIssues: LinkedIssueSummary[],
+  frontmatter: Record<string, any>,
+  jiraKey: string,
+  proposedUpdates: ProposedUpdate[],
+): void {
+  if (linkedIssues.length === 0) return;
+
+  // Check if all blockers are resolved → propose unblock
+  const blockerLinks = linkedIssues.filter(l =>
+    BLOCKER_LINK_PATTERNS.some(p => l.relationship.toLowerCase().includes(p.split(" ")[0])),
+  );
+  if (blockerLinks.length > 0 && blockerLinks.every(l => l.isDone) && frontmatter.status === "blocked") {
+    proposedUpdates.push({
+      artifactId: frontmatter.id,
+      field: "status",
+      currentValue: "blocked",
+      proposedValue: "in-progress",
+      reason: `All blocking issues resolved: ${blockerLinks.map(l => l.key).join(", ")}`,
+    });
+  }
+
+  // Check for "Won't Do" / "Cancelled" linked issues → flag for review
+  const wontDoLinks = linkedIssues.filter(l =>
+    WONT_DO_STATUSES.has(l.status.toLowerCase()),
+  );
+  if (wontDoLinks.length > 0) {
+    proposedUpdates.push({
+      artifactId: frontmatter.id,
+      field: "review",
+      currentValue: null,
+      proposedValue: "needs-review",
+      reason: `Linked issue(s) cancelled/won't do: ${wontDoLinks.map(l => `${l.key} "${l.summary}"`).join(", ")}`,
+    });
+  }
+}
+
+// --- Linked Issue LLM Comment Analysis ---
+
+const LINKED_COMMENT_ANALYSIS_PROMPT = `You are a delivery management assistant analyzing Jira comments from linked issues for progress signals.
+
+For each linked issue below, read the comments and produce a 1-sentence summary focused on: impact on the parent issue, blockers, or decisions.
+
+Return your response as a JSON object mapping artifact IDs to objects mapping linked issue keys to summary strings.
+Example: {"T-001": {"PROJ-301": "DBA review scheduled for Thursday."}}
+
+IMPORTANT: Only return the JSON object, no other text.`;
+
+async function analyzeLinkedIssueComments(
+  items: SprintProgressItemReport[],
+  linkedJiraIssues: Map<string, { issue: any; comments: JiraComment[] }>,
+): Promise<Map<string, Map<string, string>>> {
+  const results = new Map<string, Map<string, string>>();
+
+  const promptParts: string[] = [];
+  const itemsWithLinkedComments: SprintProgressItemReport[] = [];
+
+  for (const item of items) {
+    if (item.linkedIssueSignals.length === 0) continue;
+
+    const linkedParts: string[] = [];
+    for (const signal of item.linkedIssueSignals) {
+      const linkedData = linkedJiraIssues.get(signal.sourceKey);
+      if (!linkedData || linkedData.comments.length === 0) continue;
+
+      const commentTexts = linkedData.comments
+        .map(c => {
+          const text = extractCommentText(c.body);
+          return `    [${c.author.displayName}, ${c.created.slice(0, 10)}]: ${text.slice(0, 300)}`;
+        })
+        .join("\n");
+
+      linkedParts.push(`  ### ${signal.sourceKey} (${signal.linkType})\n${commentTexts}`);
+    }
+
+    if (linkedParts.length > 0) {
+      itemsWithLinkedComments.push(item);
+      promptParts.push(`## ${item.id} — ${item.title}\nLinked issues:\n${linkedParts.join("\n")}`);
+    }
+  }
+
+  if (promptParts.length === 0) return results;
+
+  const prompt = promptParts.join("\n\n");
+
+  const llmResult = query({
+    prompt,
+    options: {
+      systemPrompt: LINKED_COMMENT_ANALYSIS_PROMPT,
+      maxTurns: 1,
+      tools: [],
+      allowedTools: [],
+    },
+  });
+
+  for await (const msg of llmResult) {
+    if (msg.type === "assistant") {
+      const textBlock = msg.message.content.find(
+        (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
+      );
+      if (textBlock) {
+        const parsed = parseLlmJson(textBlock.text);
+        if (parsed) {
+          for (const [artifactId, linkedSummaries] of Object.entries(parsed)) {
+            if (typeof linkedSummaries === "object" && linkedSummaries !== null) {
+              const signalMap = new Map<string, string>();
+              for (const [key, summary] of Object.entries(linkedSummaries as Record<string, unknown>)) {
+                if (typeof summary === "string") {
+                  signalMap.set(key, summary);
+                }
+              }
+              if (signalMap.size > 0) {
+                results.set(artifactId, signalMap);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+function parseLlmJson(text: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (match) {
+      try {
+        return JSON.parse(match[1]);
+      } catch { /* ignore */ }
+    }
+    return null;
+  }
+}
+
 // --- Report Formatter ---
 
 export function formatProgressReport(report: SprintProgressReport): string {
@@ -751,6 +1076,24 @@ function formatItemLine(parts: string[], item: SprintProgressItemReport, depth: 
 
   if (item.commentSummary) {
     parts.push(`${indent}  💬 ${item.commentSummary}`);
+  }
+
+  if (item.linkedIssues.length > 0) {
+    parts.push(`${indent}  🔗 Linked Issues:`);
+    for (const link of item.linkedIssues) {
+      const doneMarker = link.isDone ? " ✓" : "";
+      const blockerResolved = link.isDone &&
+        BLOCKER_LINK_PATTERNS.some(p => link.relationship.toLowerCase().includes(p.split(" ")[0]))
+        ? " unblock signal" : "";
+      const wontDo = WONT_DO_STATUSES.has(link.status.toLowerCase()) ? " ⚠ needs review" : "";
+      parts.push(`${indent}    ${link.relationship} ${link.key} "${link.summary}" [${link.status}]${doneMarker}${blockerResolved}${wontDo}`);
+
+      // Show linked issue comment summary if available
+      const signal = item.linkedIssueSignals.find(s => s.sourceKey === link.key);
+      if (signal?.commentSummary) {
+        parts.push(`${indent}      💬 ${signal.commentSummary}`);
+      }
+    }
   }
 
   for (const child of item.children) {
