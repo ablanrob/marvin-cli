@@ -224,9 +224,13 @@ export function createActionTools(
 
         const doc = store.update(id, updates, content);
 
-        // Propagate progress if status or progress changed
+        // Propagate progress if status or progress changed.
+        // skipSelf when explicit progress was provided — we just wrote it,
+        // don't let propagation recalculate and overwrite it.
         if (args.status !== undefined || typeof progress === "number") {
-          propagateProgressToAction(store, id);
+          propagateProgressToAction(store, id, {
+            skipSelf: typeof progress === "number",
+          });
         }
 
         return {

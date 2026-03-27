@@ -39,36 +39,42 @@ export function getEffectiveProgress(frontmatter: DocumentFrontmatter): number {
 /**
  * Recalculate task progress from child contributions, then propagate to parent action.
  * Returns list of artifact IDs that were updated.
+ *
+ * @param skipSelf - When true, skip recalculating this task's progress (e.g. when
+ *   the caller just wrote an explicit progress value). Still propagates up to the parent.
  */
 export function propagateProgressFromTask(
   store: DocumentStore,
   taskId: string,
+  options?: { skipSelf?: boolean },
 ): string[] {
   const updated: string[] = [];
   const task = store.get(taskId);
   if (!task) return updated;
 
-  // If task is done, ensure progress=100
-  if (DONE_STATUSES.has(task.frontmatter.status)) {
-    if (task.frontmatter.progress !== 100) {
-      store.update(taskId, { progress: 100 } as any);
-      updated.push(taskId);
-    }
-  } else if (!task.frontmatter.progressOverride) {
-    // Auto-calculate from child contributions when children exist
-    // (skipped when progressOverride is set — explicit value is preserved)
-    const children = store
-      .list({ type: "contribution" })
-      .filter((d) => d.frontmatter.aboutArtifact === taskId);
-
-    if (children.length > 0) {
-      const avg =
-        children.reduce((sum, c) => sum + getEffectiveProgress(c.frontmatter), 0) /
-        children.length;
-      const progress = Math.round(avg);
-      if (task.frontmatter.progress !== progress) {
-        store.update(taskId, { progress } as any);
+  if (!options?.skipSelf) {
+    // If task is done, ensure progress=100
+    if (DONE_STATUSES.has(task.frontmatter.status)) {
+      if (task.frontmatter.progress !== 100) {
+        store.update(taskId, { progress: 100 } as any);
         updated.push(taskId);
+      }
+    } else if (!task.frontmatter.progressOverride) {
+      // Auto-calculate from child contributions when children exist
+      // (skipped when progressOverride is set — explicit value is preserved)
+      const children = store
+        .list({ type: "contribution" })
+        .filter((d) => d.frontmatter.aboutArtifact === taskId);
+
+      if (children.length > 0) {
+        const avg =
+          children.reduce((sum, c) => sum + getEffectiveProgress(c.frontmatter), 0) /
+          children.length;
+        const progress = Math.round(avg);
+        if (task.frontmatter.progress !== progress) {
+          store.update(taskId, { progress } as any);
+          updated.push(taskId);
+        }
       }
     }
   }
@@ -92,13 +98,20 @@ export function propagateProgressFromTask(
  * - No children: keep action's own progress field
  * Returns list of artifact IDs that were updated.
  */
+/**
+ * @param skipSelf - When true, skip recalculating this action's progress (e.g. when
+ *   the caller just wrote an explicit progress value).
+ */
 export function propagateProgressToAction(
   store: DocumentStore,
   actionId: string,
+  options?: { skipSelf?: boolean },
 ): string[] {
   const updated: string[] = [];
   const action = store.get(actionId);
   if (!action) return updated;
+
+  if (options?.skipSelf) return updated;
 
   // If action is done, ensure progress=100
   if (DONE_STATUSES.has(action.frontmatter.status)) {

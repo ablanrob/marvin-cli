@@ -252,9 +252,13 @@ export function createTaskTools(
 
         const doc = store.update(id, updates, content);
 
-        // Propagate progress if status or progress changed
+        // Propagate progress if status or progress changed.
+        // skipSelf when explicit progress was provided — we just wrote it,
+        // don't let propagation recalculate and overwrite it.
         if (args.status !== undefined || typeof progress === "number") {
-          propagateProgressFromTask(store, id);
+          propagateProgressFromTask(store, id, {
+            skipSelf: typeof progress === "number",
+          });
         }
 
         const parts = [`Updated task ${doc.frontmatter.id}: ${doc.frontmatter.title}`];
