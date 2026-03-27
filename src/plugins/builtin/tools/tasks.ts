@@ -197,9 +197,10 @@ export function createTaskTools(
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove old tags, add new ones)"),
         workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
         progress: z.number().nullable().optional().describe("Explicit progress percentage (0-100). Overrides auto-calculation from child contributions. Pass null to clear the override and revert to auto-calculation."),
+        progressOverride: z.boolean().optional().describe("Control auto-calculation lock. true = lock progress to explicit value, false = allow auto-calculation from children. When omitted: setting progress implies true, null progress implies false."),
       },
       async (args) => {
-        const { id, content, linkedEpic: rawLinkedEpic, tags: userTags, workFocus, progress, ...updates } = args;
+        const { id, content, linkedEpic: rawLinkedEpic, tags: userTags, workFocus, progress, progressOverride, ...updates } = args;
         const warnings: string[] = [];
 
         // If linkedEpic is being changed, soft-validate
@@ -239,17 +240,25 @@ export function createTaskTools(
         // Include progress in frontmatter updates
         if (typeof progress === "number") {
           (updates as Record<string, unknown>).progress = Math.max(0, Math.min(100, Math.round(progress)));
-          (updates as Record<string, unknown>).progressOverride = true;
+          // Explicit progressOverride param takes precedence; default to true
+          (updates as Record<string, unknown>).progressOverride = progressOverride ?? true;
         } else if (progress === null) {
           // Clear override — revert to auto-calculation from children
           (updates as Record<string, unknown>).progressOverride = false;
+        } else if (progressOverride !== undefined) {
+          // Allow setting progressOverride independently of progress
+          (updates as Record<string, unknown>).progressOverride = progressOverride;
         }
 
         const doc = store.update(id, updates, content);
 
-        // Propagate progress if status or progress changed
+        // Propagate progress if status or progress changed.
+        // skipSelf when explicit progress was provided — we just wrote it,
+        // don't let propagation recalculate and overwrite it.
         if (args.status !== undefined || typeof progress === "number") {
-          propagateProgressFromTask(store, id);
+          propagateProgressFromTask(store, id, {
+            skipSelf: typeof progress === "number",
+          });
         }
 
         const parts = [`Updated task ${doc.frontmatter.id}: ${doc.frontmatter.title}`];

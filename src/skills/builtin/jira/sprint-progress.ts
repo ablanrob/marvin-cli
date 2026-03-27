@@ -1403,8 +1403,24 @@ async function _assessArtifactRecursive(
   // 8. Apply updates
   const appliedUpdates: ProposedUpdate[] = [];
   if (options.applyUpdates && proposedUpdates.length > 0) {
+    // Collect which artifacts are being set to "done" so we can enforce
+    // the done→100% invariant: skip or coerce any progress update that
+    // would overwrite the terminal value.
+    const doneArtifacts = new Set(
+      proposedUpdates
+        .filter(u => u.field === "status" && DONE_STATUSES.has(String(u.proposedValue)))
+        .map(u => u.artifactId),
+    );
+
     for (const update of proposedUpdates) {
       if (update.field === "review") continue; // review flags are informational only
+
+      // If this artifact is transitioning to done, skip any non-100 progress
+      // update — the done status propagation already sets progress to 100.
+      if (update.field === "progress" && doneArtifacts.has(update.artifactId)) {
+        if (update.proposedValue !== 100) continue;
+      }
+
       try {
         const updatePayload: Record<string, unknown> = {
           [update.field]: update.proposedValue,
@@ -1417,12 +1433,18 @@ async function _assessArtifactRecursive(
         }
         store.update(update.artifactId, updatePayload as any);
 
-        const updatedDoc = store.get(update.artifactId);
-        if (updatedDoc) {
-          if (updatedDoc.frontmatter.type === "task") {
-            propagateProgressFromTask(store, update.artifactId);
-          } else if (updatedDoc.frontmatter.type === "action") {
-            propagateProgressToAction(store, update.artifactId);
+        // Propagate only for status changes. Progress updates from child
+        // rollup ARE the propagation result — calling propagate here would
+        // recalculate from (possibly stale) on-disk children and overwrite
+        // the value we just wrote.
+        if (update.field === "status") {
+          const updatedDoc = store.get(update.artifactId);
+          if (updatedDoc) {
+            if (updatedDoc.frontmatter.type === "task") {
+              propagateProgressFromTask(store, update.artifactId);
+            } else if (updatedDoc.frontmatter.type === "action") {
+              propagateProgressToAction(store, update.artifactId);
+            }
           }
         }
         appliedUpdates.push(update);
