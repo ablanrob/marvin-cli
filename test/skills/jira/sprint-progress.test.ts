@@ -49,6 +49,7 @@ function makeArtifactReport(overrides: Partial<ArtifactAssessmentReport> = {}): 
     progressDrift: false,
     commentSignals: [],
     commentSummary: null,
+    commentAnalysisProgress: null,
     linkedIssues: [],
     linkedIssueSignals: [],
     children: [],
@@ -1548,6 +1549,7 @@ describe("formatArtifactReport", () => {
       progressDrift: false,
       commentSignals: [],
       commentSummary: "S/4 setup completed on Gamma. No blockers.",
+      commentAnalysisProgress: null,
       linkedIssues: [
         { key: "MCB1-293", summary: "Setup Planner Groups API", status: "Done", relationship: "implements", isDone: true },
       ],
@@ -1595,6 +1597,7 @@ describe("formatArtifactReport", () => {
       progressDrift: false,
       commentSignals: [],
       commentSummary: null,
+      commentAnalysisProgress: null,
       linkedIssues: [],
       linkedIssueSignals: [],
       children: [
@@ -1632,6 +1635,7 @@ describe("formatArtifactReport", () => {
       progressDrift: false,
       commentSignals: [],
       commentSummary: null,
+      commentAnalysisProgress: null,
       linkedIssues: [],
       linkedIssueSignals: [],
       children: [],
