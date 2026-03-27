@@ -1380,19 +1380,44 @@ async function _assessArtifactRecursive(
     children.push(childReport);
   }
 
-  // 6. Build contextual signals summary
+  // 6. Child rollup progress proposal (for actions/epics with children)
+  if (children.length > 0) {
+    const rolledUpProgress = computeWeightedProgress(
+      children.map(c => ({
+        weight: resolveWeight(undefined).weight,
+        progress: c.marvinProgress,
+      } as SprintProgressItemReport)),
+    );
+    if (rolledUpProgress !== currentProgress) {
+      proposedUpdates.push({
+        artifactId: fm.id,
+        field: "progress",
+        currentValue: currentProgress,
+        proposedValue: rolledUpProgress,
+        reason: `Rolled up from ${children.length} children (weighted average ${rolledUpProgress}%)`,
+      });
+    }
+  }
+
+  // 7. Build contextual signals summary
   const signals = buildSignals(commentSignals, linkedIssues, statusDrift, proposedMarvinStatus);
 
-  // 7. Apply updates
+  // 8. Apply updates
   const appliedUpdates: ProposedUpdate[] = [];
   if (options.applyUpdates && proposedUpdates.length > 0) {
     for (const update of proposedUpdates) {
       if (update.field === "review") continue; // review flags are informational only
       try {
-        store.update(update.artifactId, {
+        const updatePayload: Record<string, unknown> = {
           [update.field]: update.proposedValue,
           lastJiraSyncAt: new Date().toISOString(),
-        } as any);
+        };
+        // Clear progressOverride when applying progress updates so the
+        // computed value actually takes effect
+        if (update.field === "progress") {
+          updatePayload.progressOverride = false;
+        }
+        store.update(update.artifactId, updatePayload as any);
 
         const updatedDoc = store.get(update.artifactId);
         if (updatedDoc) {

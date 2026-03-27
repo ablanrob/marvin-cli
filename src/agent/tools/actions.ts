@@ -165,7 +165,7 @@ export function createActionTools(
         tags: z.array(z.string()).optional().describe("Replace all tags. When provided with sprints, sprint tags are merged into this array."),
         sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
         workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
-        progress: z.number().optional().describe("Explicit progress percentage (0-100)."),
+        progress: z.number().nullable().optional().describe("Explicit progress percentage (0-100). Pass null to clear the override and revert to auto-calculation from children."),
       },
       async (args) => {
         const { id, content, sprints, tags, workFocus, progress, owner, assignee, ...updates } = args;
@@ -212,6 +212,9 @@ export function createActionTools(
         if (typeof progress === "number") {
           (updates as any).progress = Math.max(0, Math.min(100, Math.round(progress)));
           (updates as any).progressOverride = true;
+        } else if (progress === null) {
+          // Clear override — revert to auto-calculation from children
+          (updates as any).progressOverride = false;
         }
 
         const doc = store.update(id, updates, content);

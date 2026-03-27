@@ -196,7 +196,7 @@ export function createTaskTools(
           .describe("New priority"),
         tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove old tags, add new ones)"),
         workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
-        progress: z.number().optional().describe("Explicit progress percentage (0-100). Overrides auto-calculation from child contributions."),
+        progress: z.number().nullable().optional().describe("Explicit progress percentage (0-100). Overrides auto-calculation from child contributions. Pass null to clear the override and revert to auto-calculation."),
       },
       async (args) => {
         const { id, content, linkedEpic: rawLinkedEpic, tags: userTags, workFocus, progress, ...updates } = args;
@@ -240,6 +240,9 @@ export function createTaskTools(
         if (typeof progress === "number") {
           (updates as Record<string, unknown>).progress = Math.max(0, Math.min(100, Math.round(progress)));
           (updates as Record<string, unknown>).progressOverride = true;
+        } else if (progress === null) {
+          // Clear override — revert to auto-calculation from children
+          (updates as Record<string, unknown>).progressOverride = false;
         }
 
         const doc = store.update(id, updates, content);
