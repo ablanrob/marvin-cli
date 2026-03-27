@@ -1382,9 +1382,24 @@ async function _assessArtifactRecursive(
 
   // 6. Child rollup progress proposal (for actions/epics with children)
   //    Uses simple average to match propagateProgressToAction in the persistence layer.
+  //    When applyUpdates=true, uses post-update child progress (from appliedUpdates)
+  //    so the rollup reflects corrections already persisted in this pass.
   if (children.length > 0) {
+    const childProgressValues = children.map(c => {
+      // If child had a progress or status update applied, use the post-update value
+      const appliedProgress = c.appliedUpdates.find(u => u.field === "progress");
+      if (appliedProgress) return appliedProgress.proposedValue as number;
+      const appliedStatus = c.appliedUpdates.find(u => u.field === "status");
+      if (appliedStatus && DONE_STATUSES.has(String(appliedStatus.proposedValue))) return 100;
+      // Otherwise check if a progress update was proposed (for the report display)
+      const proposedProgress = c.proposedUpdates.find(u => u.field === "progress");
+      if (proposedProgress) return proposedProgress.proposedValue as number;
+      const proposedStatus = c.proposedUpdates.find(u => u.field === "status");
+      if (proposedStatus && DONE_STATUSES.has(String(proposedStatus.proposedValue))) return 100;
+      return c.marvinProgress;
+    });
     const rolledUpProgress = Math.round(
-      children.reduce((s, c) => s + c.marvinProgress, 0) / children.length,
+      childProgressValues.reduce((s, p) => s + p, 0) / childProgressValues.length,
     );
     if (rolledUpProgress !== currentProgress) {
       proposedUpdates.push({
