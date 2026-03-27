@@ -1381,12 +1381,10 @@ async function _assessArtifactRecursive(
   }
 
   // 6. Child rollup progress proposal (for actions/epics with children)
+  //    Uses simple average to match propagateProgressToAction in the persistence layer.
   if (children.length > 0) {
-    const rolledUpProgress = computeWeightedProgress(
-      children.map(c => ({
-        weight: resolveWeight(undefined).weight,
-        progress: c.marvinProgress,
-      } as SprintProgressItemReport)),
+    const rolledUpProgress = Math.round(
+      children.reduce((s, c) => s + c.marvinProgress, 0) / children.length,
     );
     if (rolledUpProgress !== currentProgress) {
       proposedUpdates.push({
@@ -1394,7 +1392,7 @@ async function _assessArtifactRecursive(
         field: "progress",
         currentValue: currentProgress,
         proposedValue: rolledUpProgress,
-        reason: `Rolled up from ${children.length} children (weighted average ${rolledUpProgress}%)`,
+        reason: `Rolled up from ${children.length} children (average ${rolledUpProgress}%)`,
       });
     }
   }
@@ -1735,13 +1733,10 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
   // Children
   if (report.children.length > 0) {
     const doneCount = report.children.filter(c => DONE_STATUSES.has(c.marvinStatus)).length;
-    const childWeights = report.children.map(c => {
-      const { weight } = resolveWeight(undefined); // children have their own assessment
-      return { weight, progress: c.marvinProgress };
-    });
-    const childProgress = childWeights.length > 0
-      ? Math.round(childWeights.reduce((s, c) => s + c.weight * c.progress, 0) / childWeights.reduce((s, c) => s + c.weight, 0))
-      : 0;
+    // Simple average — matches propagateProgressToAction in the persistence layer
+    const childProgress = Math.round(
+      report.children.reduce((s, c) => s + c.marvinProgress, 0) / report.children.length,
+    );
     const bar = progressBar(childProgress);
 
     parts.push(`## Children (${doneCount}/${report.children.length} done) ${bar} ${childProgress}%`);
