@@ -166,9 +166,10 @@ export function createActionTools(
         sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
         workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
         progress: z.number().nullable().optional().describe("Explicit progress percentage (0-100). Pass null to clear the override and revert to auto-calculation from children."),
+        progressOverride: z.boolean().optional().describe("Control auto-calculation lock. true = lock progress to explicit value, false = allow auto-calculation from children. When omitted: setting progress implies true, null progress implies false."),
       },
       async (args) => {
-        const { id, content, sprints, tags, workFocus, progress, owner, assignee, ...updates } = args;
+        const { id, content, sprints, tags, workFocus, progress, progressOverride, owner, assignee, ...updates } = args;
         if (owner !== undefined) (updates as any).owner = normalizeOwner(owner);
         if (assignee !== undefined) (updates as any).assignee = assignee;
 
@@ -211,10 +212,14 @@ export function createActionTools(
         // Include progress in frontmatter updates
         if (typeof progress === "number") {
           (updates as any).progress = Math.max(0, Math.min(100, Math.round(progress)));
-          (updates as any).progressOverride = true;
+          // Explicit progressOverride param takes precedence; default to true
+          (updates as any).progressOverride = progressOverride ?? true;
         } else if (progress === null) {
           // Clear override — revert to auto-calculation from children
           (updates as any).progressOverride = false;
+        } else if (progressOverride !== undefined) {
+          // Allow setting progressOverride independently of progress
+          (updates as any).progressOverride = progressOverride;
         }
 
         const doc = store.update(id, updates, content);

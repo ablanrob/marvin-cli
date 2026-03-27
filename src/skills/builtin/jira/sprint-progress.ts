@@ -1417,12 +1417,18 @@ async function _assessArtifactRecursive(
         }
         store.update(update.artifactId, updatePayload as any);
 
-        const updatedDoc = store.get(update.artifactId);
-        if (updatedDoc) {
-          if (updatedDoc.frontmatter.type === "task") {
-            propagateProgressFromTask(store, update.artifactId);
-          } else if (updatedDoc.frontmatter.type === "action") {
-            propagateProgressToAction(store, update.artifactId);
+        // Propagate only for status changes. Progress updates from child
+        // rollup ARE the propagation result — calling propagate here would
+        // recalculate from (possibly stale) on-disk children and overwrite
+        // the value we just wrote.
+        if (update.field === "status") {
+          const updatedDoc = store.get(update.artifactId);
+          if (updatedDoc) {
+            if (updatedDoc.frontmatter.type === "task") {
+              propagateProgressFromTask(store, update.artifactId);
+            } else if (updatedDoc.frontmatter.type === "action") {
+              propagateProgressToAction(store, update.artifactId);
+            }
           }
         }
         appliedUpdates.push(update);
