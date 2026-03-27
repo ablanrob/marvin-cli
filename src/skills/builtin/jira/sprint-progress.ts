@@ -103,6 +103,8 @@ export interface SprintProgressReport {
 // --- Constants ---
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "obsolete", "wont do", "cancelled"]);
+/** Subset of DONE_STATUSES that represent completed work (not cancelled). Used for progress→100% coercion. */
+const PROGRESS_DONE_STATUSES = new Set(["done", "closed", "resolved", "obsolete", "wont do"]);
 const BATCH_SIZE = 5;
 const MAX_LINKED_ISSUES = 50;
 const BLOCKED_WEIGHT_RISK_THRESHOLD = 0.3;
@@ -1386,16 +1388,15 @@ async function _assessArtifactRecursive(
   //    so the rollup reflects corrections already persisted in this pass.
   if (children.length > 0) {
     const childProgressValues = children.map(c => {
-      // If child had a progress or status update applied, use the post-update value
-      const appliedProgress = c.appliedUpdates.find(u => u.field === "progress");
-      if (appliedProgress) return appliedProgress.proposedValue as number;
-      const appliedStatus = c.appliedUpdates.find(u => u.field === "status");
-      if (appliedStatus && DONE_STATUSES.has(String(appliedStatus.proposedValue))) return 100;
-      // Otherwise check if a progress update was proposed (for the report display)
-      const proposedProgress = c.proposedUpdates.find(u => u.field === "progress");
-      if (proposedProgress) return proposedProgress.proposedValue as number;
-      const proposedStatus = c.proposedUpdates.find(u => u.field === "status");
-      if (proposedStatus && DONE_STATUSES.has(String(proposedStatus.proposedValue))) return 100;
+      // Use the most recent (last) update for each field so later
+      // corrections aren't shadowed by earlier entries.
+      // Status=done wins over any progress value (done→100% invariant).
+      // "cancelled" is excluded — cancelled work isn't complete.
+      const updates = c.appliedUpdates.length > 0 ? c.appliedUpdates : c.proposedUpdates;
+      const lastStatus = findLast(updates, u => u.field === "status");
+      if (lastStatus && PROGRESS_DONE_STATUSES.has(String(lastStatus.proposedValue))) return 100;
+      const lastProgress = findLast(updates, u => u.field === "progress");
+      if (lastProgress) return lastProgress.proposedValue as number;
       return c.marvinProgress;
     });
     const rolledUpProgress = Math.round(
@@ -1423,7 +1424,7 @@ async function _assessArtifactRecursive(
     // would overwrite the terminal value.
     const doneArtifacts = new Set(
       proposedUpdates
-        .filter(u => u.field === "status" && DONE_STATUSES.has(String(u.proposedValue)))
+        .filter(u => u.field === "status" && PROGRESS_DONE_STATUSES.has(String(u.proposedValue)))
         .map(u => u.artifactId),
     );
 
@@ -1869,4 +1870,12 @@ function formatArtifactChild(parts: string[], child: ArtifactAssessmentReport, d
   for (const grandchild of child.children) {
     formatArtifactChild(parts, grandchild, depth + 1);
   }
+}
+
+/** Array.findLast polyfill for older Node versions */
+function findLast<T>(arr: T[], predicate: (item: T) => boolean): T | undefined {
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (predicate(arr[i])) return arr[i];
+  }
+  return undefined;
 }
