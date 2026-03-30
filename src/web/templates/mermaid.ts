@@ -1,8 +1,8 @@
 import type { Document } from "../../storage/types.js";
 import { normalizeLinkedFeatures } from "../../plugins/builtin/tools/epic-utils.js";
 
-/** Sanitize a string for use in Mermaid labels — strip quotes and limit length */
-function sanitize(text: string, maxLen = 40): string {
+/** Sanitize a string for use in labels — strip quotes and limit length */
+export function sanitize(text: string, maxLen = 40): string {
   const cleaned = text.replace(/["'`]/g, "").replace(/[\r\n]+/g, " ");
   return cleaned.length > maxLen ? cleaned.slice(0, maxLen - 1) + "\u2026" : cleaned;
 }
@@ -212,7 +212,7 @@ export function buildTimelineGantt(data: DiagramData, maxSprints = 6): string {
 }
 
 /** Map a status string to a CSS modifier class */
-function statusClass(status: string): string {
+export function statusClass(status: string): string {
   const s = status.toLowerCase();
   if (s === "done" || s === "completed") return "flow-done";
   if (s === "in-progress" || s === "active") return "flow-active";

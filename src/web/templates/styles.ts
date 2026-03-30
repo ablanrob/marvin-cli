@@ -872,6 +872,65 @@ a.artifact-link:hover {
 .flow-line-lit { stroke: var(--accent) !important; stroke-width: 2 !important; }
 .flow-line-dim { opacity: 0.08; }
 
+/* Relationship graph: self-node emphasis */
+.flow-self {
+  border-left-width: 4px;
+  background: var(--bg-hover);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+}
+.flow-self .flow-node-id {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Relationship graph: external nodes */
+.flow-external {
+  border-left-color: var(--text-dim);
+  border-left-style: dashed;
+}
+
+/* Relationship graph: empty state */
+.flow-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+/* Lineage timeline */
+.lineage-timeline {
+  margin-top: 1.5rem;
+}
+.lineage-timeline h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.lineage-entry {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  padding-left: 0.25rem;
+}
+.lineage-marker {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  line-height: 1.4rem;
+}
+.lineage-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.lineage-date {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+.lineage-label {
+  font-size: 0.85rem;
+}
+
 /* Gantt truncation note */
 .mermaid-note {
   font-size: 0.75rem;

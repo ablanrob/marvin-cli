@@ -335,7 +335,7 @@ export function handleRequest(
         notFound(res, projectName, navGroups, pathname, persona, pOpts);
         return;
       }
-      const body = documentDetailPage(doc);
+      const body = documentDetailPage(doc, store);
       respond(res, layout({ title: `${id} — ${doc.frontmatter.title}`, activePath: `/docs/${type}`, projectName, navGroups, persona, ...pOpts }, body));
       return;
     }

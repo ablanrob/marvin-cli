@@ -508,3 +508,299 @@ export function getSprintSummaryData(
 ): SprintSummaryData | null {
   return collectSprintSummaryData(store, sprintId);
 }
+
+// ========================================================================
+// Artifact Relationship Graph + Lineage Timeline data
+// ========================================================================
+
+export interface RelatedArtifact {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  relationship: string;
+}
+
+export interface ArtifactRelationships {
+  origins: RelatedArtifact[];
+  parents: RelatedArtifact[];
+  self: RelatedArtifact;
+  children: RelatedArtifact[];
+  external: RelatedArtifact[];
+  edges: { from: string; to: string }[];
+}
+
+export interface LineageEvent {
+  date: string;
+  type: "created" | "source-linked" | "child-spawned" | "assessment" | "jira-sync";
+  label: string;
+  relatedId?: string;
+}
+
+const SIBLING_CAP = 8;
+const ARTIFACT_ID_PATTERN = /\b([A-Z]{1,3}-\d{3,})\b/g;
+
+export function getArtifactRelationships(
+  store: DocumentStore,
+  docId: string,
+): ArtifactRelationships | null {
+  const doc = store.get(docId);
+  if (!doc) return null;
+
+  const fm = doc.frontmatter;
+  const allDocs = store.list();
+  const docIndex = new Map(allDocs.map(d => [d.frontmatter.id, d]));
+
+  const origins: RelatedArtifact[] = [];
+  const parents: RelatedArtifact[] = [];
+  const children: RelatedArtifact[] = [];
+  const external: RelatedArtifact[] = [];
+  const edges: { from: string; to: string }[] = [];
+  const seen = new Set<string>([docId]);
+
+  const addIfExists = (
+    id: string,
+    relationship: string,
+    bucket: RelatedArtifact[],
+  ): boolean => {
+    if (seen.has(id)) return false;
+    const target = docIndex.get(id);
+    if (!target) return false;
+    seen.add(id);
+    bucket.push({
+      id: target.frontmatter.id,
+      title: target.frontmatter.title,
+      type: target.frontmatter.type,
+      status: target.frontmatter.status,
+      relationship,
+    });
+    return true;
+  };
+
+  // --- Parents (upward) ---
+  // aboutArtifact → direct parent
+  const parentId = fm.aboutArtifact as string | undefined;
+  if (parentId && addIfExists(parentId, "parent", parents)) {
+    edges.push({ from: parentId, to: docId });
+  }
+
+  // linkedEpic → epic(s)
+  const linkedEpics = normalizeLinkedEpics(fm.linkedEpic);
+  for (const epicId of linkedEpics) {
+    if (addIfExists(epicId, "epic", parents)) {
+      edges.push({ from: epicId, to: docId });
+    }
+    // Follow epic → feature
+    const epicDoc = docIndex.get(epicId);
+    if (epicDoc) {
+      const features = normalizeLinkedFeatures(epicDoc.frontmatter.linkedFeature);
+      for (const fid of features) {
+        if (addIfExists(fid, "feature", parents)) {
+          edges.push({ from: fid, to: epicId });
+        }
+      }
+    }
+  }
+
+  // sprint: tags → sprint docs
+  const tags = (fm.tags as string[]) ?? [];
+  for (const tag of tags) {
+    if (tag.startsWith("sprint:")) {
+      const sprintId = tag.slice(7);
+      if (addIfExists(sprintId, "sprint", parents)) {
+        edges.push({ from: sprintId, to: docId });
+      }
+    }
+  }
+
+  // --- Origins (what caused this artifact to exist) ---
+  for (const tag of tags) {
+    if (tag.startsWith("source:")) {
+      const sourceId = tag.slice(7);
+      if (addIfExists(sourceId, "source", origins)) {
+        edges.push({ from: sourceId, to: docId });
+      }
+    }
+  }
+  // source field (may reference meeting)
+  const sourceField = fm.source as string | undefined;
+  if (sourceField && /^[A-Z]{1,3}-\d{3,}$/.test(sourceField)) {
+    if (addIfExists(sourceField, "source", origins)) {
+      edges.push({ from: sourceField, to: docId });
+    }
+  }
+
+  // --- Children (downward) ---
+  for (const d of allDocs) {
+    if (d.frontmatter.aboutArtifact === docId) {
+      if (addIfExists(d.frontmatter.id, "child", children)) {
+        edges.push({ from: docId, to: d.frontmatter.id });
+      }
+    }
+  }
+
+  // For epics: actions/tasks linked via linkedEpic or epic: tag
+  if (fm.type === "epic") {
+    const epicTag = `epic:${docId}`;
+    for (const d of allDocs) {
+      const dfm = d.frontmatter;
+      const dLinkedEpics = normalizeLinkedEpics(dfm.linkedEpic);
+      const dTags = (dfm.tags as string[]) ?? [];
+      if (dLinkedEpics.includes(docId) || dTags.includes(epicTag)) {
+        if (addIfExists(dfm.id, "child", children)) {
+          edges.push({ from: docId, to: dfm.id });
+        }
+      }
+    }
+  }
+
+  // --- Siblings (other children of the same parent, capped) ---
+  if (parentId) {
+    let siblingCount = 0;
+    for (const d of allDocs) {
+      if (siblingCount >= SIBLING_CAP) break;
+      if (d.frontmatter.aboutArtifact === parentId && d.frontmatter.id !== docId) {
+        if (addIfExists(d.frontmatter.id, "sibling", children)) {
+          edges.push({ from: parentId, to: d.frontmatter.id });
+          siblingCount++;
+        }
+      }
+    }
+  }
+
+  // --- External (Jira) ---
+  const jiraKey = fm.jiraKey as string | undefined;
+  const jiraUrl = fm.jiraUrl as string | undefined;
+  if (jiraKey) {
+    external.push({
+      id: jiraKey,
+      title: jiraUrl ?? `Jira: ${jiraKey}`,
+      type: "jira",
+      status: "",
+      relationship: "jira",
+    });
+    edges.push({ from: docId, to: jiraKey });
+  }
+
+  // --- Content cross-references ---
+  if (doc.content) {
+    const matches = doc.content.matchAll(ARTIFACT_ID_PATTERN);
+    for (const m of matches) {
+      const refId = m[1];
+      if (refId !== docId && docIndex.has(refId)) {
+        if (addIfExists(refId, "mentioned", external)) {
+          edges.push({ from: docId, to: refId });
+        }
+      }
+    }
+  }
+
+  return {
+    origins,
+    parents,
+    self: {
+      id: fm.id,
+      title: fm.title,
+      type: fm.type,
+      status: fm.status,
+      relationship: "self",
+    },
+    children,
+    external,
+    edges,
+  };
+}
+
+export function getArtifactLineageEvents(
+  store: DocumentStore,
+  docId: string,
+): LineageEvent[] {
+  const doc = store.get(docId);
+  if (!doc) return [];
+
+  const fm = doc.frontmatter;
+  const events: LineageEvent[] = [];
+
+  // Created
+  if (fm.created) {
+    events.push({
+      date: fm.created,
+      type: "created",
+      label: `${fm.id} created`,
+    });
+  }
+
+  // Source origins
+  const tags = (fm.tags as string[]) ?? [];
+  for (const tag of tags) {
+    if (tag.startsWith("source:")) {
+      const sourceId = tag.slice(7);
+      const sourceDoc = store.get(sourceId);
+      if (sourceDoc) {
+        events.push({
+          date: sourceDoc.frontmatter.created,
+          type: "source-linked",
+          label: `Originated from ${sourceId} — ${sourceDoc.frontmatter.title}`,
+          relatedId: sourceId,
+        });
+      }
+    }
+  }
+
+  // Children spawned
+  const allDocs = store.list();
+  for (const d of allDocs) {
+    if (d.frontmatter.aboutArtifact === docId) {
+      events.push({
+        date: d.frontmatter.created,
+        type: "child-spawned",
+        label: `Spawned ${d.frontmatter.type} ${d.frontmatter.id} — ${d.frontmatter.title}`,
+        relatedId: d.frontmatter.id,
+      });
+    }
+  }
+
+  // For epics: actions/tasks linked via linkedEpic
+  if (fm.type === "epic") {
+    const epicTag = `epic:${docId}`;
+    for (const d of allDocs) {
+      if (d.frontmatter.aboutArtifact === docId) continue; // already counted
+      const dLinkedEpics = normalizeLinkedEpics(d.frontmatter.linkedEpic);
+      const dTags = (d.frontmatter.tags as string[]) ?? [];
+      if (dLinkedEpics.includes(docId) || dTags.includes(epicTag)) {
+        events.push({
+          date: d.frontmatter.created,
+          type: "child-spawned",
+          label: `Linked ${d.frontmatter.type} ${d.frontmatter.id} — ${d.frontmatter.title}`,
+          relatedId: d.frontmatter.id,
+        });
+      }
+    }
+  }
+
+  // Assessment history
+  const history = (fm.assessmentHistory as Array<{ generatedAt: string }>) ?? [];
+  for (const entry of history) {
+    if (entry.generatedAt) {
+      events.push({
+        date: entry.generatedAt,
+        type: "assessment",
+        label: "Assessment performed",
+      });
+    }
+  }
+
+  // Jira sync
+  const lastSync = fm.lastJiraSyncAt as string | undefined;
+  if (lastSync) {
+    events.push({
+      date: lastSync,
+      type: "jira-sync",
+      label: `Synced with Jira ${fm.jiraKey ?? ""}`,
+    });
+  }
+
+  // Sort newest first
+  events.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  return events;
+}
