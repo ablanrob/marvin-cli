@@ -1489,6 +1489,22 @@ async function _assessArtifactRecursive(
     }
   }
 
+  // 9. Persist assessment summary into artifact when applyUpdates=true
+  if (options.applyUpdates) {
+    const assessmentSummary = buildAssessmentSummary(
+      commentSummary,
+      commentAnalysisProgress,
+      signals,
+      children,
+      linkedIssues,
+    );
+    try {
+      store.update(fm.id, { assessmentSummary } as any);
+    } catch (err) {
+      errors.push(`Failed to persist assessment summary: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   return {
     artifactId: fm.id,
     title: fm.title,
@@ -1772,6 +1788,43 @@ function emptyArtifactReport(artifactId: string, errors: string[]): ArtifactAsse
     appliedUpdates: [],
     signals: [],
     errors,
+  };
+}
+
+// --- Assessment summary builder ---
+
+export interface AssessmentSummary {
+  generatedAt: string;
+  commentSummary: string | null;
+  commentAnalysisProgress: number | null;
+  signals: string[];
+  childCount: number;
+  childDoneCount: number;
+  childRollupProgress: number | null;
+  linkedIssueCount: number;
+}
+
+function buildAssessmentSummary(
+  commentSummary: string | null,
+  commentAnalysisProgress: number | null,
+  signals: string[],
+  children: ArtifactAssessmentReport[],
+  linkedIssues: LinkedIssueSummary[],
+): AssessmentSummary {
+  const childDoneCount = children.filter(c => DONE_STATUSES.has(c.marvinStatus)).length;
+  const childRollupProgress = children.length > 0
+    ? Math.round(children.reduce((s, c) => s + c.marvinProgress, 0) / children.length)
+    : null;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    commentSummary,
+    commentAnalysisProgress,
+    signals,
+    childCount: children.length,
+    childDoneCount,
+    childRollupProgress,
+    linkedIssueCount: linkedIssues.length,
   };
 }
 
