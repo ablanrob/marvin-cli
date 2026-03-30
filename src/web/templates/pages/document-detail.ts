@@ -1,4 +1,5 @@
 import type { Document } from "../../../storage/types.js";
+import type { AssessmentSummary } from "../../../skills/builtin/jira/sprint-progress.js";
 import {
   escapeHtml,
   formatDate,
@@ -6,33 +7,52 @@ import {
   typeLabel,
   renderMarkdown,
   integrationIcons,
+  linkArtifactIds,
 } from "../layout.js";
 
 export function documentDetailPage(doc: Document): string {
   const fm = doc.frontmatter;
   const label = typeLabel(fm.type);
 
-  // Build frontmatter definition list (skip content-level fields)
-  const skipKeys = new Set(["title", "type"]);
+  // Keys to skip in the frontmatter definition list (rendered elsewhere or complex objects)
+  const skipKeys = new Set(["title", "type", "assessmentHistory", "assessmentSummary"]);
+
   const entries = Object.entries(fm).filter(
-    ([key]) => !skipKeys.has(key) && fm[key] != null,
+    ([key, value]) => !skipKeys.has(key) && value != null && typeof value !== "object",
   );
 
-  const dtDd = entries
+  // Also render simple arrays (tags) but skip complex arrays/objects
+  const arrayEntries = Object.entries(fm).filter(
+    ([key, value]) => !skipKeys.has(key) && Array.isArray(value) && value.every(v => typeof v === "string"),
+  );
+
+  const allEntries = [
+    ...entries.filter(([, v]) => !Array.isArray(v)),
+    ...arrayEntries,
+  ];
+
+  const dtDd = allEntries
     .map(([key, value]) => {
       let rendered: string;
       if (key === "status") {
         rendered = statusBadge(value as string);
       } else if (key === "tags" && Array.isArray(value)) {
         rendered = (value as string[]).map((t) => `<span class="badge badge-default">${escapeHtml(t)}</span>`).join(" ");
-      } else if (key === "created" || key === "updated") {
+      } else if (key === "created" || key === "updated" || key === "lastAssessedAt" || key === "lastJiraSyncAt") {
         rendered = formatDate(value as string);
       } else {
-        rendered = escapeHtml(String(value));
+        rendered = linkArtifactIds(escapeHtml(String(value)));
       }
       return `<dt>${escapeHtml(key)}</dt><dd>${rendered}</dd>`;
     })
     .join("\n        ");
+
+  // Assessment history timeline
+  const assessmentHistory = (fm.assessmentHistory as AssessmentSummary[] | undefined)
+    ?? (fm.assessmentSummary ? [fm.assessmentSummary as AssessmentSummary] : []);
+  const timelineHtml = assessmentHistory.length > 0
+    ? renderAssessmentTimeline(assessmentHistory)
+    : "";
 
   return `
     <div class="breadcrumb">
@@ -57,5 +77,69 @@ export function documentDetailPage(doc: Document): string {
         ? `<div class="detail-content">${renderMarkdown(doc.content)}</div>`
         : ""
     }
+
+    ${timelineHtml}
   `;
+}
+
+// --- Assessment Timeline ---
+
+function renderAssessmentTimeline(history: AssessmentSummary[]): string {
+  const entries = history.map((entry, i) => {
+    const date = entry.generatedAt ? formatDate(entry.generatedAt) : "Unknown date";
+    const time = entry.generatedAt?.slice(11, 16) ?? "";
+    const isLatest = i === 0;
+
+    const parts: string[] = [];
+
+    // Comment summary
+    if (entry.commentSummary) {
+      parts.push(`<div class="assessment-comment">${linkArtifactIds(escapeHtml(entry.commentSummary))}</div>`);
+    }
+
+    // Progress estimate
+    if (entry.commentAnalysisProgress !== null) {
+      parts.push(`<div class="assessment-stat">📊 Comment-derived progress: <strong>${entry.commentAnalysisProgress}%</strong></div>`);
+    }
+
+    // Child rollup
+    if (entry.childCount > 0) {
+      const bar = progressBarHtml(entry.childRollupProgress ?? 0);
+      parts.push(`<div class="assessment-stat">👶 Children: ${entry.childDoneCount}/${entry.childCount} done ${bar} ${entry.childRollupProgress ?? 0}%</div>`);
+    }
+
+    // Linked issues
+    if (entry.linkedIssueCount > 0) {
+      parts.push(`<div class="assessment-stat">🔗 Linked issues: ${entry.linkedIssueCount}</div>`);
+    }
+
+    // Signals
+    if (entry.signals.length > 0) {
+      const signalItems = entry.signals
+        .map(s => `<li>${linkArtifactIds(escapeHtml(s))}</li>`)
+        .join("");
+      parts.push(`<ul class="assessment-signals">${signalItems}</ul>`);
+    }
+
+    return `
+      <div class="assessment-entry${isLatest ? " assessment-latest" : ""}">
+        <div class="assessment-header">
+          <span class="assessment-date">${escapeHtml(date)} ${escapeHtml(time)}</span>
+          ${isLatest ? '<span class="badge badge-default">Latest</span>' : ""}
+        </div>
+        ${parts.join("\n")}
+      </div>`;
+  });
+
+  return `
+    <div class="assessment-timeline">
+      <h3>Assessment History</h3>
+      ${entries.join("\n")}
+    </div>`;
+}
+
+function progressBarHtml(pct: number): string {
+  const filled = Math.round(pct / 10);
+  const empty = 10 - filled;
+  return `<span class="progress-bar-inline">${"█".repeat(filled)}${"░".repeat(empty)}</span>`;
 }

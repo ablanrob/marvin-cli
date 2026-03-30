@@ -230,7 +230,45 @@ function inline(text: string): string {
   s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>");
   s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   s = s.replace(/_([^_]+)_/g, "<em>$1</em>");
+  s = linkArtifactIds(s);
   return s;
+}
+
+/**
+ * ID prefix → document type mapping for cross-linking.
+ * Sorted longest prefix first so "SP" matches before "S".
+ */
+const ID_PREFIX_TO_TYPE: [string, string][] = [
+  ["SP", "sprint"],
+  ["PRD", "prd"],
+  ["UC", "use-case"],
+  ["TA", "tech-assessment"],
+  ["XD", "extension-design"],
+  ["JI", "jira-issue"],
+  ["T", "task"],
+  ["A", "action"],
+  ["M", "meeting"],
+  ["R", "report"],
+  ["F", "feature"],
+  ["E", "epic"],
+  ["C", "contribution"],
+  ["D", "decision"],
+  ["Q", "question"],
+];
+
+/**
+ * Replace Marvin artifact IDs (e.g. T-045, A-191, SP-009) with clickable links.
+ * Expects already-HTML-escaped input.
+ */
+export function linkArtifactIds(html: string): string {
+  // Match patterns like T-001, A-151, SP-009, PRD-001, etc.
+  return html.replace(/\b([A-Z]{1,3})-(\d{3,})\b/g, (match, prefix, num) => {
+    const entry = ID_PREFIX_TO_TYPE.find(([p]) => p === prefix);
+    if (!entry) return match;
+    const [, type] = entry;
+    const id = `${prefix}-${num}`;
+    return `<a href="/docs/${type}/${id}" class="artifact-link">${match}</a>`;
+  });
 }
 
 export interface NavGroup {
