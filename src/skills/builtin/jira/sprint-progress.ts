@@ -1489,23 +1489,49 @@ async function _assessArtifactRecursive(
     }
   }
 
-  // 9. Persist assessment summary into artifact when applyUpdates=true
-  //    Written as a single store.update to avoid extra disk writes.
+  // 9. Persist assessment into artifact history when applyUpdates=true
+  //    Prepends to assessmentHistory array (newest first) for timeline view.
   if (options.applyUpdates) {
-    const assessmentSummary = buildAssessmentSummary(
+    const newEntry = buildAssessmentSummary(
       commentSummary,
       commentAnalysisProgress,
       signals,
       children,
       linkedIssues,
     );
+    const existingHistory = Array.isArray(fm.assessmentHistory)
+      ? (fm.assessmentHistory as AssessmentSummary[])
+      : [];
+    // Migrate legacy assessmentSummary (single object) into history
+    const legacySummary = fm.assessmentSummary as AssessmentSummary | undefined;
+    const allEntries = [newEntry, ...existingHistory];
+    if (legacySummary?.generatedAt) {
+      allEntries.push(legacySummary);
+    }
+    // Deduplicate by generatedAt, sort newest-first, cap size
+    const MAX_HISTORY = 100;
+    const seen = new Set<string>();
+    const assessmentHistory = allEntries
+      .filter(entry => {
+        if (!entry.generatedAt) return false;
+        if (seen.has(entry.generatedAt)) return false;
+        seen.add(entry.generatedAt);
+        return true;
+      })
+      .sort((a, b) => (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""))
+      .slice(0, MAX_HISTORY);
     try {
-      store.update(fm.id, {
-        assessmentSummary,
-        lastAssessedAt: assessmentSummary.generatedAt,
-      } as any);
+      const payload: Record<string, unknown> = {
+        assessmentHistory,
+        lastAssessedAt: newEntry.generatedAt,
+      };
+      // Clean up legacy field if present
+      if (fm.assessmentSummary !== undefined) {
+        payload.assessmentSummary = undefined;
+      }
+      store.update(fm.id, payload as any);
     } catch (err) {
-      errors.push(`Failed to persist assessment summary: ${err instanceof Error ? err.message : String(err)}`);
+      errors.push(`Failed to persist assessment history: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

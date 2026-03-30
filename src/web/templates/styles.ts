@@ -569,6 +569,75 @@ tr:hover td {
   margin: 0.75rem 0;
 }
 
+/* Artifact cross-links */
+a.artifact-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px dotted var(--accent);
+}
+a.artifact-link:hover {
+  border-bottom-style: solid;
+}
+
+/* Assessment timeline */
+.assessment-timeline {
+  margin-top: 1.5rem;
+}
+.assessment-timeline h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.assessment-entry {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.assessment-entry.assessment-latest {
+  border-left: 3px solid var(--accent);
+}
+.assessment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.assessment-date {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+.assessment-comment {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+.assessment-stat {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 0.25rem;
+}
+.assessment-stat strong {
+  color: var(--text);
+}
+.assessment-signals {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+.assessment-signals li {
+  font-size: 0.8rem;
+  padding: 0.15rem 0;
+}
+.progress-bar-inline {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: -0.5px;
+}
+
 /* Filters */
 .filters {
   display: flex;

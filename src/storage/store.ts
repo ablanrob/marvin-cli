@@ -15,7 +15,7 @@ const CORE_TYPE_DIRS: Record<string, string> = {
   question: "questions",
 };
 
-const CORE_ID_PREFIXES: Record<string, string> = {
+export const CORE_ID_PREFIXES: Record<string, string> = {
   decision: "D",
   action: "A",
   question: "Q",
