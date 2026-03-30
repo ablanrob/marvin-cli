@@ -1508,7 +1508,8 @@ async function _assessArtifactRecursive(
     if (legacySummary?.generatedAt) {
       allEntries.push(legacySummary);
     }
-    // Deduplicate by generatedAt and sort newest-first
+    // Deduplicate by generatedAt, sort newest-first, cap size
+    const MAX_HISTORY = 100;
     const seen = new Set<string>();
     const assessmentHistory = allEntries
       .filter(entry => {
@@ -1517,7 +1518,8 @@ async function _assessArtifactRecursive(
         seen.add(entry.generatedAt);
         return true;
       })
-      .sort((a, b) => (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""));
+      .sort((a, b) => (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""))
+      .slice(0, MAX_HISTORY);
     try {
       const payload: Record<string, unknown> = {
         assessmentHistory,
