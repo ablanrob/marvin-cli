@@ -1130,6 +1130,7 @@ export interface ArtifactAssessmentReport {
   progressDrift: boolean;
   commentSignals: CommentSignal[];
   commentSummary: string | null;
+  commentAnalysisProgress: number | null;
   linkedIssues: LinkedIssueSummary[];
   linkedIssueSignals: LinkedIssueSignal[];
   children: ArtifactAssessmentReport[];
@@ -1349,16 +1350,34 @@ async function _assessArtifactRecursive(
   // 4. LLM comment analysis (depth < MAX_LLM_DEPTH, gated by token budget)
   //    Only runs when the primary issue has comments (avoids hallucination from
   //    linked-only data). Linked issue comments enrich the analysis when present.
+  //    Returns both a summary and a progress estimate from the LLM.
   const primaryHasComments = jiraKey ? (jiraIssues.get(jiraKey)?.comments.length ?? 0) > 0 : false;
+  let commentAnalysisProgress: number | null = null;
   if (depth < MAX_LLM_DEPTH && jiraKey && primaryHasComments) {
     const estimatedChars = estimateCommentTextSize(jiraIssues, linkedJiraIssues, linkedIssueSignals);
     if (estimatedChars <= MAX_LLM_COMMENT_CHARS) {
       try {
-        const summary = await analyzeSingleArtifactComments(
+        const analysis = await analyzeSingleArtifactComments(
           fm.id, fm.title, jiraKey, jiraStatus,
           jiraIssues, linkedJiraIssues, linkedIssueSignals,
         );
-        commentSummary = summary;
+        commentSummary = analysis.summary;
+        commentAnalysisProgress = analysis.progressEstimate;
+
+        // If the LLM estimated progress and the artifact doesn't have explicit
+        // progress or a child rollup, propose a comment-derived progress update
+        if (commentAnalysisProgress !== null) {
+          const hasExplicitProgress = "progress" in fm && typeof fm.progress === "number";
+          if (!hasExplicitProgress && !fm.progressOverride && commentAnalysisProgress !== currentProgress) {
+            proposedUpdates.push({
+              artifactId: fm.id,
+              field: "progress",
+              currentValue: currentProgress,
+              proposedValue: commentAnalysisProgress,
+              reason: `Comment analysis estimates ${commentAnalysisProgress}% progress`,
+            });
+          }
+        }
       } catch (err) {
         errors.push(`Comment analysis failed: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -1470,6 +1489,26 @@ async function _assessArtifactRecursive(
     }
   }
 
+  // 9. Persist assessment summary into artifact when applyUpdates=true
+  //    Written as a single store.update to avoid extra disk writes.
+  if (options.applyUpdates) {
+    const assessmentSummary = buildAssessmentSummary(
+      commentSummary,
+      commentAnalysisProgress,
+      signals,
+      children,
+      linkedIssues,
+    );
+    try {
+      store.update(fm.id, {
+        assessmentSummary,
+        lastAssessedAt: assessmentSummary.generatedAt,
+      } as any);
+    } catch (err) {
+      errors.push(`Failed to persist assessment summary: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   return {
     artifactId: fm.id,
     title: fm.title,
@@ -1487,6 +1526,7 @@ async function _assessArtifactRecursive(
     progressDrift,
     commentSignals,
     commentSummary,
+    commentAnalysisProgress,
     linkedIssues,
     linkedIssueSignals,
     children,
@@ -1623,13 +1663,20 @@ function estimateCommentTextSize(
 
 const SINGLE_ARTIFACT_COMMENT_PROMPT = `You are a delivery management assistant analyzing Jira comments for a single work item.
 
-Produce a 2-3 sentence progress summary covering:
-- What work has been completed
-- What is pending or blocked
-- Any decisions, handoffs, or scheduling mentioned
-- Relevant context from linked issue comments (if provided)
+Analyze the comments and produce:
+1. A 2-3 sentence progress summary covering: what work has been completed, what is pending or blocked, any decisions/handoffs/scheduling mentioned, and relevant context from linked issue comments (if provided).
+2. A progress estimate (0-100%) based on evidence in the comments — e.g., if comments indicate all items have been triaged into tasks, or implementation is complete pending review, estimate accordingly. If you cannot determine progress from the comments, set progressEstimate to null.
 
-Return ONLY the summary text, no JSON or formatting.`;
+Return a JSON object with this exact structure:
+{"summary": "your 2-3 sentence summary", "progressEstimate": 75}
+
+Use null for progressEstimate if the comments don't provide enough evidence to estimate.
+IMPORTANT: Only return the JSON object, no other text.`;
+
+export interface CommentAnalysisResult {
+  summary: string | null;
+  progressEstimate: number | null;
+}
 
 async function analyzeSingleArtifactComments(
   artifactId: string,
@@ -1639,7 +1686,7 @@ async function analyzeSingleArtifactComments(
   jiraIssues: Map<string, { issue: any; comments: JiraComment[] }>,
   linkedJiraIssues: Map<string, { issue: any; comments: JiraComment[] }>,
   linkedIssueSignals: LinkedIssueSignal[],
-): Promise<string | null> {
+): Promise<CommentAnalysisResult> {
   const promptParts: string[] = [];
 
   // Primary issue comments
@@ -1668,7 +1715,7 @@ async function analyzeSingleArtifactComments(
     promptParts.push(`### Linked: ${signal.sourceKey} (${signal.linkType})\n${commentTexts}`);
   }
 
-  if (promptParts.length === 0) return null;
+  if (promptParts.length === 0) return { summary: null, progressEstimate: null };
 
   const prompt = promptParts.join("\n\n");
 
@@ -1688,12 +1735,33 @@ async function analyzeSingleArtifactComments(
         (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
       );
       if (textBlock) {
-        return textBlock.text.trim();
+        return parseCommentAnalysis(textBlock.text.trim());
       }
     }
   }
 
-  return null;
+  return { summary: null, progressEstimate: null };
+}
+
+export function parseCommentAnalysis(text: string): CommentAnalysisResult {
+  // Try to parse as JSON first
+  const parsed = parseLlmJson(text);
+  if (parsed && typeof parsed.summary === "string") {
+    const progressEstimate = typeof parsed.progressEstimate === "number"
+      && parsed.progressEstimate >= 0 && parsed.progressEstimate <= 100
+      ? Math.round(parsed.progressEstimate)
+      : null;
+    return { summary: parsed.summary, progressEstimate };
+  }
+
+  // Fallback: treat entire text as summary, try to extract percentage
+  let progressEstimate: number | null = null;
+  const pctMatch = text.match(/(\d{1,3})%/);
+  if (pctMatch) {
+    const pct = parseInt(pctMatch[1], 10);
+    if (pct >= 0 && pct <= 100) progressEstimate = pct;
+  }
+  return { summary: text, progressEstimate };
 }
 
 // --- Empty report helper ---
@@ -1716,6 +1784,7 @@ function emptyArtifactReport(artifactId: string, errors: string[]): ArtifactAsse
     progressDrift: false,
     commentSignals: [],
     commentSummary: null,
+    commentAnalysisProgress: null,
     linkedIssues: [],
     linkedIssueSignals: [],
     children: [],
@@ -1723,6 +1792,58 @@ function emptyArtifactReport(artifactId: string, errors: string[]): ArtifactAsse
     appliedUpdates: [],
     signals: [],
     errors,
+  };
+}
+
+// --- Assessment summary builder ---
+
+export interface AssessmentSummary {
+  generatedAt: string;
+  commentSummary: string | null;
+  commentAnalysisProgress: number | null;
+  signals: string[];
+  childCount: number;
+  childDoneCount: number;
+  childRollupProgress: number | null;
+  linkedIssueCount: number;
+}
+
+export function buildAssessmentSummary(
+  commentSummary: string | null,
+  commentAnalysisProgress: number | null,
+  signals: string[],
+  children: ArtifactAssessmentReport[],
+  linkedIssues: LinkedIssueSummary[],
+): AssessmentSummary {
+  // Use post-update child progress (from appliedUpdates) when available,
+  // falling back to marvinProgress for children that weren't updated.
+  const childProgressValues = children.map(c => {
+    const updates = c.appliedUpdates.length > 0 ? c.appliedUpdates : c.proposedUpdates;
+    const lastStatus = findLast(updates, u => u.field === "status");
+    if (lastStatus && PROGRESS_DONE_STATUSES.has(String(lastStatus.proposedValue))) return 100;
+    const lastProgress = findLast(updates, u => u.field === "progress");
+    if (lastProgress) return lastProgress.proposedValue as number;
+    return c.marvinProgress;
+  });
+  const childDoneCount = children.filter((c, i) => {
+    const updates = c.appliedUpdates.length > 0 ? c.appliedUpdates : c.proposedUpdates;
+    const lastStatus = findLast(updates, u => u.field === "status");
+    const effectiveStatus = lastStatus ? String(lastStatus.proposedValue) : c.marvinStatus;
+    return DONE_STATUSES.has(effectiveStatus);
+  }).length;
+  const childRollupProgress = children.length > 0
+    ? Math.round(childProgressValues.reduce((s, p) => s + p, 0) / childProgressValues.length)
+    : null;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    commentSummary,
+    commentAnalysisProgress,
+    signals,
+    childCount: children.length,
+    childDoneCount,
+    childRollupProgress,
+    linkedIssueCount: linkedIssues.length,
   };
 }
 
@@ -1765,6 +1886,9 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
   if (report.commentSummary) {
     parts.push(`## Comments`);
     parts.push(report.commentSummary);
+    if (report.commentAnalysisProgress !== null) {
+      parts.push(`  📊 Comment-derived progress estimate: ${report.commentAnalysisProgress}%`);
+    }
     parts.push("");
   }
 
