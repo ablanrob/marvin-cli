@@ -1499,15 +1499,25 @@ async function _assessArtifactRecursive(
       children,
       linkedIssues,
     );
-    const existingHistory = (fm.assessmentHistory as AssessmentSummary[] | undefined) ?? [];
+    const existingHistory = Array.isArray(fm.assessmentHistory)
+      ? (fm.assessmentHistory as AssessmentSummary[])
+      : [];
     // Migrate legacy assessmentSummary (single object) into history
     const legacySummary = fm.assessmentSummary as AssessmentSummary | undefined;
-    const migratedHistory = legacySummary?.generatedAt
-      ? existingHistory.some(h => h.generatedAt === legacySummary.generatedAt)
-        ? existingHistory
-        : [...existingHistory, legacySummary]
-      : existingHistory;
-    const assessmentHistory = [newEntry, ...migratedHistory];
+    const allEntries = [newEntry, ...existingHistory];
+    if (legacySummary?.generatedAt) {
+      allEntries.push(legacySummary);
+    }
+    // Deduplicate by generatedAt and sort newest-first
+    const seen = new Set<string>();
+    const assessmentHistory = allEntries
+      .filter(entry => {
+        if (!entry.generatedAt) return false;
+        if (seen.has(entry.generatedAt)) return false;
+        seen.add(entry.generatedAt);
+        return true;
+      })
+      .sort((a, b) => (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""));
     try {
       const payload: Record<string, unknown> = {
         assessmentHistory,

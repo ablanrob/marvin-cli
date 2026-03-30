@@ -47,9 +47,15 @@ export function documentDetailPage(doc: Document): string {
     })
     .join("\n        ");
 
-  // Assessment history timeline
-  const assessmentHistory = (fm.assessmentHistory as AssessmentSummary[] | undefined)
-    ?? (fm.assessmentSummary ? [fm.assessmentSummary as AssessmentSummary] : []);
+  // Assessment history timeline — validate and sanitize input
+  const rawHistory = Array.isArray(fm.assessmentHistory)
+    ? fm.assessmentHistory
+    : fm.assessmentSummary && typeof fm.assessmentSummary === "object"
+      ? [fm.assessmentSummary]
+      : [];
+  const assessmentHistory = (rawHistory as unknown[])
+    .filter(isValidAssessmentEntry)
+    .sort((a, b) => (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""));
   const timelineHtml = assessmentHistory.length > 0
     ? renderAssessmentTimeline(assessmentHistory)
     : "";
@@ -84,36 +90,56 @@ export function documentDetailPage(doc: Document): string {
 
 // --- Assessment Timeline ---
 
+/** Type guard: checks that an unknown value has the expected AssessmentSummary shape */
+function isValidAssessmentEntry(value: unknown): value is AssessmentSummary {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  // generatedAt is required; signals must be an array (or we normalize it)
+  if (typeof obj.generatedAt !== "string") return false;
+  if (obj.signals !== undefined && !Array.isArray(obj.signals)) return false;
+  return true;
+}
+
+/** Safely normalize an AssessmentSummary entry — ensures all fields have safe defaults */
+function normalizeEntry(entry: AssessmentSummary): AssessmentSummary {
+  return {
+    generatedAt: entry.generatedAt ?? "",
+    commentSummary: typeof entry.commentSummary === "string" ? entry.commentSummary : null,
+    commentAnalysisProgress: typeof entry.commentAnalysisProgress === "number" ? entry.commentAnalysisProgress : null,
+    signals: Array.isArray(entry.signals) ? entry.signals.filter(s => typeof s === "string") : [],
+    childCount: typeof entry.childCount === "number" ? entry.childCount : 0,
+    childDoneCount: typeof entry.childDoneCount === "number" ? entry.childDoneCount : 0,
+    childRollupProgress: typeof entry.childRollupProgress === "number" ? entry.childRollupProgress : null,
+    linkedIssueCount: typeof entry.linkedIssueCount === "number" ? entry.linkedIssueCount : 0,
+  };
+}
+
 function renderAssessmentTimeline(history: AssessmentSummary[]): string {
-  const entries = history.map((entry, i) => {
+  const entries = history.map((raw, i) => {
+    const entry = normalizeEntry(raw);
     const date = entry.generatedAt ? formatDate(entry.generatedAt) : "Unknown date";
     const time = entry.generatedAt?.slice(11, 16) ?? "";
     const isLatest = i === 0;
 
     const parts: string[] = [];
 
-    // Comment summary
     if (entry.commentSummary) {
       parts.push(`<div class="assessment-comment">${linkArtifactIds(escapeHtml(entry.commentSummary))}</div>`);
     }
 
-    // Progress estimate
     if (entry.commentAnalysisProgress !== null) {
       parts.push(`<div class="assessment-stat">📊 Comment-derived progress: <strong>${entry.commentAnalysisProgress}%</strong></div>`);
     }
 
-    // Child rollup
     if (entry.childCount > 0) {
       const bar = progressBarHtml(entry.childRollupProgress ?? 0);
       parts.push(`<div class="assessment-stat">👶 Children: ${entry.childDoneCount}/${entry.childCount} done ${bar} ${entry.childRollupProgress ?? 0}%</div>`);
     }
 
-    // Linked issues
     if (entry.linkedIssueCount > 0) {
       parts.push(`<div class="assessment-stat">🔗 Linked issues: ${entry.linkedIssueCount}</div>`);
     }
 
-    // Signals
     if (entry.signals.length > 0) {
       const signalItems = entry.signals
         .map(s => `<li>${linkArtifactIds(escapeHtml(s))}</li>`)
@@ -139,7 +165,7 @@ function renderAssessmentTimeline(history: AssessmentSummary[]): string {
 }
 
 function progressBarHtml(pct: number): string {
-  const filled = Math.round(pct / 10);
+  const filled = Math.round(Math.max(0, Math.min(100, pct)) / 10);
   const empty = 10 - filled;
   return `<span class="progress-bar-inline">${"█".repeat(filled)}${"░".repeat(empty)}</span>`;
 }
