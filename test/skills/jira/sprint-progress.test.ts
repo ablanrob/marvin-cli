@@ -19,6 +19,9 @@ import {
   type FocusAreaRollup,
   type LinkedIssueSignal,
   type ArtifactAssessmentReport,
+  type AssessmentSummary,
+  parseCommentAnalysis,
+  buildAssessmentSummary,
 } from "../../../src/skills/builtin/jira/sprint-progress.js";
 import { collectLinkedIssues } from "../../../src/skills/builtin/jira/sync.js";
 import type { JiraClient, JiraIssue } from "../../../src/skills/builtin/jira/client.js";
@@ -1652,5 +1655,157 @@ describe("formatArtifactReport", () => {
     expect(text).toContain("## Signals");
     expect(text).toContain("✅ Unblocked");
     expect(text).toContain("🔄 Superseded");
+  });
+});
+
+// ========================================================================
+// parseCommentAnalysis tests
+// ========================================================================
+
+describe("parseCommentAnalysis", () => {
+  it("parses valid JSON with summary and progressEstimate", () => {
+    const result = parseCommentAnalysis('{"summary": "Work done.", "progressEstimate": 75}');
+    expect(result.summary).toBe("Work done.");
+    expect(result.progressEstimate).toBe(75);
+  });
+
+  it("rounds non-integer progressEstimate", () => {
+    const result = parseCommentAnalysis('{"summary": "Half done.", "progressEstimate": 66.7}');
+    expect(result.progressEstimate).toBe(67);
+  });
+
+  it("returns null for negative progressEstimate", () => {
+    const result = parseCommentAnalysis('{"summary": "Bad value.", "progressEstimate": -10}');
+    expect(result.summary).toBe("Bad value.");
+    expect(result.progressEstimate).toBeNull();
+  });
+
+  it("returns null for progressEstimate > 100", () => {
+    const result = parseCommentAnalysis('{"summary": "Over.", "progressEstimate": 150}');
+    expect(result.progressEstimate).toBeNull();
+  });
+
+  it("returns null for non-numeric progressEstimate", () => {
+    const result = parseCommentAnalysis('{"summary": "Text.", "progressEstimate": "high"}');
+    expect(result.progressEstimate).toBeNull();
+  });
+
+  it("handles null progressEstimate in JSON", () => {
+    const result = parseCommentAnalysis('{"summary": "No estimate.", "progressEstimate": null}');
+    expect(result.summary).toBe("No estimate.");
+    expect(result.progressEstimate).toBeNull();
+  });
+
+  it("falls back to text summary when JSON is invalid", () => {
+    const result = parseCommentAnalysis("This is just a plain text summary.");
+    expect(result.summary).toBe("This is just a plain text summary.");
+    expect(result.progressEstimate).toBeNull();
+  });
+
+  it("extracts percentage from fallback text", () => {
+    const result = parseCommentAnalysis("About 80% of the work is done.");
+    expect(result.summary).toBe("About 80% of the work is done.");
+    expect(result.progressEstimate).toBe(80);
+  });
+
+  it("ignores percentage > 100 in fallback text", () => {
+    const result = parseCommentAnalysis("This took 200% more effort than expected.");
+    expect(result.progressEstimate).toBeNull();
+  });
+
+  it("handles JSON wrapped in markdown code block", () => {
+    const result = parseCommentAnalysis('```json\n{"summary": "Wrapped.", "progressEstimate": 50}\n```');
+    expect(result.summary).toBe("Wrapped.");
+    expect(result.progressEstimate).toBe(50);
+  });
+
+  it("handles missing summary field in JSON", () => {
+    const result = parseCommentAnalysis('{"progressEstimate": 30}');
+    // Falls back to text mode since summary is missing — no % in text, so no extraction
+    expect(result.summary).toBe('{"progressEstimate": 30}');
+    expect(result.progressEstimate).toBeNull();
+  });
+});
+
+// ========================================================================
+// buildAssessmentSummary tests
+// ========================================================================
+
+describe("buildAssessmentSummary", () => {
+  it("builds summary with no children", () => {
+    const result = buildAssessmentSummary(
+      "All good.", 80, ["✅ No blockers"], [], [],
+    );
+    expect(result.commentSummary).toBe("All good.");
+    expect(result.commentAnalysisProgress).toBe(80);
+    expect(result.signals).toEqual(["✅ No blockers"]);
+    expect(result.childCount).toBe(0);
+    expect(result.childDoneCount).toBe(0);
+    expect(result.childRollupProgress).toBeNull();
+    expect(result.linkedIssueCount).toBe(0);
+    expect(result.generatedAt).toBeTruthy();
+  });
+
+  it("computes rollup from children using marvinProgress", () => {
+    const children = [
+      makeArtifactReport({ artifactId: "T-001", marvinStatus: "done", marvinProgress: 100 }),
+      makeArtifactReport({ artifactId: "T-002", marvinStatus: "in-progress", marvinProgress: 50 }),
+    ];
+    const result = buildAssessmentSummary(null, null, [], children, []);
+    expect(result.childCount).toBe(2);
+    expect(result.childDoneCount).toBe(1);
+    expect(result.childRollupProgress).toBe(75); // (100+50)/2
+  });
+
+  it("uses post-update progress from appliedUpdates", () => {
+    const children = [
+      makeArtifactReport({
+        artifactId: "T-001",
+        marvinStatus: "in-progress",
+        marvinProgress: 40,
+        appliedUpdates: [
+          { artifactId: "T-001", field: "status", currentValue: "in-progress", proposedValue: "done", reason: "test" },
+        ],
+      }),
+      makeArtifactReport({ artifactId: "T-002", marvinStatus: "in-progress", marvinProgress: 60 }),
+    ];
+    const result = buildAssessmentSummary(null, null, [], children, []);
+    // T-001: applied status=done → 100, T-002: marvinProgress=60
+    expect(result.childRollupProgress).toBe(80); // (100+60)/2
+    expect(result.childDoneCount).toBe(1);
+  });
+
+  it("uses post-update progress value over marvinProgress", () => {
+    const children = [
+      makeArtifactReport({
+        artifactId: "T-001",
+        marvinProgress: 20,
+        appliedUpdates: [
+          { artifactId: "T-001", field: "progress", currentValue: 20, proposedValue: 90, reason: "test" },
+        ],
+      }),
+    ];
+    const result = buildAssessmentSummary(null, null, [], children, []);
+    expect(result.childRollupProgress).toBe(90);
+  });
+
+  it("all children complete", () => {
+    const children = [
+      makeArtifactReport({ artifactId: "T-001", marvinStatus: "done", marvinProgress: 100 }),
+      makeArtifactReport({ artifactId: "T-002", marvinStatus: "done", marvinProgress: 100 }),
+      makeArtifactReport({ artifactId: "T-003", marvinStatus: "done", marvinProgress: 100 }),
+    ];
+    const result = buildAssessmentSummary(null, null, [], children, []);
+    expect(result.childDoneCount).toBe(3);
+    expect(result.childRollupProgress).toBe(100);
+  });
+
+  it("counts linked issues", () => {
+    const linkedIssues = [
+      { key: "PROJ-1", summary: "A", status: "Done", relationship: "blocks", isDone: true },
+      { key: "PROJ-2", summary: "B", status: "Open", relationship: "relates to", isDone: false },
+    ];
+    const result = buildAssessmentSummary(null, null, [], [], linkedIssues);
+    expect(result.linkedIssueCount).toBe(2);
   });
 });

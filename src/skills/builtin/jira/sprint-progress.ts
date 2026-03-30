@@ -1490,6 +1490,7 @@ async function _assessArtifactRecursive(
   }
 
   // 9. Persist assessment summary into artifact when applyUpdates=true
+  //    Written as a single store.update to avoid extra disk writes.
   if (options.applyUpdates) {
     const assessmentSummary = buildAssessmentSummary(
       commentSummary,
@@ -1499,7 +1500,10 @@ async function _assessArtifactRecursive(
       linkedIssues,
     );
     try {
-      store.update(fm.id, { assessmentSummary } as any);
+      store.update(fm.id, {
+        assessmentSummary,
+        lastAssessedAt: assessmentSummary.generatedAt,
+      } as any);
     } catch (err) {
       errors.push(`Failed to persist assessment summary: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -1669,7 +1673,7 @@ Return a JSON object with this exact structure:
 Use null for progressEstimate if the comments don't provide enough evidence to estimate.
 IMPORTANT: Only return the JSON object, no other text.`;
 
-interface CommentAnalysisResult {
+export interface CommentAnalysisResult {
   summary: string | null;
   progressEstimate: number | null;
 }
@@ -1739,7 +1743,7 @@ async function analyzeSingleArtifactComments(
   return { summary: null, progressEstimate: null };
 }
 
-function parseCommentAnalysis(text: string): CommentAnalysisResult {
+export function parseCommentAnalysis(text: string): CommentAnalysisResult {
   // Try to parse as JSON first
   const parsed = parseLlmJson(text);
   if (parsed && typeof parsed.summary === "string") {
@@ -1804,16 +1808,31 @@ export interface AssessmentSummary {
   linkedIssueCount: number;
 }
 
-function buildAssessmentSummary(
+export function buildAssessmentSummary(
   commentSummary: string | null,
   commentAnalysisProgress: number | null,
   signals: string[],
   children: ArtifactAssessmentReport[],
   linkedIssues: LinkedIssueSummary[],
 ): AssessmentSummary {
-  const childDoneCount = children.filter(c => DONE_STATUSES.has(c.marvinStatus)).length;
+  // Use post-update child progress (from appliedUpdates) when available,
+  // falling back to marvinProgress for children that weren't updated.
+  const childProgressValues = children.map(c => {
+    const updates = c.appliedUpdates.length > 0 ? c.appliedUpdates : c.proposedUpdates;
+    const lastStatus = findLast(updates, u => u.field === "status");
+    if (lastStatus && PROGRESS_DONE_STATUSES.has(String(lastStatus.proposedValue))) return 100;
+    const lastProgress = findLast(updates, u => u.field === "progress");
+    if (lastProgress) return lastProgress.proposedValue as number;
+    return c.marvinProgress;
+  });
+  const childDoneCount = children.filter((c, i) => {
+    const updates = c.appliedUpdates.length > 0 ? c.appliedUpdates : c.proposedUpdates;
+    const lastStatus = findLast(updates, u => u.field === "status");
+    const effectiveStatus = lastStatus ? String(lastStatus.proposedValue) : c.marvinStatus;
+    return DONE_STATUSES.has(effectiveStatus);
+  }).length;
   const childRollupProgress = children.length > 0
-    ? Math.round(children.reduce((s, c) => s + c.marvinProgress, 0) / children.length)
+    ? Math.round(childProgressValues.reduce((s, p) => s + p, 0) / childProgressValues.length)
     : null;
 
   return {
