@@ -135,6 +135,9 @@ function normalizeEntry(entry: AssessmentSummary): AssessmentSummary {
     childDoneCount: typeof entry.childDoneCount === "number" ? entry.childDoneCount : 0,
     childRollupProgress: typeof entry.childRollupProgress === "number" ? entry.childRollupProgress : null,
     linkedIssueCount: typeof entry.linkedIssueCount === "number" ? entry.linkedIssueCount : 0,
+    blockerProgress: typeof entry.blockerProgress === "number" ? entry.blockerProgress : null,
+    totalBlockers: typeof entry.totalBlockers === "number" ? entry.totalBlockers : 0,
+    resolvedBlockers: typeof entry.resolvedBlockers === "number" ? entry.resolvedBlockers : 0,
   };
 }
 
@@ -158,6 +161,11 @@ function renderAssessmentTimeline(history: AssessmentSummary[]): string {
     if (entry.childCount > 0) {
       const bar = progressBarHtml(entry.childRollupProgress ?? 0);
       parts.push(`<div class="assessment-stat">👶 Children: ${entry.childDoneCount}/${entry.childCount} done ${bar} ${entry.childRollupProgress ?? 0}%</div>`);
+    }
+
+    if (entry.totalBlockers > 0) {
+      const bar = progressBarHtml(entry.blockerProgress ?? 0);
+      parts.push(`<div class="assessment-stat">🚧 Blockers: ${entry.resolvedBlockers}/${entry.totalBlockers} resolved ${bar} ${entry.blockerProgress ?? 0}%</div>`);
     }
 
     if (entry.linkedIssueCount > 0) {
