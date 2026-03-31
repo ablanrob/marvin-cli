@@ -1,6 +1,9 @@
 import type { DoctorRule, DoctorContext, DoctorIssue, DoctorFix } from "../types.js";
 import { normalizeLinkedEpics, generateEpicTags } from "../../plugins/builtin/tools/task-utils.js";
-import { normalizeLinkedFeatures, generateFeatureTags } from "../../plugins/builtin/tools/epic-utils.js";
+import {
+  normalizeLinkedFeatures,
+  generateFeatureTags,
+} from "../../plugins/builtin/tools/epic-utils.js";
 
 const RULE_ID = "missing-auto-tags";
 const RULE_NAME = "Missing Auto Tags";

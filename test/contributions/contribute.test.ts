@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { DocumentStore } from "../../src/storage/store.js";
 import { COMMON_REGISTRATIONS } from "../../src/plugins/common.js";
-import { buildContributeSystemPrompt, buildContributeUserPrompt } from "../../src/contributions/prompts.js";
+import {
+  buildContributeSystemPrompt,
+  buildContributeUserPrompt,
+} from "../../src/contributions/prompts.js";
 import { getPersona } from "../../src/personas/registry.js";
 
 describe("Contribution Prompts", () => {
@@ -34,7 +37,13 @@ describe("Contribution Prompts", () => {
   });
 
   it("should build user prompt with contribution details", () => {
-    const prompt = buildContributeUserPrompt("C-001", "action-result", "A-001 is complete.", "A-001", false);
+    const prompt = buildContributeUserPrompt(
+      "C-001",
+      "action-result",
+      "A-001 is complete.",
+      "A-001",
+      false,
+    );
 
     expect(prompt).toContain("C-001");
     expect(prompt).toContain("action-result");
@@ -44,7 +53,13 @@ describe("Contribution Prompts", () => {
   });
 
   it("should build user prompt without aboutArtifact", () => {
-    const prompt = buildContributeUserPrompt("C-002", "risk-finding", "Found a risk.", undefined, true);
+    const prompt = buildContributeUserPrompt(
+      "C-002",
+      "risk-finding",
+      "Found a risk.",
+      undefined,
+      true,
+    );
 
     expect(prompt).toContain("C-002");
     expect(prompt).not.toContain("Related Artifact");
@@ -54,7 +69,9 @@ describe("Contribution Prompts", () => {
   it("should include fallback instructions for unknown contribution type", () => {
     const prompt = buildContributeSystemPrompt(persona, "custom-type", projectConfig, false);
 
-    expect(prompt).toContain("Analyze the contribution and determine appropriate governance effects");
+    expect(prompt).toContain(
+      "Analyze the contribution and determine appropriate governance effects",
+    );
   });
 });
 
@@ -106,11 +123,15 @@ describe("Contribution Document Storage", () => {
   });
 
   it("should create contribution documents with C-xxx IDs", () => {
-    const doc = store.create("contribution", {
-      title: "Test Contribution",
-      persona: "tech-lead",
-      contributionType: "action-result",
-    } as any, "Some content");
+    const doc = store.create(
+      "contribution",
+      {
+        title: "Test Contribution",
+        persona: "tech-lead",
+        contributionType: "action-result",
+      } as any,
+      "Some content",
+    );
 
     expect(doc.frontmatter.id).toBe("C-001");
     expect(doc.frontmatter.type).toBe("contribution");
@@ -119,11 +140,15 @@ describe("Contribution Document Storage", () => {
   });
 
   it("should store contribution files as C-xxx.md", () => {
-    store.create("contribution", {
-      title: "Test",
-      persona: "tech-lead",
-      contributionType: "action-result",
-    } as any, "Content");
+    store.create(
+      "contribution",
+      {
+        title: "Test",
+        persona: "tech-lead",
+        contributionType: "action-result",
+      } as any,
+      "Content",
+    );
 
     const contribDir = path.join(marvinDir, "docs", "contributions");
     const files = fs.readdirSync(contribDir);
@@ -132,11 +157,15 @@ describe("Contribution Document Storage", () => {
   });
 
   it("should append Effects section to contribution document", () => {
-    const doc = store.create("contribution", {
-      title: "Test",
-      persona: "tech-lead",
-      contributionType: "action-result",
-    } as any, "Original content");
+    const doc = store.create(
+      "contribution",
+      {
+        title: "Test",
+        persona: "tech-lead",
+        contributionType: "action-result",
+      } as any,
+      "Original content",
+    );
 
     // Create a decision to reference
     store.create("decision", { title: "New Decision" } as any, "Decision content");

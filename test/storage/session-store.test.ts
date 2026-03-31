@@ -70,21 +70,27 @@ describe("SessionStore", () => {
   it("should list sessions sorted by lastUsed descending", () => {
     const store = new SessionStore(marvinDir);
 
-    store.save(makeEntry({
-      name: "old-session",
-      id: "sess-1",
-      lastUsed: "2026-02-08T10:00:00.000Z",
-    }));
-    store.save(makeEntry({
-      name: "new-session",
-      id: "sess-2",
-      lastUsed: "2026-02-10T10:00:00.000Z",
-    }));
-    store.save(makeEntry({
-      name: "mid-session",
-      id: "sess-3",
-      lastUsed: "2026-02-09T10:00:00.000Z",
-    }));
+    store.save(
+      makeEntry({
+        name: "old-session",
+        id: "sess-1",
+        lastUsed: "2026-02-08T10:00:00.000Z",
+      }),
+    );
+    store.save(
+      makeEntry({
+        name: "new-session",
+        id: "sess-2",
+        lastUsed: "2026-02-10T10:00:00.000Z",
+      }),
+    );
+    store.save(
+      makeEntry({
+        name: "mid-session",
+        id: "sess-3",
+        lastUsed: "2026-02-09T10:00:00.000Z",
+      }),
+    );
 
     const list = store.list();
     expect(list).toHaveLength(3);
@@ -120,10 +126,12 @@ describe("SessionStore", () => {
 
   it("should update lastUsed and turnCount", () => {
     const store = new SessionStore(marvinDir);
-    store.save(makeEntry({
-      lastUsed: "2026-02-08T10:00:00.000Z",
-      turnCount: 3,
-    }));
+    store.save(
+      makeEntry({
+        lastUsed: "2026-02-08T10:00:00.000Z",
+        turnCount: 3,
+      }),
+    );
 
     store.updateLastUsed("test-session", 10);
 

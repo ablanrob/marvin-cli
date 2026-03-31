@@ -1,7 +1,17 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getSprintSummaryData } from "../../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../../layout.js";
-import { renderWorkItemsTable, computeOwnerCompletionPct, filterItemsByOwner } from "../../components/work-items-table.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  statusBadge,
+  typeLabel,
+} from "../../layout.js";
+import {
+  renderWorkItemsTable,
+  computeOwnerCompletionPct,
+  filterItemsByOwner,
+} from "../../components/work-items-table.js";
 
 const TL_CONTRIBUTION_TYPES = new Set([
   "action-result",
@@ -77,55 +87,65 @@ export function tlSprintPage(ctx: PersonaPageContext): string {
   });
 
   // TL contributions
-  const contributionsSection = tlContributions.length > 0
-    ? collapsibleSection(
-        "tl-sprint-contributions",
-        `TL Contributions (${tlContributions.length})`,
-        `<div class="table-wrap">
+  const contributionsSection =
+    tlContributions.length > 0
+      ? collapsibleSection(
+          "tl-sprint-contributions",
+          `TL Contributions (${tlContributions.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Date</th></tr>
             </thead>
             <tbody>
-              ${tlContributions.map((d) => `
+              ${tlContributions
+                .map(
+                  (d) => `
               <tr>
                 <td><a href="/docs/${escapeHtml(d.frontmatter.type)}/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${escapeHtml(typeLabel(d.frontmatter.type))}</td>
                 <td>${statusBadge(d.frontmatter.status)}</td>
                 <td>${formatDate(d.frontmatter.updated ?? d.frontmatter.created)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   // Epics detail
-  const epicsSection = data.linkedEpics.length > 0
-    ? collapsibleSection(
-        "tl-sprint-epics",
-        "Linked Epics",
-        `<div class="table-wrap">
+  const epicsSection =
+    data.linkedEpics.length > 0
+      ? collapsibleSection(
+          "tl-sprint-epics",
+          "Linked Epics",
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Status</th><th>Tasks Done</th></tr>
             </thead>
             <tbody>
-              ${data.linkedEpics.map((e) => `
+              ${data.linkedEpics
+                .map(
+                  (e) => `
               <tr>
                 <td><a href="/docs/epic/${escapeHtml(e.id)}">${escapeHtml(e.id)}</a></td>
                 <td>${escapeHtml(e.title)}</td>
                 <td>${statusBadge(e.status)}</td>
                 <td>${e.tasksDone} / ${e.tasksTotal}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   return `
     <div class="page-header">

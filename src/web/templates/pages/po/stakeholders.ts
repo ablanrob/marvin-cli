@@ -8,7 +8,9 @@ const KNOWN_OWNERS = new Set(["po", "tl", "dm"]);
 
 function ownerBadge(owner?: string): string {
   if (!owner) return '<span class="text-dim">—</span>';
-  const cls = KNOWN_OWNERS.has(owner.toLowerCase()) ? `owner-badge-${owner.toLowerCase()}` : "owner-badge-other";
+  const cls = KNOWN_OWNERS.has(owner.toLowerCase())
+    ? `owner-badge-${owner.toLowerCase()}`
+    : "owner-badge-other";
   return `<span class="owner-badge ${cls}">${escapeHtml(owner.toUpperCase())}</span>`;
 }
 
@@ -27,12 +29,12 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
 
   // GAR summary section
   const garAreaCards = garReport.areas
-    .map(
-      (area) => {
-        const insights = (area.insights ?? []).length > 0
+    .map((area) => {
+      const insights =
+        (area.insights ?? []).length > 0
           ? `<ul class="gar-insights">${area.insights.map((ins) => `<li>${escapeHtml(ins)}</li>`).join("")}</ul>`
           : "";
-        return `
+      return `
       <div class="gar-area">
         <div class="area-header">
           <div class="area-dot dot-${area.status}"></div>
@@ -42,12 +44,17 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
         ${insights}
         ${
           area.items.length > 0
-            ? `<ul>${area.items.slice(0, 5).map((item) => `<li><span class="ref-id">${escapeHtml(item.id)}</span>${escapeHtml(item.title)}</li>`).join("")}</ul>`
+            ? `<ul>${area.items
+                .slice(0, 5)
+                .map(
+                  (item) =>
+                    `<li><span class="ref-id">${escapeHtml(item.id)}</span>${escapeHtml(item.title)}</li>`,
+                )
+                .join("")}</ul>`
             : ""
         }
       </div>`;
-      },
-    )
+    })
     .join("\n");
 
   const garSection = collapsibleSection(
@@ -60,13 +67,16 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
 
   // Open actions table with filters
   const actionStatuses = [...new Set(openActions.map((d) => d.frontmatter.status))].sort();
-  const actionOwners = [...new Set(openActions.map((d) => d.frontmatter.owner).filter(Boolean) as string[])].sort();
+  const actionOwners = [
+    ...new Set(openActions.map((d) => d.frontmatter.owner).filter(Boolean) as string[]),
+  ].sort();
 
-  const actionsSection = openActions.length > 0
-    ? collapsibleSection(
-        "po-stakeholders-actions",
-        `Open Action Items (${openActions.length})`,
-        `<div class="filters">
+  const actionsSection =
+    openActions.length > 0
+      ? collapsibleSection(
+          "po-stakeholders-actions",
+          `Open Action Items (${openActions.length})`,
+          `<div class="filters">
           ${tableFilter("stakeholder-actions-table", 2, "Status", actionStatuses)}
           ${actionOwners.length > 0 ? tableFilter("stakeholder-actions-table", 3, "Owner", actionOwners) : ""}
         </div>
@@ -76,48 +86,59 @@ export function poStakeholdersPage(ctx: PersonaPageContext): string {
               <tr>${sortableTh("ID", "stakeholder-actions-table", 0)}${sortableTh("Title", "stakeholder-actions-table", 1)}${sortableTh("Status", "stakeholder-actions-table", 2)}${sortableTh("Owner", "stakeholder-actions-table", 3)}${sortableTh("Due Date", "stakeholder-actions-table", 4)}</tr>
             </thead>
             <tbody>
-              ${openActions.map((d) => `
+              ${openActions
+                .map(
+                  (d) => `
               <tr>
                 <td><a href="/docs/action/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${statusBadge(d.frontmatter.status)}</td>
                 <td>${ownerBadge(d.frontmatter.owner)}</td>
                 <td>${d.frontmatter.dueDate ? formatDate(d.frontmatter.dueDate) : '<span class="text-dim">—</span>'}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   // Questions needing input with filter
-  const questionOwners = [...new Set(openQuestions.map((d) => d.frontmatter.owner).filter(Boolean) as string[])].sort();
+  const questionOwners = [
+    ...new Set(openQuestions.map((d) => d.frontmatter.owner).filter(Boolean) as string[]),
+  ].sort();
 
-  const questionsSection = openQuestions.length > 0
-    ? collapsibleSection(
-        "po-stakeholders-questions",
-        `Questions Needing Input (${openQuestions.length})`,
-        `${questionOwners.length > 0 ? `<div class="filters">${tableFilter("stakeholder-questions-table", 2, "Owner", questionOwners)}</div>` : ""}
+  const questionsSection =
+    openQuestions.length > 0
+      ? collapsibleSection(
+          "po-stakeholders-questions",
+          `Questions Needing Input (${openQuestions.length})`,
+          `${questionOwners.length > 0 ? `<div class="filters">${tableFilter("stakeholder-questions-table", 2, "Owner", questionOwners)}</div>` : ""}
         <div class="table-wrap table-short">
           <table id="stakeholder-questions-table">
             <thead>
               <tr>${sortableTh("ID", "stakeholder-questions-table", 0)}${sortableTh("Title", "stakeholder-questions-table", 1)}${sortableTh("Owner", "stakeholder-questions-table", 2)}${sortableTh("Created", "stakeholder-questions-table", 3)}</tr>
             </thead>
             <tbody>
-              ${openQuestions.map((d) => `
+              ${openQuestions
+                .map(
+                  (d) => `
               <tr>
                 <td><a href="/docs/question/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${ownerBadge(d.frontmatter.owner)}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   return `
     <div class="page-header">

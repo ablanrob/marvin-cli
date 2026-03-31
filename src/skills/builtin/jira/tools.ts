@@ -4,9 +4,19 @@ import type { DocumentStore } from "../../../storage/store.js";
 import { loadUserConfig, type MarvinProjectConfig } from "../../../core/config.js";
 import { createJiraClient, JiraClient, type JiraIssue } from "./client.js";
 import { extractCommentText } from "./daily.js";
-import { fetchJiraStatus, DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP, normalizeStatusMap } from "./sync.js";
+import {
+  fetchJiraStatus,
+  DEFAULT_ACTION_STATUS_MAP,
+  DEFAULT_TASK_STATUS_MAP,
+  normalizeStatusMap,
+} from "./sync.js";
 import { fetchJiraDaily, type DailySummary, type DailyIssueEntry } from "./daily.js";
-import { assessSprintProgress, formatProgressReport, assessArtifact, formatArtifactReport } from "./sprint-progress.js";
+import {
+  assessSprintProgress,
+  formatProgressReport,
+  assessArtifact,
+  formatArtifactReport,
+} from "./sprint-progress.js";
 
 const JIRA_TYPE = "jira-issue";
 
@@ -29,11 +39,7 @@ function mapJiraStatus(jiraStatus: string): string {
   return "open";
 }
 
-function jiraIssueToFrontmatter(
-  issue: JiraIssue,
-  host: string,
-  linkedArtifacts?: string[],
-) {
+function jiraIssueToFrontmatter(issue: JiraIssue, host: string, linkedArtifacts?: string[]) {
   return {
     title: issue.fields.summary,
     status: mapJiraStatus(issue.fields.status.name),
@@ -73,10 +79,7 @@ export function createJiraTools(
           .enum(["open", "in-progress", "done"])
           .optional()
           .describe("Filter by local status"),
-        jiraKey: z
-          .string()
-          .optional()
-          .describe("Filter by Jira issue key (e.g. 'PROJ-123')"),
+        jiraKey: z.string().optional().describe("Filter by Jira issue key (e.g. 'PROJ-123')"),
       },
       async (args) => {
         let docs = store.list({ type: JIRA_TYPE, status: args.status });
@@ -121,11 +124,7 @@ export function createJiraTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -182,11 +181,15 @@ export function createJiraTools(
         for (const issue of issues) {
           const linked = issue.marvinArtifact ? ` → ${issue.marvinArtifact}` : " (not linked)";
           parts.push(`${issue.key} — ${issue.summary} [${issue.status}]${linked}`);
-          parts.push(`  Type: ${issue.issueType} | Priority: ${issue.priority} | Assignee: ${issue.assignee}`);
+          parts.push(
+            `  Type: ${issue.issueType} | Priority: ${issue.priority} | Assignee: ${issue.assignee}`,
+          );
         }
 
         parts.push("");
-        parts.push("This is read-only. Use link_to_jira to link issues to Marvin artifacts, or pull_jira_issue to import as JI-xxx documents.");
+        parts.push(
+          "This is read-only. Use link_to_jira to link issues to Marvin artifacts, or pull_jira_issue to import as JI-xxx documents.",
+        );
 
         return {
           content: [{ type: "text" as const, text: parts.join("\n") }],
@@ -216,11 +219,7 @@ export function createJiraTools(
             jira.host,
             existing.frontmatter.linkedArtifacts as string[],
           );
-          const doc = store.update(
-            existing.frontmatter.id,
-            fm,
-            issue.fields.description ?? "",
-          );
+          const doc = store.update(existing.frontmatter.id, fm, issue.fields.description ?? "");
           return {
             content: [
               {
@@ -232,11 +231,7 @@ export function createJiraTools(
         }
 
         const fm = jiraIssueToFrontmatter(issue, jira.host);
-        const doc = store.create(
-          JIRA_TYPE,
-          fm as any,
-          issue.fields.description ?? "",
-        );
+        const doc = store.create(JIRA_TYPE, fm as any, issue.fields.description ?? "");
         return {
           content: [
             {
@@ -273,19 +268,11 @@ export function createJiraTools(
               jira.host,
               existing.frontmatter.linkedArtifacts as string[],
             );
-            store.update(
-              existing.frontmatter.id,
-              fm,
-              issue.fields.description ?? "",
-            );
+            store.update(existing.frontmatter.id, fm, issue.fields.description ?? "");
             updated.push(`${existing.frontmatter.id} (${issue.key})`);
           } else {
             const fm = jiraIssueToFrontmatter(issue, jira.host);
-            const doc = store.create(
-              JIRA_TYPE,
-              fm as any,
-              issue.fields.description ?? "",
-            );
+            const doc = store.create(JIRA_TYPE, fm as any, issue.fields.description ?? "");
             created.push(`${doc.frontmatter.id} (${issue.key})`);
           }
         }
@@ -309,7 +296,12 @@ export function createJiraTools(
       "Create a Jira issue from any Marvin artifact and link it directly via jiraKey on the artifact.",
       {
         artifactId: z.string().describe("Marvin artifact ID (e.g. 'D-001', 'A-003', 'T-002')"),
-        projectKey: z.string().optional().describe("Jira project key (e.g. 'PROJ'). Falls back to jira.projectKey from .marvin/config.yaml if not provided."),
+        projectKey: z
+          .string()
+          .optional()
+          .describe(
+            "Jira project key (e.g. 'PROJ'). Falls back to jira.projectKey from .marvin/config.yaml if not provided.",
+          ),
         issueType: z
           .enum(["Story", "Task", "Bug", "Epic"])
           .optional()
@@ -335,9 +327,7 @@ export function createJiraTools(
         const artifact = store.get(args.artifactId);
         if (!artifact) {
           return {
-            content: [
-              { type: "text" as const, text: `Artifact ${args.artifactId} not found` },
-            ],
+            content: [{ type: "text" as const, text: `Artifact ${args.artifactId} not found` }],
             isError: true,
           };
         }
@@ -391,9 +381,7 @@ export function createJiraTools(
         const doc = store.get(args.id);
         if (!doc || doc.frontmatter.type !== JIRA_TYPE) {
           return {
-            content: [
-              { type: "text" as const, text: `Jira issue ${args.id} not found locally` },
-            ],
+            content: [{ type: "text" as const, text: `Jira issue ${args.id} not found locally` }],
             isError: true,
           };
         }
@@ -452,9 +440,7 @@ export function createJiraTools(
         const artifact = store.get(args.artifactId);
         if (!artifact) {
           return {
-            content: [
-              { type: "text" as const, text: `Artifact ${args.artifactId} not found` },
-            ],
+            content: [{ type: "text" as const, text: `Artifact ${args.artifactId} not found` }],
             isError: true,
           };
         }
@@ -492,7 +478,9 @@ export function createJiraTools(
       "link_to_jira",
       "Link an existing Jira issue to any Marvin artifact (sets jiraKey directly on the artifact)",
       {
-        artifactId: z.string().describe("Marvin artifact ID (e.g. 'A-001', 'D-003', 'T-002', 'Q-005')"),
+        artifactId: z
+          .string()
+          .describe("Marvin artifact ID (e.g. 'A-001', 'D-003', 'T-002', 'Q-005')"),
         jiraKey: z.string().describe("Jira issue key (e.g. 'PROJ-123')"),
       },
       async (args) => {
@@ -502,9 +490,7 @@ export function createJiraTools(
         const artifact = store.get(args.artifactId);
         if (!artifact) {
           return {
-            content: [
-              { type: "text" as const, text: `Artifact ${args.artifactId} not found` },
-            ],
+            content: [{ type: "text" as const, text: `Artifact ${args.artifactId} not found` }],
             isError: true,
           };
         }
@@ -547,9 +533,7 @@ export function createJiraTools(
         const artifact = store.get(args.artifactId);
         if (!artifact) {
           return {
-            content: [
-              { type: "text" as const, text: `Artifact ${args.artifactId} not found` },
-            ],
+            content: [{ type: "text" as const, text: `Artifact ${args.artifactId} not found` }],
             isError: true,
           };
         }
@@ -558,7 +542,10 @@ export function createJiraTools(
         if (!pageId) {
           return {
             content: [
-              { type: "text" as const, text: `Could not extract page ID from URL: ${args.confluenceUrl}` },
+              {
+                type: "text" as const,
+                text: `Could not extract page ID from URL: ${args.confluenceUrl}`,
+              },
             ],
             isError: true,
           };
@@ -572,7 +559,10 @@ export function createJiraTools(
           confluenceUrl: args.confluenceUrl,
           confluencePageId: pageId,
           confluenceTitle: page.title,
-          tags: [...existingTags.filter((t) => !t.startsWith("confluence:")), `confluence:${page.title}`],
+          tags: [
+            ...existingTags.filter((t) => !t.startsWith("confluence:")),
+            `confluence:${page.title}`,
+          ],
         } as any);
 
         return {
@@ -597,7 +587,8 @@ export function createJiraTools(
         const jira = createJiraClient(jiraUserConfig);
         if (!jira) return jiraNotConfiguredError();
 
-        const resolvedId = args.pageId ?? (args.pageUrl ? JiraClient.extractPageId(args.pageUrl) : null);
+        const resolvedId =
+          args.pageId ?? (args.pageUrl ? JiraClient.extractPageId(args.pageUrl) : null);
         if (!resolvedId) {
           return {
             content: [
@@ -638,12 +629,16 @@ export function createJiraTools(
         // Check if any Marvin artifacts link to this page
         const allDocs = store.registeredTypes.flatMap((t) => store.list({ type: t }));
         const linkedArtifacts = allDocs.filter(
-          (d) => d.frontmatter.confluencePageId === resolvedId || d.frontmatter.confluenceUrl === args.pageUrl,
+          (d) =>
+            d.frontmatter.confluencePageId === resolvedId ||
+            d.frontmatter.confluenceUrl === args.pageUrl,
         );
         if (linkedArtifacts.length > 0) {
           parts.push("");
           parts.push("---");
-          parts.push(`Linked Marvin artifacts: ${linkedArtifacts.map((d) => d.frontmatter.id).join(", ")}`);
+          parts.push(
+            `Linked Marvin artifacts: ${linkedArtifacts.map((d) => d.frontmatter.id).join(", ")}`,
+          );
         }
 
         return {
@@ -659,7 +654,12 @@ export function createJiraTools(
       "fetch_jira_status",
       "Fetch current Jira status for actions/tasks with jiraKey. Read-only — returns proposed changes for review. Use update_action/update_task to apply changes.",
       {
-        artifactId: z.string().optional().describe("Specific artifact ID to check, or omit to check all Jira-linked actions/tasks"),
+        artifactId: z
+          .string()
+          .optional()
+          .describe(
+            "Specific artifact ID to check, or omit to check all Jira-linked actions/tasks",
+          ),
       },
       async (args) => {
         const jira = createJiraClient(jiraUserConfig);
@@ -697,13 +697,17 @@ export function createJiraTools(
               parts.push(`  Linked issues (${done}/${a.linkedIssues.length} done):`);
               for (const li of a.linkedIssues) {
                 const icon = li.isDone ? "✓" : "○";
-                parts.push(`    ${icon} ${li.key} ${li.summary} [${li.relationship}] — ${li.status}`);
+                parts.push(
+                  `    ${icon} ${li.key} ${li.summary} [${li.relationship}] — ${li.status}`,
+                );
               }
             }
           }
 
           parts.push("");
-          parts.push("This is a read-only preview. Use update_action or update_task to apply the proposed status/progress changes.");
+          parts.push(
+            "This is a read-only preview. Use update_action or update_task to apply the proposed status/progress changes.",
+          );
         }
 
         if (fetchResult.errors.length > 0) {
@@ -731,7 +735,10 @@ export function createJiraTools(
       "fetch_jira_statuses",
       "Fetch all distinct issue statuses from a Jira project and show which are mapped vs unmapped to Marvin statuses. Helps configure jira.statusMap in .marvin/config.yaml.",
       {
-        projectKey: z.string().optional().describe("Jira project key (e.g. 'MCB1'). Falls back to jira.projectKey from config."),
+        projectKey: z
+          .string()
+          .optional()
+          .describe("Jira project key (e.g. 'MCB1'). Falls back to jira.projectKey from config."),
         maxResults: z.number().optional().describe("Max issues to scan (default 100)"),
       },
       async (args) => {
@@ -753,9 +760,9 @@ export function createJiraTools(
 
         // Use v3 search/jql to get statuses
         const host = jira.host;
-        const auth = "Basic " + Buffer.from(
+        const auth = `Basic ${Buffer.from(
           `${(jiraUserConfig?.email ?? process.env.JIRA_EMAIL)!}:${(jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN)!}`,
-        ).toString("base64");
+        ).toString("base64")}`;
 
         const params = new URLSearchParams({
           jql: `project = ${resolvedProjectKey}`,
@@ -780,7 +787,10 @@ export function createJiraTools(
           };
         }
 
-        const data = (await resp.json()) as { total: number; issues: { fields: { status: { name: string } } }[] };
+        const data = (await resp.json()) as {
+          total: number;
+          issues: { fields: { status: { name: string } } }[];
+        };
 
         // Collect distinct statuses
         const statusCounts = new Map<string, number>();
@@ -852,7 +862,9 @@ export function createJiraTools(
           for (const s of allUnmapped) {
             parts.push(`      "${s}": <marvin-status>`);
           }
-          parts.push("  # Supported marvin statuses: done, in-progress, review, ready, blocked, backlog, open");
+          parts.push(
+            "  # Supported marvin statuses: done, in-progress, review, ready, blocked, backlog, open",
+          );
         } else {
           parts.push("");
           parts.push("All statuses are mapped.");
@@ -860,7 +872,11 @@ export function createJiraTools(
 
         const usingConfig = statusMap.flat || statusMap.legacy;
         parts.push("");
-        parts.push(usingConfig ? "Using status maps from .marvin/config.yaml." : "Using built-in default status maps (no jira.statusMap in config).");
+        parts.push(
+          usingConfig
+            ? "Using status maps from .marvin/config.yaml."
+            : "Using built-in default status maps (no jira.statusMap in config).",
+        );
 
         return {
           content: [{ type: "text" as const, text: parts.join("\n") }],
@@ -877,7 +893,10 @@ export function createJiraTools(
       {
         from: z.string().optional().describe("Start date (YYYY-MM-DD). Defaults to today."),
         to: z.string().optional().describe("End date (YYYY-MM-DD). Defaults to same as 'from'."),
-        projectKey: z.string().optional().describe("Jira project key. Falls back to jira.projectKey from config."),
+        projectKey: z
+          .string()
+          .optional()
+          .describe("Jira project key. Falls back to jira.projectKey from config."),
       },
       async (args) => {
         const resolvedProjectKey = args.projectKey ?? defaultProjectKey;
@@ -923,27 +942,36 @@ export function createJiraTools(
       "assess_sprint_progress",
       "Assess sprint progress by fetching live Jira statuses for all sprint-scoped items, detecting drift between Marvin and Jira, grouping by focus area with rollup progress, and extracting comment signals. Optionally applies updates and uses LLM for comment analysis.",
       {
-        sprintId: z.string().optional().describe("Sprint ID (e.g. 'SP-001'). Defaults to active sprint."),
-        analyzeComments: z.boolean().optional().describe("Use LLM to summarize Jira comments for progress signals (default false)"),
-        applyUpdates: z.boolean().optional().describe("Apply proposed status/progress updates to Marvin artifacts (default false)"),
-        traverseLinks: z.boolean().optional().describe("Traverse Jira issue links (1 hop) to surface context from connected issues — blockers, related work, cancelled items (default false)"),
+        sprintId: z
+          .string()
+          .optional()
+          .describe("Sprint ID (e.g. 'SP-001'). Defaults to active sprint."),
+        analyzeComments: z
+          .boolean()
+          .optional()
+          .describe("Use LLM to summarize Jira comments for progress signals (default false)"),
+        applyUpdates: z
+          .boolean()
+          .optional()
+          .describe("Apply proposed status/progress updates to Marvin artifacts (default false)"),
+        traverseLinks: z
+          .boolean()
+          .optional()
+          .describe(
+            "Traverse Jira issue links (1 hop) to surface context from connected issues — blockers, related work, cancelled items (default false)",
+          ),
       },
       async (args) => {
         const jira = createJiraClient(jiraUserConfig);
         if (!jira) return jiraNotConfiguredError();
 
-        const report = await assessSprintProgress(
-          store,
-          jira.client,
-          jira.host,
-          {
-            sprintId: args.sprintId,
-            analyzeComments: args.analyzeComments ?? false,
-            applyUpdates: args.applyUpdates ?? false,
-            traverseLinks: args.traverseLinks ?? false,
-            statusMap,
-          },
-        );
+        const report = await assessSprintProgress(store, jira.client, jira.host, {
+          sprintId: args.sprintId,
+          analyzeComments: args.analyzeComments ?? false,
+          applyUpdates: args.applyUpdates ?? false,
+          traverseLinks: args.traverseLinks ?? false,
+          statusMap,
+        });
 
         return {
           content: [{ type: "text" as const, text: formatProgressReport(report) }],
@@ -960,26 +988,38 @@ export function createJiraTools(
       "Deep assessment of a single Marvin artifact (task, action, or epic). Fetches live Jira status, analyzes comments with LLM, traverses all linked issues, detects drift, rolls up child progress, computes dependency-weighted progress from blocker resolution, and extracts contextual signals (blockers, unblocks, handoffs, superseded work).",
       {
         artifactId: z.string().describe("Marvin artifact ID (e.g. 'T-063', 'A-151', 'E-003')"),
-        applyUpdates: z.boolean().optional().describe("Apply proposed status/progress updates to the artifact (default false)"),
-        prerequisiteWeight: z.number().min(0).max(1).optional().describe("Weight for blocker-resolution progress signal (0-1, default 0.3). Portion of effort attributed to dependency readiness."),
-        progressDivergenceThreshold: z.number().min(0).max(100).optional().describe("Minimum divergence in percentage points between comment-derived progress estimate and stored progress to trigger a proposal (default 15)."),
+        applyUpdates: z
+          .boolean()
+          .optional()
+          .describe("Apply proposed status/progress updates to the artifact (default false)"),
+        prerequisiteWeight: z
+          .number()
+          .min(0)
+          .max(1)
+          .optional()
+          .describe(
+            "Weight for blocker-resolution progress signal (0-1, default 0.3). Portion of effort attributed to dependency readiness.",
+          ),
+        progressDivergenceThreshold: z
+          .number()
+          .min(0)
+          .max(100)
+          .optional()
+          .describe(
+            "Minimum divergence in percentage points between comment-derived progress estimate and stored progress to trigger a proposal (default 15).",
+          ),
       },
       async (args) => {
         const jira = createJiraClient(jiraUserConfig);
         if (!jira) return jiraNotConfiguredError();
 
-        const report = await assessArtifact(
-          store,
-          jira.client,
-          jira.host,
-          {
-            artifactId: args.artifactId,
-            applyUpdates: args.applyUpdates ?? false,
-            prerequisiteWeight: args.prerequisiteWeight,
-            progressDivergenceThreshold: args.progressDivergenceThreshold,
-            statusMap,
-          },
-        );
+        const report = await assessArtifact(store, jira.client, jira.host, {
+          artifactId: args.artifactId,
+          applyUpdates: args.applyUpdates ?? false,
+          prerequisiteWeight: args.prerequisiteWeight,
+          progressDivergenceThreshold: args.progressDivergenceThreshold,
+          statusMap,
+        });
 
         return {
           content: [{ type: "text" as const, text: formatArtifactReport(report) }],
@@ -1023,18 +1063,27 @@ function formatDailySummary(daily: DailySummary): string {
     parts.push("## Proposed Actions\n");
     for (const action of daily.proposedActions) {
       const icon =
-        action.type === "status-update" ? "↻" :
-        action.type === "unlinked-issue" ? "+" :
-        action.type === "link-suggestion" ? "🔗" :
-        action.type === "question-candidate" ? "?" :
-        action.type === "decision-candidate" ? "⚖" :
-        action.type === "blocker-detected" ? "🚫" :
-        action.type === "resolution-detected" ? "✓" :
-        "📄";
+        action.type === "status-update"
+          ? "↻"
+          : action.type === "unlinked-issue"
+            ? "+"
+            : action.type === "link-suggestion"
+              ? "🔗"
+              : action.type === "question-candidate"
+                ? "?"
+                : action.type === "decision-candidate"
+                  ? "⚖"
+                  : action.type === "blocker-detected"
+                    ? "🚫"
+                    : action.type === "resolution-detected"
+                      ? "✓"
+                      : "📄";
       parts.push(`  ${icon} ${action.description}`);
     }
     parts.push("");
-    parts.push("These are suggestions. Use update_action, update_task, or other tools to apply changes.");
+    parts.push(
+      "These are suggestions. Use update_action, update_task, or other tools to apply changes.",
+    );
   }
 
   if (daily.errors.length > 0) {
@@ -1058,7 +1107,9 @@ function formatIssueEntry(issue: DailyIssueEntry): string {
   // Status drift
   for (const a of issue.marvinArtifacts) {
     if (a.statusDrift) {
-      lines.push(`  ⚠ ${a.id} status drift: Marvin="${a.currentStatus}" vs proposed="${a.proposedStatus}"`);
+      lines.push(
+        `  ⚠ ${a.id} status drift: Marvin="${a.currentStatus}" vs proposed="${a.proposedStatus}"`,
+      );
     }
   }
 
@@ -1066,7 +1117,9 @@ function formatIssueEntry(issue: DailyIssueEntry): string {
   if (issue.changes.length > 0) {
     lines.push("  Changes:");
     for (const c of issue.changes) {
-      lines.push(`    ${c.field}: ${c.from ?? "∅"} → ${c.to ?? "∅"} (${c.author}, ${c.timestamp.slice(0, 16)})`);
+      lines.push(
+        `    ${c.field}: ${c.from ?? "∅"} → ${c.to ?? "∅"} (${c.author}, ${c.timestamp.slice(0, 16)})`,
+      );
     }
   }
 
@@ -1077,10 +1130,13 @@ function formatIssueEntry(issue: DailyIssueEntry): string {
       let signalIcons = "";
       if (c.signals.length > 0) {
         const icons = c.signals.map((s) =>
-          s.type === "blocker" ? "🚫" :
-          s.type === "decision" ? "⚖" :
-          s.type === "question" ? "?" :
-          "✓"
+          s.type === "blocker"
+            ? "🚫"
+            : s.type === "decision"
+              ? "⚖"
+              : s.type === "question"
+                ? "?"
+                : "✓",
         );
         signalIcons = ` [${icons.join("")}]`;
       }
@@ -1092,7 +1148,9 @@ function formatIssueEntry(issue: DailyIssueEntry): string {
   if (issue.linkSuggestions.length > 0) {
     lines.push("  Possible Marvin matches:");
     for (const s of issue.linkSuggestions) {
-      lines.push(`    🔗 ${s.artifactId} ("${s.artifactTitle}") — ${Math.round(s.score * 100)}% match [${s.sharedTerms.join(", ")}]`);
+      lines.push(
+        `    🔗 ${s.artifactId} ("${s.artifactTitle}") — ${Math.round(s.score * 100)}% match [${s.sharedTerms.join(", ")}]`,
+      );
     }
   }
 

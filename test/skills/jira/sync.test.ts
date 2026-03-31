@@ -105,7 +105,7 @@ describe("Config-driven status mapping (flat/spec format)", () => {
     const resolved: ResolvedStatusMap = {
       flat: {
         "In Progress": "in-progress",
-        "Done": "done",
+        Done: "done",
         "To Do": "backlog",
       },
     };
@@ -117,7 +117,7 @@ describe("Config-driven status mapping (flat/spec format)", () => {
 
   it("should be case-insensitive with flat format", () => {
     const resolved: ResolvedStatusMap = {
-      flat: { "DONE": "done" },
+      flat: { DONE: "done" },
     };
     expect(mapJiraStatusForAction("done", resolved)).toBe("done");
     expect(mapJiraStatusForAction("Done", resolved)).toBe("done");
@@ -140,7 +140,7 @@ describe("normalizeStatusMap", () => {
   it("should detect flat format (Jira→Marvin strings)", () => {
     const raw = {
       "In Progress": "in-progress",
-      "Done": "done",
+      Done: "done",
       "To Do": { default: "backlog", inSprint: "ready" },
     };
     const result = normalizeStatusMap(raw);
@@ -165,7 +165,7 @@ describe("normalizeStatusMap", () => {
   });
 
   it("should treat as flat format when keys are not action/task", () => {
-    const raw = { "Done": "done", "Open": "backlog" };
+    const raw = { Done: "done", Open: "backlog" };
     const result = normalizeStatusMap(raw);
     expect(result.flat).toEqual(raw);
   });
@@ -176,7 +176,7 @@ describe("Context-aware status mapping (conditional entries)", () => {
     const resolved: ResolvedStatusMap = {
       flat: {
         "To Do": { default: "backlog", inSprint: "ready" },
-        "Ready": "ready",
+        Ready: "ready",
       },
     };
     expect(mapJiraStatusForTask("To Do", resolved, false)).toBe("backlog");
@@ -187,8 +187,8 @@ describe("Context-aware status mapping (conditional entries)", () => {
     const resolved: ResolvedStatusMap = {
       flat: {
         "To Do": { default: "backlog", inSprint: "ready" },
-        "Open": "backlog",
-        "Ready": "ready",
+        Open: "backlog",
+        Ready: "ready",
       },
     };
     // "To Do" normally maps to backlog, but in sprint maps to ready
@@ -202,11 +202,11 @@ describe("Context-aware status mapping (conditional entries)", () => {
   it("should work with mixed simple and conditional entries", () => {
     const resolved: ResolvedStatusMap = {
       flat: {
-        "Done": "done",
-        "Closed": "done",
+        Done: "done",
+        Closed: "done",
         "To Do": { default: "backlog", inSprint: "ready" },
-        "New": "backlog",
-        "Ready": "ready",
+        New: "backlog",
+        Ready: "ready",
       },
     };
     // Simple entries always work
@@ -252,7 +252,7 @@ describe("Context-aware status mapping (conditional entries)", () => {
 
   it("should use fallback when status not in any map", () => {
     const resolved: ResolvedStatusMap = {
-      flat: { "Done": "done" },
+      flat: { Done: "done" },
     };
     expect(mapJiraStatusForTask("Unknown", resolved, false)).toBe("backlog");
     expect(mapJiraStatusForTask("Unknown", resolved, true)).toBe("backlog");
@@ -370,12 +370,16 @@ describe("fetchJiraStatus with context-aware mapping", () => {
     store.create("sprint", { title: "Sprint 9", status: "active" }, "");
 
     // Create task with sprint tag
-    store.create("task", {
-      title: "Sprint Task",
-      status: "ready",
-      jiraKey: "PROJ-1",
-      tags: ["sprint:SP-001"],
-    } as any, "");
+    store.create(
+      "task",
+      {
+        title: "Sprint Task",
+        status: "ready",
+        jiraKey: "PROJ-1",
+        tags: ["sprint:SP-001"],
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "To Do" } }),
@@ -384,13 +388,19 @@ describe("fetchJiraStatus with context-aware mapping", () => {
     const resolved: ResolvedStatusMap = {
       flat: {
         "To Do": { default: "backlog", inSprint: "ready" },
-        "Open": "backlog",
-        "Ready": "ready",
-        "Done": "done",
+        Open: "backlog",
+        Ready: "ready",
+        Done: "done",
       },
     };
 
-    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, resolved);
+    const result = await fetchJiraStatus(
+      store,
+      mockClient,
+      "test.atlassian.net",
+      undefined,
+      resolved,
+    );
     expect(result.artifacts).toHaveLength(1);
     // "To Do" should map to "ready" because task is in active sprint
     expect(result.artifacts[0].proposedMarvinStatus).toBe("ready");
@@ -399,12 +409,16 @@ describe("fetchJiraStatus with context-aware mapping", () => {
 
   it("should map 'To Do' to backlog when task is NOT in sprint with conditional map", async () => {
     // Create task without sprint tag
-    store.create("task", {
-      title: "Backlog Task",
-      status: "backlog",
-      jiraKey: "PROJ-1",
-      tags: [],
-    } as any, "");
+    store.create(
+      "task",
+      {
+        title: "Backlog Task",
+        status: "backlog",
+        jiraKey: "PROJ-1",
+        tags: [],
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "To Do" } }),
@@ -413,13 +427,19 @@ describe("fetchJiraStatus with context-aware mapping", () => {
     const resolved: ResolvedStatusMap = {
       flat: {
         "To Do": { default: "backlog", inSprint: "ready" },
-        "Open": "backlog",
-        "Ready": "ready",
-        "Done": "done",
+        Open: "backlog",
+        Ready: "ready",
+        Done: "done",
       },
     };
 
-    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, resolved);
+    const result = await fetchJiraStatus(
+      store,
+      mockClient,
+      "test.atlassian.net",
+      undefined,
+      resolved,
+    );
     expect(result.artifacts).toHaveLength(1);
     // "To Do" should map to "backlog" because task is not in sprint
     expect(result.artifacts[0].proposedMarvinStatus).toBe("backlog");
@@ -431,12 +451,16 @@ describe("fetchJiraStatus with context-aware mapping", () => {
     store.create("sprint", { title: "Sprint 9", status: "cancelled" }, "");
 
     // Create task with sprint tag for cancelled sprint
-    store.create("task", {
-      title: "Cancelled Sprint Task",
-      status: "backlog",
-      jiraKey: "PROJ-1",
-      tags: ["sprint:SP-001"],
-    } as any, "");
+    store.create(
+      "task",
+      {
+        title: "Cancelled Sprint Task",
+        status: "backlog",
+        jiraKey: "PROJ-1",
+        tags: ["sprint:SP-001"],
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "To Do" } }),
@@ -445,12 +469,18 @@ describe("fetchJiraStatus with context-aware mapping", () => {
     const resolved: ResolvedStatusMap = {
       flat: {
         "To Do": { default: "backlog", inSprint: "ready" },
-        "Open": "backlog",
-        "Ready": "ready",
+        Open: "backlog",
+        Ready: "ready",
       },
     };
 
-    const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net", undefined, resolved);
+    const result = await fetchJiraStatus(
+      store,
+      mockClient,
+      "test.atlassian.net",
+      undefined,
+      resolved,
+    );
     expect(result.artifacts[0].proposedMarvinStatus).toBe("backlog");
   });
 });
@@ -551,11 +581,15 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should skip already-done artifacts", async () => {
-    store.create("action", {
-      title: "Done Action",
-      status: "done",
-      jiraKey: "PROJ-1",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Done Action",
+        status: "done",
+        jiraKey: "PROJ-1",
+      } as any,
+      "",
+    );
 
     const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net");
     expect(result.artifacts).toHaveLength(0);
@@ -563,11 +597,15 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should detect action status change", async () => {
-    store.create("action", {
-      title: "Test Action",
-      status: "open",
-      jiraKey: "PROJ-1",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Test Action",
+        status: "open",
+        jiraKey: "PROJ-1",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "In Progress" } }),
@@ -584,11 +622,15 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should detect task status with task-specific mapper", async () => {
-    store.create("task", {
-      title: "Test Task",
-      status: "backlog",
-      jiraKey: "PROJ-2",
-    } as any, "");
+    store.create(
+      "task",
+      {
+        title: "Test Task",
+        status: "backlog",
+        jiraKey: "PROJ-2",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "In Review" } }),
@@ -600,11 +642,15 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should compute proposed progress from subtasks", async () => {
-    store.create("action", {
-      title: "Action with subtasks",
-      status: "open",
-      jiraKey: "PROJ-3",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Action with subtasks",
+        status: "open",
+        jiraKey: "PROJ-3",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({
@@ -624,13 +670,17 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should not propose progress when progressOverride is set", async () => {
-    store.create("action", {
-      title: "Override Action",
-      status: "open",
-      jiraKey: "PROJ-7",
-      progress: 90,
-      progressOverride: true,
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Override Action",
+        status: "open",
+        jiraKey: "PROJ-7",
+        progress: 90,
+        progressOverride: true,
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({
@@ -648,11 +698,15 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should collect linked issues", async () => {
-    store.create("action", {
-      title: "Linked Action",
-      status: "open",
-      jiraKey: "PROJ-10",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Linked Action",
+        status: "open",
+        jiraKey: "PROJ-10",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({
@@ -685,16 +739,24 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should fetch specific artifact by ID", async () => {
-    store.create("action", {
-      title: "Action 1",
-      status: "open",
-      jiraKey: "PROJ-20",
-    } as any, "");
-    store.create("action", {
-      title: "Action 2",
-      status: "open",
-      jiraKey: "PROJ-21",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Action 1",
+        status: "open",
+        jiraKey: "PROJ-20",
+      } as any,
+      "",
+    );
+    store.create(
+      "action",
+      {
+        title: "Action 2",
+        status: "open",
+        jiraKey: "PROJ-21",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "Done" } }),
@@ -707,15 +769,17 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should handle API errors gracefully", async () => {
-    store.create("action", {
-      title: "Error Action",
-      status: "open",
-      jiraKey: "PROJ-ERR",
-    } as any, "");
-
-    vi.mocked(mockClient.getIssueWithLinks).mockRejectedValue(
-      new Error("Jira API error 404"),
+    store.create(
+      "action",
+      {
+        title: "Error Action",
+        status: "open",
+        jiraKey: "PROJ-ERR",
+      } as any,
+      "",
     );
+
+    vi.mocked(mockClient.getIssueWithLinks).mockRejectedValue(new Error("Jira API error 404"));
 
     const result = await fetchJiraStatus(store, mockClient, "test.atlassian.net");
     expect(result.errors).toHaveLength(1);
@@ -724,11 +788,15 @@ describe("fetchJiraStatus", () => {
   });
 
   it("should report no changes when status matches", async () => {
-    store.create("action", {
-      title: "Stable Action",
-      status: "open",
-      jiraKey: "PROJ-30",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Stable Action",
+        status: "open",
+        jiraKey: "PROJ-30",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "Open" } }),
@@ -785,11 +853,15 @@ describe("syncJiraProgress", () => {
   }
 
   it("should apply status changes to the store", async () => {
-    store.create("action", {
-      title: "Test Action",
-      status: "open",
-      jiraKey: "PROJ-1",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Test Action",
+        status: "open",
+        jiraKey: "PROJ-1",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "In Progress" } }),
@@ -806,11 +878,15 @@ describe("syncJiraProgress", () => {
   });
 
   it("should apply progress from subtasks", async () => {
-    store.create("action", {
-      title: "Action with subtasks",
-      status: "open",
-      jiraKey: "PROJ-3",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Action with subtasks",
+        status: "open",
+        jiraKey: "PROJ-3",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({
@@ -830,11 +906,15 @@ describe("syncJiraProgress", () => {
   });
 
   it("should report unchanged when no changes needed", async () => {
-    store.create("action", {
-      title: "Stable Action",
-      status: "open",
-      jiraKey: "PROJ-30",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Stable Action",
+        status: "open",
+        jiraKey: "PROJ-30",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.getIssueWithLinks).mockResolvedValue(
       makeIssue({ status: { name: "Open" } }),

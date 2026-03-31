@@ -43,9 +43,7 @@ export const jiraSkill: SkillDefinition = {
   description: "Bidirectional sync between Marvin artifacts and Jira issues",
   version: "1.0.0",
   format: "builtin-ts",
-  documentTypeRegistrations: [
-    { type: "jira-issue", dirName: "jira-issues", idPrefix: "JI" },
-  ],
+  documentTypeRegistrations: [{ type: "jira-issue", dirName: "jira-issues", idPrefix: "JI" }],
   tools: (store, projectConfig) => createJiraTools(store, projectConfig),
   promptFragments: {
     "product-owner": `You have the **Jira Integration** skill.

@@ -138,16 +138,14 @@ export function propagateProgressToAction(
 
     if (hasTasks && hasContribs) {
       const taskAvg =
-        childTasks.reduce((s, t) => s + getEffectiveProgress(t.frontmatter), 0) /
-        childTasks.length;
+        childTasks.reduce((s, t) => s + getEffectiveProgress(t.frontmatter), 0) / childTasks.length;
       const contribAvg =
         directContribs.reduce((s, c) => s + getEffectiveProgress(c.frontmatter), 0) /
         directContribs.length;
       progress = Math.round(taskAvg * 0.8 + contribAvg * 0.2);
     } else if (hasTasks) {
       progress = Math.round(
-        childTasks.reduce((s, t) => s + getEffectiveProgress(t.frontmatter), 0) /
-          childTasks.length,
+        childTasks.reduce((s, t) => s + getEffectiveProgress(t.frontmatter), 0) / childTasks.length,
       );
     } else if (hasContribs) {
       progress = Math.round(
@@ -173,9 +171,6 @@ export function calculateSprintCompletionPct(
   primaryDocs: { frontmatter: DocumentFrontmatter }[],
 ): number {
   if (primaryDocs.length === 0) return 0;
-  const total = primaryDocs.reduce(
-    (sum, d) => sum + getEffectiveProgress(d.frontmatter),
-    0,
-  );
+  const total = primaryDocs.reduce((sum, d) => sum + getEffectiveProgress(d.frontmatter), 0);
   return Math.round(total / primaryDocs.length);
 }

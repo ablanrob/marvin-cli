@@ -12,7 +12,9 @@ export function normalizeLinkedFeatures(value: unknown): string[] {
     try {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === "string");
-    } catch { /* not JSON — treat as a single feature ID */ }
+    } catch {
+      /* not JSON — treat as a single feature ID */
+    }
     return [value];
   }
   if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");

@@ -86,20 +86,14 @@ export class MarvinGit {
 
   async init(remote?: string): Promise<void> {
     if (await this.isRepository()) {
-      throw new GitSyncError(
-        "Git repository already initialized in .marvin/",
-      );
+      throw new GitSyncError("Git repository already initialized in .marvin/");
     }
 
     await this.git.init();
 
     // Create .gitignore
     const { writeFileSync } = await import("node:fs");
-    writeFileSync(
-      path.join(this.marvinDir, ".gitignore"),
-      MARVIN_GITIGNORE,
-      "utf-8",
-    );
+    writeFileSync(path.join(this.marvinDir, ".gitignore"), MARVIN_GITIGNORE, "utf-8");
 
     // Stage all and make initial commit
     await this.git.add(".");
@@ -164,9 +158,7 @@ export class MarvinGit {
 
   async sync(): Promise<SyncResult> {
     if (!(await this.isRepository())) {
-      throw new GitSyncError(
-        'Git not initialized in .marvin/. Run "marvin sync init" first.',
-      );
+      throw new GitSyncError('Git not initialized in .marvin/. Run "marvin sync init" first.');
     }
 
     const result: SyncResult = {
@@ -182,7 +174,7 @@ export class MarvinGit {
       await this.git.add(".");
       const st = await this.git.status();
 
-      const changedFiles = [
+      const _changedFiles = [
         ...st.staged,
         ...st.created,
         ...st.modified,

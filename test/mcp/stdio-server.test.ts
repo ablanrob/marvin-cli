@@ -12,10 +12,7 @@ function createTempMarvinDir(): string {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-mcp-test-"));
   const marvinDir = path.join(tmpDir, ".marvin");
   fs.mkdirSync(marvinDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(marvinDir, "config.yaml"),
-    YAML.stringify({ name: "test-project" }),
-  );
+  fs.writeFileSync(path.join(marvinDir, "config.yaml"), YAML.stringify({ name: "test-project" }));
   // Create doc subdirectories
   for (const dir of ["decisions", "actions", "questions"]) {
     fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
@@ -109,12 +106,8 @@ describe("round-trip tool calls", () => {
 
     client = new Client({ name: "test-client", version: "0.1.0" });
 
-    const [clientTransport, serverTransport] =
-      InMemoryTransport.createLinkedPair();
-    await Promise.all([
-      client.connect(clientTransport),
-      server.connect(serverTransport),
-    ]);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
   });
 
   afterEach(async () => {
@@ -161,10 +154,7 @@ describe("round-trip tool calls", () => {
     expect(files).toContain("D-001.md");
 
     // Verify content
-    const content = fs.readFileSync(
-      path.join(decisionsDir, "D-001.md"),
-      "utf-8",
-    );
+    const content = fs.readFileSync(path.join(decisionsDir, "D-001.md"), "utf-8");
     expect(content).toContain("Use MCP for integration");
   });
 

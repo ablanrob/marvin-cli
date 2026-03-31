@@ -58,8 +58,12 @@ describe("migrateYamlToSkillMd", () => {
     // Persona files
     expect(fs.existsSync(path.join(outputDir, "personas", "delivery-manager.md"))).toBe(true);
     expect(fs.existsSync(path.join(outputDir, "personas", "product-owner.md"))).toBe(true);
-    expect(fs.readFileSync(path.join(outputDir, "personas", "delivery-manager.md"), "utf-8")).toBe("DM-specific prompt.\n");
-    expect(fs.readFileSync(path.join(outputDir, "personas", "product-owner.md"), "utf-8")).toBe("PO-specific prompt.\n");
+    expect(fs.readFileSync(path.join(outputDir, "personas", "delivery-manager.md"), "utf-8")).toBe(
+      "DM-specific prompt.\n",
+    );
+    expect(fs.readFileSync(path.join(outputDir, "personas", "product-owner.md"), "utf-8")).toBe(
+      "PO-specific prompt.\n",
+    );
 
     // Actions
     expect(fs.existsSync(path.join(outputDir, "actions.yaml"))).toBe(true);

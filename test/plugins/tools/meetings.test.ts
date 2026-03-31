@@ -16,7 +16,15 @@ describe("Meeting Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, COMMON_REGISTRATIONS);
@@ -121,21 +129,28 @@ describe("Meeting Tools", () => {
   it("should assign IDs above file count when existing meetings have duplicate IDs", async () => {
     // Simulate corrupted data: 3 files all with id: M-001
     const meetingsDir = path.join(marvinDir, "docs", "meetings");
-    for (const [date, title] of [["2025-10-01", "Meeting A"], ["2025-10-02", "Meeting B"], ["2025-10-03", "Meeting C"]]) {
+    for (const [date, title] of [
+      ["2025-10-01", "Meeting A"],
+      ["2025-10-02", "Meeting B"],
+      ["2025-10-03", "Meeting C"],
+    ]) {
       const slug = title.toLowerCase().replace(/\s+/g, "-");
       const filePath = path.join(meetingsDir, `${date}-${slug}.md`);
-      fs.writeFileSync(filePath, [
-        "---",
-        "id: M-001",
-        `title: ${title}`,
-        "type: meeting",
-        "status: completed",
-        `date: ${date}`,
-        `created: ${date}T00:00:00.000Z`,
-        `updated: ${date}T00:00:00.000Z`,
-        "---",
-        `Notes for ${title}`,
-      ].join("\n"));
+      fs.writeFileSync(
+        filePath,
+        [
+          "---",
+          "id: M-001",
+          `title: ${title}`,
+          "type: meeting",
+          "status: completed",
+          `date: ${date}`,
+          `created: ${date}T00:00:00.000Z`,
+          `updated: ${date}T00:00:00.000Z`,
+          "---",
+          `Notes for ${title}`,
+        ].join("\n"),
+      );
     }
 
     // Recreate store so it picks up the corrupted files

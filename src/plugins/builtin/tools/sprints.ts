@@ -2,9 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 
-export function createSprintTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createSprintTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_sprints",
@@ -50,11 +48,7 @@ export function createSprintTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -78,7 +72,9 @@ export function createSprintTools(
         linkedEpics: z
           .array(z.string())
           .optional()
-          .describe("Epic IDs to link (e.g. ['E-001', 'E-003']). Soft-validated: warns if not found but still creates."),
+          .describe(
+            "Epic IDs to link (e.g. ['E-001', 'E-003']). Soft-validated: warns if not found but still creates.",
+          ),
         tags: z.array(z.string()).optional().describe("Additional tags"),
       },
       async (args) => {

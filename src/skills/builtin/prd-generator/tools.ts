@@ -76,7 +76,12 @@ interface PrdContext {
   };
 }
 
-function gatherContext(store: DocumentStore, focusFeature?: string, includeDecisions = true, includeQuestions = true): PrdContext {
+function gatherContext(
+  store: DocumentStore,
+  focusFeature?: string,
+  includeDecisions = true,
+  includeQuestions = true,
+): PrdContext {
   const allFeatures = store.list({ type: "feature" });
   const allEpics = store.list({ type: "epic" });
   const allTasks = store.list({ type: "task" });
@@ -132,7 +137,8 @@ function gatherContext(store: DocumentStore, focusFeature?: string, includeDecis
       status: e.frontmatter.status,
       linkedFeature: normalizeLinkedFeatures(e.frontmatter.linkedFeature),
       targetDate: typeof e.frontmatter.targetDate === "string" ? e.frontmatter.targetDate : null,
-      estimatedEffort: typeof e.frontmatter.estimatedEffort === "string" ? e.frontmatter.estimatedEffort : null,
+      estimatedEffort:
+        typeof e.frontmatter.estimatedEffort === "string" ? e.frontmatter.estimatedEffort : null,
       content: e.content,
       linkedTaskCount: tasks.filter((t) =>
         normalizeLinkedEpics(t.frontmatter.linkedEpic).includes(e.frontmatter.id),
@@ -143,10 +149,15 @@ function gatherContext(store: DocumentStore, focusFeature?: string, includeDecis
       title: t.frontmatter.title,
       status: t.frontmatter.status,
       linkedEpic: normalizeLinkedEpics(t.frontmatter.linkedEpic),
-      acceptanceCriteria: typeof t.frontmatter.acceptanceCriteria === "string" ? t.frontmatter.acceptanceCriteria : null,
-      technicalNotes: typeof t.frontmatter.technicalNotes === "string" ? t.frontmatter.technicalNotes : null,
+      acceptanceCriteria:
+        typeof t.frontmatter.acceptanceCriteria === "string"
+          ? t.frontmatter.acceptanceCriteria
+          : null,
+      technicalNotes:
+        typeof t.frontmatter.technicalNotes === "string" ? t.frontmatter.technicalNotes : null,
       complexity: typeof t.frontmatter.complexity === "string" ? t.frontmatter.complexity : null,
-      estimatedPoints: typeof t.frontmatter.estimatedPoints === "number" ? t.frontmatter.estimatedPoints : null,
+      estimatedPoints:
+        typeof t.frontmatter.estimatedPoints === "number" ? t.frontmatter.estimatedPoints : null,
       priority: t.frontmatter.priority ?? null,
     })),
     decisions: allDecisions.map((d) => ({
@@ -196,7 +207,9 @@ function generateTaskMasterPrd(title: string, ctx: PrdContext, projectOverview?:
   if (projectOverview) {
     lines.push(projectOverview);
   } else if (ctx.features.length > 0) {
-    lines.push(`This project encompasses ${ctx.features.length} feature(s) spanning ${ctx.epics.length} epic(s) and ${ctx.tasks.length} implementation task(s).`);
+    lines.push(
+      `This project encompasses ${ctx.features.length} feature(s) spanning ${ctx.epics.length} epic(s) and ${ctx.tasks.length} implementation task(s).`,
+    );
   }
   lines.push("");
 
@@ -239,7 +252,10 @@ function generateTaskMasterPrd(title: string, ctx: PrdContext, projectOverview?:
           lines.push("");
           for (const task of epicTasks) {
             const complexity = task.complexity ? `, Complexity: ${task.complexity}` : "";
-            const points = task.estimatedPoints != null ? `, Points: ${task.estimatedPoints}` : "";
+            const points =
+              task.estimatedPoints !== null && task.estimatedPoints !== undefined
+                ? `, Points: ${task.estimatedPoints}`
+                : "";
             lines.push(`- **${task.id}: ${task.title}**${complexity}${points}`);
             if (task.acceptanceCriteria) {
               lines.push(`  Acceptance Criteria: ${task.acceptanceCriteria}`);
@@ -252,9 +268,13 @@ function generateTaskMasterPrd(title: string, ctx: PrdContext, projectOverview?:
   }
 
   // Technical Considerations
-  const approvedDecisions = ctx.decisions.filter((d) => d.status === "approved" || d.status === "accepted");
+  const approvedDecisions = ctx.decisions.filter(
+    (d) => d.status === "approved" || d.status === "accepted",
+  );
   const openQuestions = ctx.questions.filter((q) => q.status === "open");
-  const technicalNotes = ctx.tasks.filter((t) => t.technicalNotes).map((t) => `- **${t.id}**: ${t.technicalNotes}`);
+  const technicalNotes = ctx.tasks
+    .filter((t) => t.technicalNotes)
+    .map((t) => `- **${t.id}**: ${t.technicalNotes}`);
 
   if (approvedDecisions.length > 0 || openQuestions.length > 0 || technicalNotes.length > 0) {
     lines.push("## Technical Considerations");
@@ -321,12 +341,16 @@ function generateClaudeCodePrd(title: string, ctx: PrdContext, projectOverview?:
   if (projectOverview) {
     lines.push(projectOverview);
   } else if (ctx.features.length > 0) {
-    lines.push(`This project encompasses ${ctx.features.length} feature(s) spanning ${ctx.epics.length} epic(s) and ${ctx.tasks.length} implementation task(s).`);
+    lines.push(
+      `This project encompasses ${ctx.features.length} feature(s) spanning ${ctx.epics.length} epic(s) and ${ctx.tasks.length} implementation task(s).`,
+    );
   }
   lines.push("");
 
   // Architecture & Technical Decisions
-  const approvedDecisions = ctx.decisions.filter((d) => d.status === "approved" || d.status === "accepted");
+  const approvedDecisions = ctx.decisions.filter(
+    (d) => d.status === "approved" || d.status === "accepted",
+  );
   if (approvedDecisions.length > 0) {
     lines.push("## Architecture & Technical Decisions");
     lines.push("");
@@ -343,7 +367,10 @@ function generateClaudeCodePrd(title: string, ctx: PrdContext, projectOverview?:
 
   const priorityGroups: Record<string, typeof ctx.features> = {};
   for (const f of ctx.features) {
-    const group = f.priority === "critical" || f.priority === "high" ? "Phase 1: High Priority" : "Phase 2: Medium & Low Priority";
+    const group =
+      f.priority === "critical" || f.priority === "high"
+        ? "Phase 1: High Priority"
+        : "Phase 2: Medium & Low Priority";
     if (!priorityGroups[group]) priorityGroups[group] = [];
     priorityGroups[group].push(f);
   }
@@ -358,7 +385,10 @@ function generateClaudeCodePrd(title: string, ctx: PrdContext, projectOverview?:
         const epicTasks = ctx.tasks.filter((t) => t.linkedEpic.includes(epic.id));
         for (const task of epicTasks) {
           const complexity = task.complexity ? `complexity: ${task.complexity}` : "";
-          const points = task.estimatedPoints != null ? `points: ${task.estimatedPoints}` : "";
+          const points =
+            task.estimatedPoints !== null && task.estimatedPoints !== undefined
+              ? `points: ${task.estimatedPoints}`
+              : "";
           const meta = [complexity, points].filter(Boolean).join(", ");
           lines.push(`  - [ ] ${task.id}: ${task.title}${meta ? ` (${meta})` : ""}`);
           if (task.acceptanceCriteria) {
@@ -387,9 +417,7 @@ function generateClaudeCodePrd(title: string, ctx: PrdContext, projectOverview?:
   return lines.join("\n");
 }
 
-export function createPrdTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createPrdTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "gather_prd_context",
@@ -409,7 +437,12 @@ export function createPrdTools(
           .describe("Include questions in context (default: true)"),
       },
       async (args) => {
-        const ctx = gatherContext(store, args.focusFeature, args.includeDecisions ?? true, args.includeQuestions ?? true);
+        const ctx = gatherContext(
+          store,
+          args.focusFeature,
+          args.includeDecisions ?? true,
+          args.includeQuestions ?? true,
+        );
         return {
           content: [{ type: "text" as const, text: JSON.stringify(ctx, null, 2) }],
         };
@@ -424,7 +457,9 @@ export function createPrdTools(
         title: z.string().describe("PRD title"),
         format: z
           .enum(["taskmaster", "claude-code"])
-          .describe("Output format: 'taskmaster' for Claude TaskMaster parse_prd, 'claude-code' for Claude Code consumption"),
+          .describe(
+            "Output format: 'taskmaster' for Claude TaskMaster parse_prd, 'claude-code' for Claude Code consumption",
+          ),
         projectOverview: z
           .string()
           .optional()
@@ -438,9 +473,10 @@ export function createPrdTools(
       async (args) => {
         const ctx = gatherContext(store, args.focusFeature);
 
-        const prdContent = args.format === "taskmaster"
-          ? generateTaskMasterPrd(args.title, ctx, args.projectOverview)
-          : generateClaudeCodePrd(args.title, ctx, args.projectOverview);
+        const prdContent =
+          args.format === "taskmaster"
+            ? generateTaskMasterPrd(args.title, ctx, args.projectOverview)
+            : generateClaudeCodePrd(args.title, ctx, args.projectOverview);
 
         const frontmatter: Record<string, unknown> = {
           title: args.title,

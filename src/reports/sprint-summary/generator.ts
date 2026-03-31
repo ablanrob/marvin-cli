@@ -23,8 +23,7 @@ export async function generateSprintSummary(
   for await (const msg of result) {
     if (msg.type === "assistant") {
       const text = msg.message.content.find(
-        (b: { type: string }): b is { type: "text"; text: string } =>
-          b.type === "text",
+        (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
       );
       if (text) return text.text;
     }
@@ -70,18 +69,26 @@ function buildPrompt(data: SprintSummaryData): string {
 
   // Work items
   sections.push(`\n## Work Items`);
-  sections.push(`Total: ${data.workItems.total}, Done: ${data.workItems.done}, In Progress: ${data.workItems.inProgress}, Open: ${data.workItems.open}, Blocked: ${data.workItems.blocked}`);
+  sections.push(
+    `Total: ${data.workItems.total}, Done: ${data.workItems.done}, In Progress: ${data.workItems.inProgress}, Open: ${data.workItems.open}, Blocked: ${data.workItems.blocked}`,
+  );
   sections.push(`Completion: ${data.workItems.completionPct}%`);
 
   if (Object.keys(data.workItems.byType).length > 0) {
-    sections.push(`By type: ${Object.entries(data.workItems.byType).map(([t, n]) => `${t}: ${n}`).join(", ")}`);
+    sections.push(
+      `By type: ${Object.entries(data.workItems.byType)
+        .map(([t, n]) => `${t}: ${n}`)
+        .join(", ")}`,
+    );
   }
 
   // Linked epics
   if (data.linkedEpics.length > 0) {
     sections.push(`\n## Linked Epics`);
     for (const e of data.linkedEpics) {
-      sections.push(`- ${e.id}: ${e.title} [${e.status}] — ${e.tasksDone}/${e.tasksTotal} tasks done`);
+      sections.push(
+        `- ${e.id}: ${e.title} [${e.status}] — ${e.tasksDone}/${e.tasksTotal} tasks done`,
+      );
     }
   }
 
@@ -143,7 +150,9 @@ function buildPrompt(data: SprintSummaryData): string {
     sections.push(`\n## Velocity`);
     sections.push(`Current sprint completion rate: ${data.velocity.currentCompletionRate}%`);
     if (data.velocity.previousSprintRate !== undefined) {
-      sections.push(`Previous sprint (${data.velocity.previousSprintId}): ${data.velocity.previousSprintRate}%`);
+      sections.push(
+        `Previous sprint (${data.velocity.previousSprintId}): ${data.velocity.previousSprintRate}%`,
+      );
     }
   }
 

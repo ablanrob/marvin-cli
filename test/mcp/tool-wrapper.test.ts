@@ -3,10 +3,7 @@ import type { SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import { PersonaContextManager } from "../../src/mcp/persona-context.js";
 import { wrapToolsWithPersonaValidation } from "../../src/mcp/tool-wrapper.js";
 
-function fakeTool(
-  name: string,
-  responseText: string,
-): SdkMcpToolDefinition<any> {
+function fakeTool(name: string, responseText: string): SdkMcpToolDefinition<any> {
   return {
     name,
     description: `Test tool: ${name}`,

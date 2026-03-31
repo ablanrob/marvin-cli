@@ -5,9 +5,7 @@ import { confirm } from "@inquirer/prompts";
 import { loadProject } from "../../core/project.js";
 import { getDefaultClaudeMdContent } from "../../templates/claude-md.js";
 
-export async function generateClaudeMdCommand(options: {
-  force?: boolean;
-}): Promise<void> {
+export async function generateClaudeMdCommand(options: { force?: boolean }): Promise<void> {
   const project = loadProject();
   const filePath = path.join(project.marvinDir, "CLAUDE.md");
 
@@ -22,11 +20,7 @@ export async function generateClaudeMdCommand(options: {
     }
   }
 
-  fs.writeFileSync(
-    filePath,
-    getDefaultClaudeMdContent(project.config.name),
-    "utf-8",
-  );
+  fs.writeFileSync(filePath, getDefaultClaudeMdContent(project.config.name), "utf-8");
 
   console.log(chalk.green("Created .marvin/CLAUDE.md"));
 }

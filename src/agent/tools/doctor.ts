@@ -3,9 +3,7 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../storage/store.js";
 import { runDoctorScan, runDoctorFix } from "../../doctor/engine.js";
 
-export function createDoctorTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createDoctorTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "run_doctor",

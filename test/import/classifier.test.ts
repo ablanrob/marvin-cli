@@ -10,45 +10,29 @@ const KNOWN_DIR_NAMES = ["decisions", "actions", "questions"];
 
 describe("isValidMarvinDocument", () => {
   it("should accept valid frontmatter with matching type and ID pattern", () => {
-    expect(
-      isValidMarvinDocument({ id: "D-001", type: "decision" }, KNOWN_TYPES),
-    ).toBe(true);
+    expect(isValidMarvinDocument({ id: "D-001", type: "decision" }, KNOWN_TYPES)).toBe(true);
   });
 
   it("should accept multi-digit IDs", () => {
-    expect(
-      isValidMarvinDocument({ id: "A-1234", type: "action" }, KNOWN_TYPES),
-    ).toBe(true);
+    expect(isValidMarvinDocument({ id: "A-1234", type: "action" }, KNOWN_TYPES)).toBe(true);
   });
 
   it("should reject missing id", () => {
-    expect(
-      isValidMarvinDocument({ type: "decision" }, KNOWN_TYPES),
-    ).toBe(false);
+    expect(isValidMarvinDocument({ type: "decision" }, KNOWN_TYPES)).toBe(false);
   });
 
   it("should reject missing type", () => {
-    expect(
-      isValidMarvinDocument({ id: "D-001" }, KNOWN_TYPES),
-    ).toBe(false);
+    expect(isValidMarvinDocument({ id: "D-001" }, KNOWN_TYPES)).toBe(false);
   });
 
   it("should reject unknown type", () => {
-    expect(
-      isValidMarvinDocument({ id: "X-001", type: "unknown" }, KNOWN_TYPES),
-    ).toBe(false);
+    expect(isValidMarvinDocument({ id: "X-001", type: "unknown" }, KNOWN_TYPES)).toBe(false);
   });
 
   it("should reject malformed ID patterns", () => {
-    expect(
-      isValidMarvinDocument({ id: "D001", type: "decision" }, KNOWN_TYPES),
-    ).toBe(false);
-    expect(
-      isValidMarvinDocument({ id: "d-001", type: "decision" }, KNOWN_TYPES),
-    ).toBe(false);
-    expect(
-      isValidMarvinDocument({ id: "D-01", type: "decision" }, KNOWN_TYPES),
-    ).toBe(false);
+    expect(isValidMarvinDocument({ id: "D001", type: "decision" }, KNOWN_TYPES)).toBe(false);
+    expect(isValidMarvinDocument({ id: "d-001", type: "decision" }, KNOWN_TYPES)).toBe(false);
+    expect(isValidMarvinDocument({ id: "D-01", type: "decision" }, KNOWN_TYPES)).toBe(false);
   });
 });
 
@@ -114,10 +98,7 @@ describe("classifyPath", () => {
   it("should detect a Marvin project directory (with config.yaml)", () => {
     const projectDir = path.join(tmpDir, "myproject");
     fs.mkdirSync(projectDir);
-    fs.writeFileSync(
-      path.join(projectDir, "config.yaml"),
-      "name: test-project\n",
-    );
+    fs.writeFileSync(path.join(projectDir, "config.yaml"), "name: test-project\n");
     const result = classifyPath(projectDir, KNOWN_TYPES, KNOWN_DIR_NAMES);
     expect(result.type).toBe("marvin-project");
   });
@@ -125,10 +106,7 @@ describe("classifyPath", () => {
   it("should detect a .marvin/ directory", () => {
     const marvinDir = path.join(tmpDir, ".marvin");
     fs.mkdirSync(marvinDir);
-    fs.writeFileSync(
-      path.join(marvinDir, "config.yaml"),
-      "name: test-project\n",
-    );
+    fs.writeFileSync(path.join(marvinDir, "config.yaml"), "name: test-project\n");
     const result = classifyPath(marvinDir, KNOWN_TYPES, KNOWN_DIR_NAMES);
     expect(result.type).toBe("marvin-project");
   });

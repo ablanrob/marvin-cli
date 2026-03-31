@@ -6,9 +6,12 @@ import { buildHealthGauge, buildStatusPie } from "../mermaid.js";
 export function healthPage(report: HealthReport, metrics?: HealthMetrics): string {
   const allCategories = [...report.completeness, ...report.process];
   const nonGreen = allCategories.filter((c) => c.status !== "green");
-  const healthMetricTags = nonGreen.length > 0
-    ? nonGreen.map((c) => `<span class="gar-metric">${escapeHtml(c.name)} (${c.status})</span>`).join("")
-    : `<span class="gar-metric">All areas healthy</span>`;
+  const healthMetricTags =
+    nonGreen.length > 0
+      ? nonGreen
+          .map((c) => `<span class="gar-metric">${escapeHtml(c.name)} (${c.status})</span>`)
+          .join("")
+      : `<span class="gar-metric">All areas healthy</span>`;
 
   function renderSection(
     sectionId: string,
@@ -81,13 +84,20 @@ export function healthPage(report: HealthReport, metrics?: HealthMetrics): strin
     ${collapsibleSection(
       "health-process-summary",
       "Process Summary",
-      metrics ? buildStatusPie("Process Health", {
-        Stale: metrics.process.stale.length,
-        "Aging Actions": metrics.process.agingActions.length,
-        Healthy: Math.max(0,
-          (metrics.completeness ? Object.values(metrics.completeness).reduce((sum, c) => sum + c.total, 0) : 0)
-          - metrics.process.stale.length - metrics.process.agingActions.length),
-      }) : "",
+      metrics
+        ? buildStatusPie("Process Health", {
+            Stale: metrics.process.stale.length,
+            "Aging Actions": metrics.process.agingActions.length,
+            Healthy: Math.max(
+              0,
+              (metrics.completeness
+                ? Object.values(metrics.completeness).reduce((sum, c) => sum + c.total, 0)
+                : 0) -
+                metrics.process.stale.length -
+                metrics.process.agingActions.length,
+            ),
+          })
+        : "",
       { titleClass: "health-section-title" },
     )}
   `;

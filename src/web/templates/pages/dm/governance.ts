@@ -4,7 +4,7 @@ import { collectHealthMetrics } from "../../../../reports/health/collector.js";
 import { evaluateHealth } from "../../../../reports/health/evaluator.js";
 import { garPage } from "../gar.js";
 import { healthPage } from "../health.js";
-import { collapsibleSection, escapeHtml } from "../../layout.js";
+import { collapsibleSection } from "../../layout.js";
 
 export function dmGovernancePage(ctx: PersonaPageContext): string {
   const garReport = getGarData(ctx.store, ctx.projectName);

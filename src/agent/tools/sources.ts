@@ -2,9 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { SourceManifestManager } from "../../sources/manifest.js";
 
-export function createSourceTools(
-  manifest: SourceManifestManager,
-): SdkMcpToolDefinition<any>[] {
+export function createSourceTools(manifest: SourceManifestManager): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_sources",
@@ -13,9 +11,7 @@ export function createSourceTools(
         status: z
           .string()
           .optional()
-          .describe(
-            "Filter by status (pending, processing, completed, error)",
-          ),
+          .describe("Filter by status (pending, processing, completed, error)"),
       },
       async (args) => {
         const statusFilter = args.status as
@@ -49,9 +45,7 @@ export function createSourceTools(
       "get_source_info",
       "Get detailed information about a specific source document",
       {
-        fileName: z
-          .string()
-          .describe("Name of the source file (e.g. 'Requirements.pdf')"),
+        fileName: z.string().describe("Name of the source file (e.g. 'Requirements.pdf')"),
       },
       async (args) => {
         const entry = manifest.get(args.fileName);
@@ -70,11 +64,7 @@ export function createSourceTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { name: args.fileName, ...entry },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ name: args.fileName, ...entry }, null, 2),
             },
           ],
         };

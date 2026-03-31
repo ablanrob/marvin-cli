@@ -11,15 +11,15 @@ export interface ContributeCommandOptions {
   draft?: boolean;
 }
 
-export async function contributeCommand(
-  options: ContributeCommandOptions,
-): Promise<void> {
+export async function contributeCommand(options: ContributeCommandOptions): Promise<void> {
   const project = loadProject();
   const marvinDir = project.marvinDir;
 
   if (!options.as) {
     console.log(chalk.red("Missing required option: --as <persona>"));
-    console.log(chalk.dim("Example: marvin contribute --as tl --type action-result --prompt \"...\""));
+    console.log(
+      chalk.dim('Example: marvin contribute --as tl --type action-result --prompt "..."'),
+    );
     return;
   }
 
@@ -28,7 +28,9 @@ export async function contributeCommand(
     const personaId = resolvePersonaId(options.as);
     const persona = getPersona(personaId);
     if (persona?.contributionTypes?.length) {
-      console.log(chalk.dim(`Available types for ${persona.name}: ${persona.contributionTypes.join(", ")}`));
+      console.log(
+        chalk.dim(`Available types for ${persona.name}: ${persona.contributionTypes.join(", ")}`),
+      );
     }
     return;
   }

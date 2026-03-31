@@ -13,10 +13,7 @@ export function findProjectRoot(from: string = process.cwd()): string {
   let current = path.resolve(from);
   while (true) {
     const candidate = path.join(current, ".marvin");
-    if (
-      fs.existsSync(candidate) &&
-      fs.statSync(candidate).isDirectory()
-    ) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
       return current;
     }
     const parent = path.dirname(current);

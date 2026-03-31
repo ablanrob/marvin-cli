@@ -4,7 +4,7 @@ import { normalizeLinkedFeatures } from "../../plugins/builtin/tools/epic-utils.
 /** Sanitize a string for use in labels — strip quotes and limit length */
 export function sanitize(text: string, maxLen = 40): string {
   const cleaned = text.replace(/["'`]/g, "").replace(/[\r\n]+/g, " ");
-  return cleaned.length > maxLen ? cleaned.slice(0, maxLen - 1) + "\u2026" : cleaned;
+  return cleaned.length > maxLen ? `${cleaned.slice(0, maxLen - 1)}\u2026` : cleaned;
 }
 
 /** Wrap a Mermaid definition in the correct pre tag for client-side rendering */
@@ -49,13 +49,26 @@ export interface DiagramData {
 
 /** Parse a YYYY-MM-DD string to epoch ms */
 function toMs(date: string): number {
-  return new Date(date + "T00:00:00").getTime();
+  return new Date(`${date}T00:00:00`).getTime();
 }
 
 /** Format a date as "Mon DD" */
 function fmtDate(ms: number): string {
   const d = new Date(ms);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
@@ -172,14 +185,17 @@ export function buildTimelineGantt(data: DiagramData, maxSprints = 6): string {
       const epic = epicMap.get(eid)!;
       const { startMs, endMs } = epicSpanMap.get(eid)!;
       const cls =
-        epic.status === "done" || epic.status === "completed" ? "gantt-bar-done"
-        : epic.status === "in-progress" || epic.status === "active" ? "gantt-bar-active"
-        : epic.status === "blocked" ? "gantt-bar-blocked"
-        : "gantt-bar-default";
+        epic.status === "done" || epic.status === "completed"
+          ? "gantt-bar-done"
+          : epic.status === "in-progress" || epic.status === "active"
+            ? "gantt-bar-active"
+            : epic.status === "blocked"
+              ? "gantt-bar-blocked"
+              : "gantt-bar-default";
 
       const left = pct(startMs).toFixed(2);
       const width = (pct(endMs) - pct(startMs)).toFixed(2);
-      const label = sanitize(epic.id + " " + epic.title);
+      const label = sanitize(`${epic.id} ${epic.title}`);
 
       return `<div class="gantt-row">
         <div class="gantt-label">${label}</div>
@@ -223,7 +239,9 @@ export function statusClass(status: string): string {
 /** Build an HTML three-column flow showing Feature → Epic → Sprint relationships */
 export function buildArtifactFlowchart(data: DiagramData): string {
   if (data.features.length === 0 && data.epics.length === 0) {
-    return placeholder("No artifact relationships found — create features and epics to see the hierarchy.");
+    return placeholder(
+      "No artifact relationships found — create features and epics to see the hierarchy.",
+    );
   }
 
   // Collect edges for the SVG lines
@@ -275,7 +293,9 @@ export function buildArtifactFlowchart(data: DiagramData): string {
       <span class="flow-node-title">${sanitize(title, 35)}</span>
     </div>`;
 
-  const featuresHtml = features.map((f) => renderNode(f.id, f.title, f.status, "feature")).join("\n");
+  const featuresHtml = features
+    .map((f) => renderNode(f.id, f.title, f.status, "feature"))
+    .join("\n");
   const epicsHtml = epics.map((e) => renderNode(e.id, e.title, e.status, "epic")).join("\n");
   const sprintsHtml = sprints.map((s) => renderNode(s.id, s.title, s.status, "sprint")).join("\n");
 

@@ -3,7 +3,7 @@ import type { DocumentStore } from "../storage/store.js";
 import type { DocumentTypeRegistration } from "../storage/types.js";
 import type { MarvinProjectConfig } from "../core/config.js";
 
-export type SkillFormat = 'builtin-ts' | 'yaml' | 'skill-md';
+export type SkillFormat = "builtin-ts" | "yaml" | "skill-md";
 
 export interface SkillDefinition {
   id: string;
@@ -14,7 +14,10 @@ export interface SkillDefinition {
   dirPath?: string;
   personas?: string[];
   documentTypeRegistrations?: DocumentTypeRegistration[];
-  tools?: (store: DocumentStore, projectConfig?: MarvinProjectConfig) => SdkMcpToolDefinition<any>[];
+  tools?: (
+    store: DocumentStore,
+    projectConfig?: MarvinProjectConfig,
+  ) => SdkMcpToolDefinition<any>[];
   promptFragments?: Record<string, string>;
   actions?: SkillAction[];
 }

@@ -6,20 +6,15 @@ function worstStatus(statuses: GarStatus[]): GarStatus {
   return "green";
 }
 
-export function evaluateGar(
-  projectName: string,
-  metrics: GarMetrics,
-): GarReport {
+export function evaluateGar(projectName: string, metrics: GarMetrics): GarReport {
   const areas: GarArea[] = [];
 
   // Scope — urgency-aware
   const atRisk = metrics.scope.atRiskItems;
-  const critHighAtRisk = atRisk.filter(
-    (item) => {
-      const p = (item.priority ?? "").toLowerCase();
-      return p === "critical" || p === "high";
-    },
-  );
+  const critHighAtRisk = atRisk.filter((item) => {
+    const p = (item.priority ?? "").toLowerCase();
+    return p === "critical" || p === "high";
+  });
   const scopeStatus: GarStatus =
     critHighAtRisk.length > 0 ? "red" : atRisk.length > 0 ? "amber" : "green";
 
@@ -28,7 +23,9 @@ export function evaluateGar(
     scopeInsights.push(`${critHighAtRisk.length} high-priority item(s) at risk`);
   }
   if (atRisk.length > critHighAtRisk.length) {
-    scopeInsights.push(`${atRisk.length - critHighAtRisk.length} additional item(s) approaching deadlines`);
+    scopeInsights.push(
+      `${atRisk.length - critHighAtRisk.length} additional item(s) approaching deadlines`,
+    );
   }
   if (atRisk.length === 0) {
     scopeInsights.push("No at-risk items in active sprints");
@@ -37,10 +34,7 @@ export function evaluateGar(
   areas.push({
     name: "Scope",
     status: scopeStatus,
-    summary:
-      atRisk.length > 0
-        ? `${atRisk.length} at-risk item(s)`
-        : "on track",
+    summary: atRisk.length > 0 ? `${atRisk.length} at-risk item(s)` : "on track",
     items: atRisk,
     insights: scopeInsights,
   });
@@ -54,14 +48,14 @@ export function evaluateGar(
         : "green";
 
   const scheduleParts: string[] = [];
-  if (metrics.schedule.blocked > 0)
-    scheduleParts.push(`${metrics.schedule.blocked} blocked`);
-  if (metrics.schedule.overdue > 0)
-    scheduleParts.push(`${metrics.schedule.overdue} overdue`);
+  if (metrics.schedule.blocked > 0) scheduleParts.push(`${metrics.schedule.blocked} blocked`);
+  if (metrics.schedule.overdue > 0) scheduleParts.push(`${metrics.schedule.overdue} overdue`);
 
   const scheduleInsights: string[] = [];
   if (metrics.schedule.badlyOverdueCount > 0) {
-    scheduleInsights.push(`${metrics.schedule.badlyOverdueCount} item(s) overdue by more than a week`);
+    scheduleInsights.push(
+      `${metrics.schedule.badlyOverdueCount} item(s) overdue by more than a week`,
+    );
   }
   if (metrics.schedule.blocked > 0) {
     scheduleInsights.push(`${metrics.schedule.blocked} item(s) blocked`);
@@ -82,8 +76,7 @@ export function evaluateGar(
     qualityScore > threshold ? "red" : qualityScore > 0 ? "amber" : "green";
 
   const qualityParts: string[] = [];
-  if (metrics.quality.riskCount > 0)
-    qualityParts.push(`${metrics.quality.riskCount} risk(s)`);
+  if (metrics.quality.riskCount > 0) qualityParts.push(`${metrics.quality.riskCount} risk(s)`);
   if (metrics.quality.openQuestions > 0)
     qualityParts.push(`${metrics.quality.openQuestions} open question(s)`);
 
@@ -92,7 +85,9 @@ export function evaluateGar(
     qualityInsights.push(`${metrics.quality.riskCount} risk(s) flagged`);
   }
   if (metrics.quality.staleQuestionCount > 0) {
-    qualityInsights.push(`${metrics.quality.staleQuestionCount} question(s) open for more than 2 weeks`);
+    qualityInsights.push(
+      `${metrics.quality.staleQuestionCount} question(s) open for more than 2 weeks`,
+    );
   }
 
   areas.push({

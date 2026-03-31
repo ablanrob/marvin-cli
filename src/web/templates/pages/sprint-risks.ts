@@ -29,13 +29,14 @@ export function sprintRisksPage(data: SprintSummaryData | null, store: DocumentS
       </div>
     </div>`;
 
-  const itemCards = riskDocs.map((r) => {
-    const doc = r.doc;
-    const owner = doc?.frontmatter.owner;
-    const assignee = doc?.frontmatter.assignee;
-    const content = doc?.content?.trim();
+  const itemCards = riskDocs
+    .map((r) => {
+      const doc = r.doc;
+      const owner = doc?.frontmatter.owner;
+      const assignee = doc?.frontmatter.assignee;
+      const content = doc?.content?.trim();
 
-    return `
+      return `
       <div class="blocker-card" id="risk-${escapeHtml(r.id)}">
         <div class="blocker-card-header">
           <a href="/docs/${escapeHtml(r.type)}/${escapeHtml(r.id)}">${escapeHtml(r.id)}</a>
@@ -59,14 +60,17 @@ export function sprintRisksPage(data: SprintSummaryData | null, store: DocumentS
           <div class="risk-assessment-content detail-content" style="display:none"></div>
         </div>
       </div>`;
-  }).join("");
+    })
+    .join("");
 
-  const emptyMessage = riskDocs.length === 0
-    ? `<div class="empty"><h3>No Risks</h3><p>No open risk items in this sprint.</p></div>`
-    : "";
+  const emptyMessage =
+    riskDocs.length === 0
+      ? `<div class="empty"><h3>No Risks</h3><p>No open risk items in this sprint.</p></div>`
+      : "";
 
-  const script = riskDocs.length > 0
-    ? `
+  const script =
+    riskDocs.length > 0
+      ? `
     <script>
       async function generateAssessment(riskId, btn) {
         var container = document.getElementById('assessment-' + riskId);
@@ -104,7 +108,7 @@ export function sprintRisksPage(data: SprintSummaryData | null, store: DocumentS
         }
       }
     </script>`
-    : "";
+      : "";
 
   return `
     <div class="page-header">

@@ -1,6 +1,13 @@
 import type { OverviewData, DiagramDataResult } from "../../data.js";
 import type { NavGroup } from "../layout.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel, integrationIcons } from "../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  statusBadge,
+  typeLabel,
+  integrationIcons,
+} from "../layout.js";
 import { buildArtifactFlowchart } from "../mermaid.js";
 
 function renderCard(t: { type: string; total: number; open: number }): string {
@@ -14,7 +21,11 @@ function renderCard(t: { type: string; total: number; open: number }): string {
       </div>`;
 }
 
-export function overviewPage(data: OverviewData, diagrams: DiagramDataResult, navGroups: NavGroup[]): string {
+export function overviewPage(
+  data: OverviewData,
+  diagrams: DiagramDataResult,
+  navGroups: NavGroup[],
+): string {
   const typeMap = new Map(data.types.map((t) => [t.type, t]));
   const placed = new Set<string>();
 

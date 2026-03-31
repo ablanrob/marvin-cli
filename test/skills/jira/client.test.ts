@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { JiraClient, createJiraClient } from "../../../src/skills/builtin/jira/client.js";
 
 describe("createJiraClient", () => {
@@ -136,15 +136,23 @@ describe("JiraClient", () => {
 
 describe("JiraClient.extractPageId", () => {
   it("should extract from /pages/<id>", () => {
-    expect(JiraClient.extractPageId("https://myco.atlassian.net/wiki/spaces/PROJ/pages/123456")).toBe("123456");
+    expect(
+      JiraClient.extractPageId("https://myco.atlassian.net/wiki/spaces/PROJ/pages/123456"),
+    ).toBe("123456");
   });
 
   it("should extract from /pages/<id>/title", () => {
-    expect(JiraClient.extractPageId("https://myco.atlassian.net/wiki/spaces/PROJ/pages/123456/My+Page")).toBe("123456");
+    expect(
+      JiraClient.extractPageId("https://myco.atlassian.net/wiki/spaces/PROJ/pages/123456/My+Page"),
+    ).toBe("123456");
   });
 
   it("should extract from ?pageId=<id>", () => {
-    expect(JiraClient.extractPageId("https://myco.atlassian.net/wiki/pages/viewpage.action?pageId=123456")).toBe("123456");
+    expect(
+      JiraClient.extractPageId(
+        "https://myco.atlassian.net/wiki/pages/viewpage.action?pageId=123456",
+      ),
+    ).toBe("123456");
   });
 
   it("should return null for non-Confluence URLs", () => {

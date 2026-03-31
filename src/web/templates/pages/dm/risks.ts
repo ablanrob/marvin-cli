@@ -2,7 +2,13 @@ import type { PersonaPageContext } from "../../../persona-views.js";
 import { getUpcomingData } from "../../../data.js";
 import { collectHealthMetrics } from "../../../../reports/health/collector.js";
 import { evaluateHealth } from "../../../../reports/health/evaluator.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  statusBadge,
+  typeLabel,
+} from "../../layout.js";
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
@@ -52,37 +58,43 @@ export function dmRisksPage(ctx: PersonaPageContext): string {
     </div>`;
 
   // Blocked items table
-  const blockedSection = blockedItems.length > 0
-    ? collapsibleSection(
-        "dm-risks-blocked",
-        `Blocked Items (${blockedItems.length})`,
-        `<div class="table-wrap">
+  const blockedSection =
+    blockedItems.length > 0
+      ? collapsibleSection(
+          "dm-risks-blocked",
+          `Blocked Items (${blockedItems.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Type</th><th>Owner</th><th>Created</th></tr>
             </thead>
             <tbody>
-              ${blockedItems.map((d) => `
+              ${blockedItems
+                .map(
+                  (d) => `
               <tr>
                 <td><a href="/docs/${escapeHtml(d.frontmatter.type)}/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${escapeHtml(typeLabel(d.frontmatter.type))}</td>
                 <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   // Aging items table
-  const agingSection = agingItems.length > 0
-    ? collapsibleSection(
-        "dm-risks-aging",
-        `Aging Items (${agingItems.length})`,
-        `<div class="table-wrap table-short">
+  const agingSection =
+    agingItems.length > 0
+      ? collapsibleSection(
+          "dm-risks-aging",
+          `Aging Items (${agingItems.length})`,
+          `<div class="table-wrap table-short">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Created</th><th>Age</th></tr>
@@ -90,7 +102,9 @@ export function dmRisksPage(ctx: PersonaPageContext): string {
             <tbody>
               ${agingItems
                 .map((d) => {
-                  const ageDays = Math.floor((todayMs - new Date(d.frontmatter.created).getTime()) / 86_400_000);
+                  const ageDays = Math.floor(
+                    (todayMs - new Date(d.frontmatter.created).getTime()) / 86_400_000,
+                  );
                   return `
               <tr>
                 <td><a href="/docs/${escapeHtml(d.frontmatter.type)}/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
@@ -105,16 +119,19 @@ export function dmRisksPage(ctx: PersonaPageContext): string {
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   // Health overview
   const allCategories = [...healthReport.completeness, ...healthReport.process];
   const nonGreenHealth = allCategories.filter((c) => c.status !== "green");
-  const healthMetricTags = nonGreenHealth.length > 0
-    ? nonGreenHealth.map((c) => `<span class="gar-metric">${escapeHtml(c.name)} (${c.status})</span>`).join("")
-    : `<span class="gar-metric">All areas healthy</span>`;
+  const healthMetricTags =
+    nonGreenHealth.length > 0
+      ? nonGreenHealth
+          .map((c) => `<span class="gar-metric">${escapeHtml(c.name)} (${c.status})</span>`)
+          .join("")
+      : `<span class="gar-metric">All areas healthy</span>`;
 
   const healthSection = collapsibleSection(
     "dm-risks-health",
@@ -127,14 +144,18 @@ export function dmRisksPage(ctx: PersonaPageContext): string {
       <div class="gar-overall-metrics">${healthMetricTags}</div>
     </div>
     <div class="gar-areas-3col">
-      ${allCategories.map((cat) => `
+      ${allCategories
+        .map(
+          (cat) => `
       <div class="gar-area">
         <div class="area-header">
           <div class="area-dot dot-${cat.status}"></div>
           <div class="area-name">${escapeHtml(cat.name)}</div>
         </div>
         <div class="area-summary">${escapeHtml(cat.summary)}</div>
-      </div>`).join("")}
+      </div>`,
+        )
+        .join("")}
     </div>`,
     { titleTag: "h3", defaultCollapsed: true },
   );

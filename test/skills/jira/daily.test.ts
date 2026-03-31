@@ -12,7 +12,7 @@ import {
   fetchJiraDaily,
   type DateRange,
 } from "../../../src/skills/builtin/jira/daily.js";
-import type { JiraClient, JiraIssue } from "../../../src/skills/builtin/jira/client.js";
+import type { JiraClient } from "../../../src/skills/builtin/jira/client.js";
 
 describe("extractCommentText", () => {
   it("should return string bodies as-is", () => {
@@ -167,9 +167,17 @@ describe("computeTitleSimilarity", () => {
 describe("findLinkSuggestions", () => {
   it("should find matching artifacts", () => {
     const docs = [
-      { frontmatter: { id: "T-001", type: "task", title: "Define anomaly detection rules catalog for V1" } },
+      {
+        frontmatter: {
+          id: "T-001",
+          type: "task",
+          title: "Define anomaly detection rules catalog for V1",
+        },
+      },
       { frontmatter: { id: "T-002", type: "task", title: "Setup CI pipeline" } },
-      { frontmatter: { id: "A-001", type: "action", title: "Budget planning page implementation" } },
+      {
+        frontmatter: { id: "A-001", type: "action", title: "Budget planning page implementation" },
+      },
     ];
     const suggestions = findLinkSuggestions(
       "Define Planning-phase Anomaly Detection UX Integration",
@@ -181,7 +189,14 @@ describe("findLinkSuggestions", () => {
 
   it("should skip artifacts that already have a jiraKey", () => {
     const docs = [
-      { frontmatter: { id: "T-001", type: "task", title: "Anomaly detection rules", jiraKey: "MCB1-100" } },
+      {
+        frontmatter: {
+          id: "T-001",
+          type: "task",
+          title: "Anomaly detection rules",
+          jiraKey: "MCB1-100",
+        },
+      },
     ];
     const suggestions = findLinkSuggestions("Anomaly detection rules catalog", docs);
     expect(suggestions).toHaveLength(0);
@@ -189,7 +204,11 @@ describe("findLinkSuggestions", () => {
 
   it("should return at most 3 suggestions", () => {
     const docs = Array.from({ length: 10 }, (_, i) => ({
-      frontmatter: { id: `T-${i + 1}`, type: "task", title: `Budget planning variant ${i + 1} implementation` },
+      frontmatter: {
+        id: `T-${i + 1}`,
+        type: "task",
+        title: `Budget planning variant ${i + 1} implementation`,
+      },
     }));
     const suggestions = findLinkSuggestions("Budget planning implementation", docs);
     expect(suggestions.length).toBeLessThanOrEqual(3);
@@ -240,11 +259,15 @@ describe("fetchJiraDaily", () => {
   });
 
   it("should cross-reference with Marvin artifacts", async () => {
-    store.create("action", {
-      title: "Test Action",
-      status: "open",
-      jiraKey: "PROJ-1",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Test Action",
+        status: "open",
+        jiraKey: "PROJ-1",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.searchIssuesV3).mockResolvedValue({
       total: 1,
@@ -278,11 +301,15 @@ describe("fetchJiraDaily", () => {
   });
 
   it("should propose status-update for drifted artifacts", async () => {
-    store.create("action", {
-      title: "Drifted Action",
-      status: "open",
-      jiraKey: "PROJ-2",
-    } as any, "");
+    store.create(
+      "action",
+      {
+        title: "Drifted Action",
+        status: "open",
+        jiraKey: "PROJ-2",
+      } as any,
+      "",
+    );
 
     vi.mocked(mockClient.searchIssuesV3).mockResolvedValue({
       total: 1,
@@ -346,7 +373,16 @@ describe("fetchJiraDaily", () => {
         id: "1",
         author: { displayName: "Jane" },
         created: "2026-03-23T10:00:00Z",
-        items: [{ field: "status", fieldtype: "jira", from: null, fromString: "Backlog", to: null, toString: "To Do" }],
+        items: [
+          {
+            field: "status",
+            fieldtype: "jira",
+            from: null,
+            fromString: "Backlog",
+            to: null,
+            toString: "To Do",
+          },
+        ],
       },
     ]);
 

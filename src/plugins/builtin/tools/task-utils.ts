@@ -12,7 +12,9 @@ export function normalizeLinkedEpics(value: unknown): string[] {
     try {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === "string");
-    } catch { /* not JSON — treat as a single epic ID */ }
+    } catch {
+      /* not JSON — treat as a single epic ID */
+    }
     return [value];
   }
   if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");

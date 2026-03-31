@@ -7,10 +7,11 @@ import { escapeHtml, formatDate, linkArtifactIds } from "./layout.js";
 // ========================================================================
 
 export function buildArtifactRelationGraph(data: ArtifactRelationships): string {
-  const hasContent = data.origins.length > 0
-    || data.parents.length > 0
-    || data.children.length > 0
-    || data.external.length > 0;
+  const hasContent =
+    data.origins.length > 0 ||
+    data.parents.length > 0 ||
+    data.children.length > 0 ||
+    data.external.length > 0;
 
   if (!hasContent) {
     return `<div class="flow-diagram flow-empty"><p>No relationships found for this artifact.</p></div>`;
@@ -19,9 +20,7 @@ export function buildArtifactRelationGraph(data: ArtifactRelationships): string 
   const edges = data.edges;
 
   const renderNode = (id: string, title: string, status: string, type: string) => {
-    const href = type === "jira"
-      ? (title.startsWith("http") ? title : "#")
-      : `/docs/${type}/${id}`;
+    const href = type === "jira" ? (title.startsWith("http") ? title : "#") : `/docs/${type}/${id}`;
     const target = type === "jira" ? ' target="_blank" rel="noopener"' : "";
     const cls = type === "jira" ? "flow-node flow-external" : `flow-node ${statusClass(status)}`;
     const displayTitle = type === "jira" ? "Jira Issue" : sanitize(title, 35);
@@ -43,41 +42,45 @@ export function buildArtifactRelationGraph(data: ArtifactRelationships): string 
   if (data.origins.length > 0) {
     columns.push({
       header: "Origins",
-      nodes: data.origins.map(a => renderNode(a.id, a.title, a.status, a.type)).join("\n"),
+      nodes: data.origins.map((a) => renderNode(a.id, a.title, a.status, a.type)).join("\n"),
     });
   }
 
   if (data.parents.length > 0) {
     columns.push({
       header: "Parents",
-      nodes: data.parents.map(a => renderNode(a.id, a.title, a.status, a.type)).join("\n"),
+      nodes: data.parents.map((a) => renderNode(a.id, a.title, a.status, a.type)).join("\n"),
     });
   }
 
   columns.push({
-    header: data.self.type.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+    header: data.self.type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
     nodes: selfNode,
   });
 
   if (data.children.length > 0) {
     columns.push({
       header: "Children",
-      nodes: data.children.map(a => renderNode(a.id, a.title, a.status, a.type)).join("\n"),
+      nodes: data.children.map((a) => renderNode(a.id, a.title, a.status, a.type)).join("\n"),
     });
   }
 
   if (data.external.length > 0) {
     columns.push({
       header: "External",
-      nodes: data.external.map(a => renderNode(a.id, a.title, a.status, a.type)).join("\n"),
+      nodes: data.external.map((a) => renderNode(a.id, a.title, a.status, a.type)).join("\n"),
     });
   }
 
-  const columnsHtml = columns.map(col => `
+  const columnsHtml = columns
+    .map(
+      (col) => `
     <div class="flow-column">
       <div class="flow-column-header">${escapeHtml(col.header)}</div>
       ${col.nodes}
-    </div>`).join("\n");
+    </div>`,
+    )
+    .join("\n");
 
   const edgesJson = JSON.stringify(edges);
 
@@ -212,10 +215,10 @@ export function buildArtifactRelationGraph(data: ArtifactRelationships): string 
 // ========================================================================
 
 const EVENT_ICONS: Record<string, string> = {
-  "created": "🟢",
+  created: "🟢",
   "source-linked": "🔵",
   "child-spawned": "🟡",
-  "assessment": "🟣",
+  assessment: "🟣",
   "jira-sync": "🔷",
 };
 
@@ -224,7 +227,7 @@ export function buildLineageTimeline(events: LineageEvent[]): string {
     return "";
   }
 
-  const entries = events.map(event => {
+  const entries = events.map((event) => {
     const icon = EVENT_ICONS[event.type] ?? "⚪";
     const date = event.date ? formatDate(event.date) : "";
     const time = event.date?.slice(11, 16) ?? "";

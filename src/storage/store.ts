@@ -66,9 +66,7 @@ export class DocumentStore {
 
   list(query?: DocumentQuery): Document[] {
     const results: Document[] = [];
-    const types = query?.type
-      ? [query.type]
-      : Object.keys(this.typeDirs);
+    const types = query?.type ? [query.type] : Object.keys(this.typeDirs);
 
     for (const type of types) {
       const dirName = this.typeDirs[type];
@@ -83,10 +81,7 @@ export class DocumentStore {
 
         if (query?.status && doc.frontmatter.status !== query.status) continue;
         if (query?.owner && doc.frontmatter.owner !== query.owner) continue;
-        if (
-          query?.tag &&
-          (!doc.frontmatter.tags || !doc.frontmatter.tags.includes(query.tag))
-        )
+        if (query?.tag && (!doc.frontmatter.tags || !doc.frontmatter.tags.includes(query.tag)))
           continue;
 
         results.push(doc);
@@ -189,11 +184,7 @@ export class DocumentStore {
     return doc;
   }
 
-  update(
-    id: string,
-    updates: Partial<DocumentFrontmatter>,
-    content?: string,
-  ): Document {
+  update(id: string, updates: Partial<DocumentFrontmatter>, content?: string): Document {
     const existing = this.get(id);
     if (!existing) {
       throw new Error(`Document ${id} not found`);
@@ -213,7 +204,7 @@ export class DocumentStore {
       updated: new Date().toISOString(),
     };
     for (const key of keysToDelete) {
-      delete (merged as Record<string, unknown>)[key];
+      Reflect.deleteProperty(merged as Record<string, unknown>, key);
     }
     const updatedFrontmatter = merged as DocumentFrontmatter;
 

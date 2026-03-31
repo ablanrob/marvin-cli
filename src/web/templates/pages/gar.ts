@@ -5,23 +5,28 @@ import { renderGarWidget } from "../gar-widget.js";
 export function garPage(report: GarReport): string {
   const areaCards = report.areas
     .map((area) => {
-      const insights = (area.insights ?? []).length > 0
-        ? `<ul class="gar-insights">${area.insights.map((ins) => `<li>${escapeHtml(ins)}</li>`).join("")}</ul>`
-        : "";
+      const insights =
+        (area.insights ?? []).length > 0
+          ? `<ul class="gar-insights">${area.insights.map((ins) => `<li>${escapeHtml(ins)}</li>`).join("")}</ul>`
+          : "";
 
-      const itemList = area.items.length > 0
-        ? collapsibleSection(
-            `gar-items-${area.name.toLowerCase()}`,
-            `Items (${area.items.length})`,
-            `<ul>${area.items.map((item) => {
-              const overdue = item.daysOverdue != null
-                ? ` <span class="text-dim">(${item.daysOverdue}d overdue)</span>`
-                : "";
-              return `<li><span class="ref-id">${escapeHtml(item.id)}</span>${escapeHtml(item.title)}${overdue}</li>`;
-            }).join("")}</ul>`,
-            { titleTag: "div", titleClass: "section-title", defaultCollapsed: true },
-          )
-        : "";
+      const itemList =
+        area.items.length > 0
+          ? collapsibleSection(
+              `gar-items-${area.name.toLowerCase()}`,
+              `Items (${area.items.length})`,
+              `<ul>${area.items
+                .map((item) => {
+                  const overdue =
+                    item.daysOverdue !== null && item.daysOverdue !== undefined
+                      ? ` <span class="text-dim">(${item.daysOverdue}d overdue)</span>`
+                      : "";
+                  return `<li><span class="ref-id">${escapeHtml(item.id)}</span>${escapeHtml(item.title)}${overdue}</li>`;
+                })
+                .join("")}</ul>`,
+              { titleTag: "div", titleClass: "section-title", defaultCollapsed: true },
+            )
+          : "";
 
       return `
       <div class="gar-area">

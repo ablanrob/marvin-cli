@@ -124,33 +124,20 @@ export class JiraClient {
     this.baseUrl = `https://${this.host}/rest/api/2`;
     this.baseUrlV3 = `https://${this.host}/rest/api/3`;
     this.confluenceBaseUrl = `https://${this.host}/wiki/api/v2`;
-    this.authHeader =
-      "Basic " + Buffer.from(`${config.email}:${config.apiToken}`).toString("base64");
+    this.authHeader = `Basic ${Buffer.from(`${config.email}:${config.apiToken}`).toString("base64")}`;
   }
 
-  private async request<T>(
-    path: string,
-    method: string = "GET",
-    body?: unknown,
-  ): Promise<T> {
+  private async request<T>(path: string, method: string = "GET", body?: unknown): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     return this.doRequest<T>(url, method, body);
   }
 
-  private async requestV3<T>(
-    path: string,
-    method: string = "GET",
-    body?: unknown,
-  ): Promise<T> {
+  private async requestV3<T>(path: string, method: string = "GET", body?: unknown): Promise<T> {
     const url = `${this.baseUrlV3}${path}`;
     return this.doRequest<T>(url, method, body);
   }
 
-  private async doRequest<T>(
-    url: string,
-    method: string,
-    body?: unknown,
-  ): Promise<T> {
+  private async doRequest<T>(url: string, method: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = {
       Authorization: this.authHeader,
       "Content-Type": "application/json",
@@ -165,9 +152,7 @@ export class JiraClient {
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new Error(
-        `Jira API error ${response.status} ${method} ${url}: ${text}`,
-      );
+      throw new Error(`Jira API error ${response.status} ${method} ${url}: ${text}`);
     }
 
     if (response.status === 204) return undefined as T;
@@ -177,7 +162,17 @@ export class JiraClient {
   async searchIssues(jql: string, maxResults: number = 50): Promise<JiraSearchResult> {
     return this.searchIssuesV3(
       jql,
-      ["summary", "description", "status", "issuetype", "priority", "assignee", "labels", "created", "updated"],
+      [
+        "summary",
+        "description",
+        "status",
+        "issuetype",
+        "priority",
+        "assignee",
+        "labels",
+        "created",
+        "updated",
+      ],
       maxResults,
     );
   }
@@ -204,11 +199,7 @@ export class JiraClient {
   }
 
   async updateIssue(key: string, fields: Record<string, unknown>): Promise<void> {
-    await this.request<void>(
-      `/issue/${encodeURIComponent(key)}`,
-      "PUT",
-      { fields },
-    );
+    await this.request<undefined>(`/issue/${encodeURIComponent(key)}`, "PUT", { fields });
   }
 
   async getIssueWithLinks(key: string): Promise<JiraIssue> {
@@ -232,17 +223,11 @@ export class JiraClient {
   }
 
   async getRemoteLinks(key: string): Promise<JiraRemoteLink[]> {
-    return this.request<JiraRemoteLink[]>(
-      `/issue/${encodeURIComponent(key)}/remotelink`,
-    );
+    return this.request<JiraRemoteLink[]>(`/issue/${encodeURIComponent(key)}/remotelink`);
   }
 
   async addComment(key: string, body: string): Promise<void> {
-    await this.request<void>(
-      `/issue/${encodeURIComponent(key)}/comment`,
-      "POST",
-      { body },
-    );
+    await this.request<undefined>(`/issue/${encodeURIComponent(key)}/comment`, "POST", { body });
   }
 
   // --- Confluence methods ---
@@ -281,7 +266,11 @@ export interface ResolvedJiraConfig {
   host: string;
 }
 
-export function createJiraClient(jiraUserConfig?: { host?: string; email?: string; apiToken?: string }): ResolvedJiraConfig | null {
+export function createJiraClient(jiraUserConfig?: {
+  host?: string;
+  email?: string;
+  apiToken?: string;
+}): ResolvedJiraConfig | null {
   const host = jiraUserConfig?.host ?? process.env.JIRA_HOST;
   const email = jiraUserConfig?.email ?? process.env.JIRA_EMAIL;
   const apiToken = jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN;

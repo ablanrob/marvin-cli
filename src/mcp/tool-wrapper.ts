@@ -67,14 +67,12 @@ export function wrapToolsWithPersonaValidation(
         ].join("\n");
 
         const content = Array.isArray(result.content)
-          ? result.content.map(
-              (block: { type: string; text?: string }, index: number) => {
-                if (index === 0 && block.type === "text" && block.text) {
-                  return { ...block, text: `${warning}\n${block.text}` };
-                }
-                return block;
-              },
-            )
+          ? result.content.map((block: { type: string; text?: string }, index: number) => {
+              if (index === 0 && block.type === "text" && block.text) {
+                return { ...block, text: `${warning}\n${block.text}` };
+              }
+              return block;
+            })
           : result.content;
 
         return { ...result, content };

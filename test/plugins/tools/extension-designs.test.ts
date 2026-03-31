@@ -27,7 +27,18 @@ describe("Extension Design Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "use-cases", "tech-assessments", "extension-designs"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "use-cases",
+      "tech-assessments",
+      "extension-designs",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, AEM_REGISTRATIONS);
@@ -89,7 +100,10 @@ describe("Extension Design Tools", () => {
     it("should succeed when tech assessment is recommended", async () => {
       await ucTools.create_use_case({ title: "UC", content: "C", status: "assessed" });
       await taTools.create_tech_assessment({
-        title: "TA", content: "T", linkedUseCase: "UC-001", status: "recommended",
+        title: "TA",
+        content: "T",
+        linkedUseCase: "UC-001",
+        status: "recommended",
       });
 
       const result = await xdTools.create_extension_design({
@@ -116,20 +130,33 @@ describe("Extension Design Tools", () => {
     beforeEach(async () => {
       await ucTools.create_use_case({ title: "UC", content: "C", status: "assessed" });
       await taTools.create_tech_assessment({
-        title: "TA 1", content: "T1", linkedUseCase: "UC-001", status: "recommended",
+        title: "TA 1",
+        content: "T1",
+        linkedUseCase: "UC-001",
+        status: "recommended",
       });
       await taTools.create_tech_assessment({
-        title: "TA 2", content: "T2", linkedUseCase: "UC-001", status: "recommended",
+        title: "TA 2",
+        content: "T2",
+        linkedUseCase: "UC-001",
+        status: "recommended",
       });
 
       await xdTools.create_extension_design({
-        title: "XD 1", content: "D1", linkedTechAssessment: "TA-001",
+        title: "XD 1",
+        content: "D1",
+        linkedTechAssessment: "TA-001",
       });
       await xdTools.create_extension_design({
-        title: "XD 2", content: "D2", linkedTechAssessment: "TA-001", status: "designed",
+        title: "XD 2",
+        content: "D2",
+        linkedTechAssessment: "TA-001",
+        status: "designed",
       });
       await xdTools.create_extension_design({
-        title: "XD 3", content: "D3", linkedTechAssessment: "TA-002",
+        title: "XD 3",
+        content: "D3",
+        linkedTechAssessment: "TA-002",
       });
     });
 
@@ -149,10 +176,15 @@ describe("Extension Design Tools", () => {
   it("should update extension design status", async () => {
     await ucTools.create_use_case({ title: "UC", content: "C", status: "assessed" });
     await taTools.create_tech_assessment({
-      title: "TA", content: "T", linkedUseCase: "UC-001", status: "recommended",
+      title: "TA",
+      content: "T",
+      linkedUseCase: "UC-001",
+      status: "recommended",
     });
     await xdTools.create_extension_design({
-      title: "XD", content: "D", linkedTechAssessment: "TA-001",
+      title: "XD",
+      content: "D",
+      linkedTechAssessment: "TA-001",
     });
 
     const result = await xdTools.update_extension_design({ id: "XD-001", status: "validated" });

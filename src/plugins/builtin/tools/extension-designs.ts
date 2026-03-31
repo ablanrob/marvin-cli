@@ -2,9 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 
-export function createExtensionDesignTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createExtensionDesignTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_extension_designs",
@@ -59,11 +57,7 @@ export function createExtensionDesignTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -76,8 +70,14 @@ export function createExtensionDesignTools(
       "Create a new extension design linked to a recommended tech assessment (Phase 3: Define Extension Target Solution)",
       {
         title: z.string().describe("Extension design title"),
-        content: z.string().describe("Architecture description — components, integration points, data flow, deployment model"),
-        linkedTechAssessment: z.string().describe("Tech assessment ID to link this design to (e.g. 'TA-001')"),
+        content: z
+          .string()
+          .describe(
+            "Architecture description — components, integration points, data flow, deployment model",
+          ),
+        linkedTechAssessment: z
+          .string()
+          .describe("Tech assessment ID to link this design to (e.g. 'TA-001')"),
         status: z
           .enum(["draft", "designed", "validated", "approved"])
           .optional()
@@ -86,10 +86,7 @@ export function createExtensionDesignTools(
           .string()
           .optional()
           .describe("Architecture pattern (e.g. 'event-driven', 'API-based', 'UI-extension')"),
-        btpServices: z
-          .array(z.string())
-          .optional()
-          .describe("BTP services used in the design"),
+        btpServices: z.array(z.string()).optional().describe("BTP services used in the design"),
         owner: z.string().optional().describe("Design owner"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
       },
@@ -164,10 +161,7 @@ export function createExtensionDesignTools(
           .describe("New status"),
         content: z.string().optional().describe("New content"),
         architecture: z.string().optional().describe("Updated architecture pattern"),
-        btpServices: z
-          .array(z.string())
-          .optional()
-          .describe("Updated BTP services list"),
+        btpServices: z.array(z.string()).optional().describe("Updated BTP services list"),
         owner: z.string().optional().describe("New owner"),
       },
       async (args) => {

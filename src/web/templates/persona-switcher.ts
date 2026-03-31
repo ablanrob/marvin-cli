@@ -2,10 +2,7 @@ import type { DashboardPersona } from "../persona-views.js";
 import { getAllPersonaViews } from "../persona-views.js";
 import { escapeHtml } from "./layout.js";
 
-export function renderPersonaSwitcher(
-  current: DashboardPersona,
-  _currentPath: string,
-): string {
+export function renderPersonaSwitcher(current: DashboardPersona, _currentPath: string): string {
   const views = getAllPersonaViews();
   if (views.length === 0) return "";
 

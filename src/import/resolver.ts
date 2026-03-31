@@ -75,10 +75,7 @@ export function resolveConflicts(
   return { resolved, skipped, idMapping };
 }
 
-export function updateCrossReferences(
-  content: string,
-  idMapping: Map<string, string>,
-): string {
+export function updateCrossReferences(content: string, idMapping: Map<string, string>): string {
   if (idMapping.size === 0) return content;
 
   return content.replace(ID_REF_PATTERN, (match) => {

@@ -1,7 +1,7 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
-import { getSprintSummaryData, getDiagramData } from "../../../data.js";
+import { getDiagramData } from "../../../data.js";
 import { buildArtifactFlowchart } from "../../mermaid.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../../layout.js";
+import { collapsibleSection } from "../../layout.js";
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 /** Decision statuses that indicate the decision has been resolved */
@@ -11,7 +11,7 @@ export function tlDashboardPage(ctx: PersonaPageContext): string {
   const epics = ctx.store.list({ type: "epic" });
   const tasks = ctx.store.list({ type: "task" });
   const decisions = ctx.store.list({ type: "decision" });
-  const questions = ctx.store.list({ type: "question" });
+  const _questions = ctx.store.list({ type: "question" });
   const diagrams = getDiagramData(ctx.store);
 
   const openEpics = epics.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
@@ -22,13 +22,17 @@ export function tlDashboardPage(ctx: PersonaPageContext): string {
     const tags = (d.frontmatter.tags as string[]) ?? [];
     return tags.some((t) => {
       const lower = t.toLowerCase();
-      return lower.includes("technical") || lower.includes("architecture") || lower.includes("design");
+      return (
+        lower.includes("technical") || lower.includes("architecture") || lower.includes("design")
+      );
     });
   });
 
   // Fallback: show all decisions if no technical-tagged decisions exist at all
   const displayDecisions = technicalDecisions.length > 0 ? technicalDecisions : decisions;
-  const pendingDecisions = displayDecisions.filter((d) => !RESOLVED_DECISION_STATUSES.has(d.frontmatter.status));
+  const pendingDecisions = displayDecisions.filter(
+    (d) => !RESOLVED_DECISION_STATUSES.has(d.frontmatter.status),
+  );
 
   const statsCards = `
     <div class="cards">

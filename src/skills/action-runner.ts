@@ -35,8 +35,7 @@ export async function runSkillAction(
 ): Promise<CallToolResult> {
   try {
     const mcpServer = createMarvinMcpServer(context.store);
-    const allowedTools =
-      action.allowGovernanceTools !== false ? GOVERNANCE_TOOL_NAMES : [];
+    const allowedTools = action.allowGovernanceTools !== false ? GOVERNANCE_TOOL_NAMES : [];
 
     const conversation = query({
       prompt: userPrompt,
@@ -55,8 +54,7 @@ export async function runSkillAction(
     for await (const message of conversation as AsyncIterable<SDKMessage>) {
       if (message.type === "assistant") {
         const textBlocks = message.message.content.filter(
-          (b: { type: string }): b is { type: "text"; text: string } =>
-            b.type === "text",
+          (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
         );
         for (const block of textBlocks) {
           textParts.push(block.text);

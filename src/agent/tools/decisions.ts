@@ -3,14 +3,17 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../personas/owner.js";
 
-export function createDecisionTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createDecisionTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_decisions",
       "List all decisions in the project, optionally filtered by status",
-      { status: z.enum(["open", "decided", "superseded", "dismissed"]).optional().describe("Filter by status") },
+      {
+        status: z
+          .enum(["open", "decided", "superseded", "dismissed"])
+          .optional()
+          .describe("Filter by status"),
+      },
       async (args) => {
         const docs = store.list({ type: "decision", status: args.status });
         const summary = docs.map((d) => ({
@@ -42,11 +45,7 @@ export function createDecisionTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -60,7 +59,10 @@ export function createDecisionTools(
       {
         title: z.string().describe("Title of the decision"),
         content: z.string().describe("Decision description, context, and rationale"),
-        status: z.enum(["open", "decided", "superseded", "dismissed"]).optional().describe("Status (default: 'open')"),
+        status: z
+          .enum(["open", "decided", "superseded", "dismissed"])
+          .optional()
+          .describe("Status (default: 'open')"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
@@ -94,11 +96,17 @@ export function createDecisionTools(
       {
         id: z.string().describe("Decision ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z.enum(["open", "decided", "superseded", "dismissed"]).optional().describe("New status"),
+        status: z
+          .enum(["open", "decided", "superseded", "dismissed"])
+          .optional()
+          .describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
-        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
+        tags: z
+          .array(z.string())
+          .optional()
+          .describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
         const { id, content, owner, assignee, ...updates } = args;

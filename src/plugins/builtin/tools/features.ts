@@ -3,9 +3,7 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
 
-export function createFeatureTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_features",
@@ -49,11 +47,7 @@ export function createFeatureTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -107,18 +101,15 @@ export function createFeatureTools(
       {
         id: z.string().describe("Feature ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z
-          .enum(["draft", "approved", "deferred", "done"])
-          .optional()
-          .describe("New status"),
+        status: z.enum(["draft", "approved", "deferred", "done"]).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
-        priority: z
-          .enum(["critical", "high", "medium", "low"])
+        priority: z.enum(["critical", "high", "medium", "low"]).optional().describe("New priority"),
+        tags: z
+          .array(z.string())
           .optional()
-          .describe("New priority"),
-        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
+          .describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
         const { id, content, owner, assignee, ...updates } = args;

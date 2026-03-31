@@ -79,16 +79,12 @@ function checkMissingFields(doc: Document, requiredFields: string[]): string[] {
   return missing;
 }
 
-function collectCompleteness(
-  store: DocumentStore,
-): Record<string, HealthCategoryMetrics> {
+function collectCompleteness(store: DocumentStore): Record<string, HealthCategoryMetrics> {
   const result: Record<string, HealthCategoryMetrics> = {};
 
   for (const check of FIELD_CHECKS) {
     const allOfType = store.list({ type: check.type });
-    const openDocs = allOfType.filter((d) =>
-      check.openStatuses.includes(d.frontmatter.status),
-    );
+    const openDocs = allOfType.filter((d) => check.openStatuses.includes(d.frontmatter.status));
 
     const gaps: HealthGap[] = [];
     let complete = 0;
@@ -154,9 +150,8 @@ function collectProcess(store: DocumentStore): HealthProcessMetric {
     decisionTotal += daysBetween(doc.frontmatter.created, doc.frontmatter.updated);
   }
   const decisionVelocity = {
-    avgDays: resolvedDecisions.length > 0
-      ? Math.round(decisionTotal / resolvedDecisions.length)
-      : 0,
+    avgDays:
+      resolvedDecisions.length > 0 ? Math.round(decisionTotal / resolvedDecisions.length) : 0,
     count: resolvedDecisions.length,
   };
 
@@ -169,9 +164,8 @@ function collectProcess(store: DocumentStore): HealthProcessMetric {
     questionTotal += daysBetween(doc.frontmatter.created, doc.frontmatter.updated);
   }
   const questionResolution = {
-    avgDays: answeredQuestions.length > 0
-      ? Math.round(questionTotal / answeredQuestions.length)
-      : 0,
+    avgDays:
+      answeredQuestions.length > 0 ? Math.round(questionTotal / answeredQuestions.length) : 0,
     count: answeredQuestions.length,
   };
 

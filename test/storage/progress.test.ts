@@ -32,7 +32,9 @@ describe("getEffectiveProgress", () => {
   });
 
   it("returns explicit progress when set", () => {
-    expect(getEffectiveProgress(makeFrontmatter({ status: "in-progress", progress: 55 } as any))).toBe(55);
+    expect(
+      getEffectiveProgress(makeFrontmatter({ status: "in-progress", progress: 55 } as any)),
+    ).toBe(55);
   });
 
   it("clamps progress to 0-100", () => {
@@ -54,7 +56,9 @@ describe("getEffectiveProgress", () => {
   });
 
   it("done status trumps explicit progress", () => {
-    expect(getEffectiveProgress(makeFrontmatter({ status: "done", progress: 50 } as any))).toBe(100);
+    expect(getEffectiveProgress(makeFrontmatter({ status: "done", progress: 50 } as any))).toBe(
+      100,
+    );
   });
 });
 
@@ -110,7 +114,12 @@ describe("propagateProgressFromTask", () => {
   });
 
   it("respects progressOverride flag — skips auto-calc from children", () => {
-    store.create("task", { title: "Task 1", status: "in-progress", progress: 70, progressOverride: true } as any);
+    store.create("task", {
+      title: "Task 1",
+      status: "in-progress",
+      progress: 70,
+      progressOverride: true,
+    } as any);
     store.create("contribution", { title: "C1", status: "done", aboutArtifact: "T-001" } as any);
 
     const updated = propagateProgressFromTask(store, "T-001");
@@ -124,7 +133,13 @@ describe("propagateProgressFromTask", () => {
 
   it("still propagates upward when task has progressOverride", () => {
     store.create("action", { title: "Action 1", status: "in-progress" } as any);
-    store.create("task", { title: "Task 1", status: "in-progress", aboutArtifact: "A-001", progress: 70, progressOverride: true } as any);
+    store.create("task", {
+      title: "Task 1",
+      status: "in-progress",
+      aboutArtifact: "A-001",
+      progress: 70,
+      progressOverride: true,
+    } as any);
     store.create("contribution", { title: "C1", status: "done", aboutArtifact: "T-001" } as any);
 
     const updated = propagateProgressFromTask(store, "T-001");
@@ -176,7 +191,12 @@ describe("propagateProgressToAction", () => {
   it("calculates from child tasks only", () => {
     store.create("action", { title: "Action 1", status: "in-progress" } as any);
     store.create("task", { title: "T1", status: "done", aboutArtifact: "A-001" } as any);
-    store.create("task", { title: "T2", status: "in-progress", aboutArtifact: "A-001", progress: 50 } as any);
+    store.create("task", {
+      title: "T2",
+      status: "in-progress",
+      aboutArtifact: "A-001",
+      progress: 50,
+    } as any);
 
     const updated = propagateProgressToAction(store, "A-001");
     expect(updated).toContain("A-001");
@@ -201,7 +221,12 @@ describe("propagateProgressToAction", () => {
 
   it("applies 80/20 weighting when both sources exist", () => {
     store.create("action", { title: "Action 1", status: "in-progress" } as any);
-    store.create("task", { title: "T1", status: "in-progress", aboutArtifact: "A-001", progress: 50 } as any);
+    store.create("task", {
+      title: "T1",
+      status: "in-progress",
+      aboutArtifact: "A-001",
+      progress: 50,
+    } as any);
     store.create("contribution", { title: "C1", status: "done", aboutArtifact: "A-001" } as any);
 
     const updated = propagateProgressToAction(store, "A-001");
@@ -232,7 +257,12 @@ describe("propagateProgressToAction", () => {
   });
 
   it("respects progressOverride flag — skips auto-calc from children", () => {
-    store.create("action", { title: "Action 1", status: "in-progress", progress: 40, progressOverride: true } as any);
+    store.create("action", {
+      title: "Action 1",
+      status: "in-progress",
+      progress: 40,
+      progressOverride: true,
+    } as any);
     store.create("task", { title: "T1", status: "done", aboutArtifact: "A-001" } as any);
 
     const updated = propagateProgressToAction(store, "A-001");

@@ -1,8 +1,18 @@
 import type { Document } from "../../../../storage/types.js";
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getSprintSummaryData } from "../../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../../layout.js";
-import { renderWorkItemsTable, computeOwnerCompletionPct, filterItemsByOwner } from "../../components/work-items-table.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  statusBadge,
+  typeLabel,
+} from "../../layout.js";
+import {
+  renderWorkItemsTable,
+  computeOwnerCompletionPct,
+  filterItemsByOwner,
+} from "../../components/work-items-table.js";
 import { normalizeLinkedFeatures } from "../../../../plugins/builtin/tools/epic-utils.js";
 import { normalizeLinkedEpics } from "../../../../plugins/builtin/tools/task-utils.js";
 import { getEffectiveProgress } from "../../../../storage/progress.js";
@@ -10,7 +20,15 @@ import { getEffectiveProgress } from "../../../../storage/progress.js";
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
 const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-const statusOrder: Record<string, number> = { "in-progress": 0, open: 1, draft: 2, blocked: 3, done: 4, closed: 5, resolved: 6 };
+const statusOrder: Record<string, number> = {
+  "in-progress": 0,
+  open: 1,
+  draft: 2,
+  blocked: 3,
+  done: 4,
+  closed: 5,
+  resolved: 6,
+};
 
 function priorityClass(p?: string): string {
   if (!p) return "";
@@ -99,29 +117,34 @@ export function poDeliveryPage(ctx: PersonaPageContext): string {
   });
 
   // Linked epics
-  const epicsSection = data.linkedEpics.length > 0
-    ? collapsibleSection(
-        "po-delivery-epics",
-        "Linked Epics",
-        `<div class="table-wrap">
+  const epicsSection =
+    data.linkedEpics.length > 0
+      ? collapsibleSection(
+          "po-delivery-epics",
+          "Linked Epics",
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Status</th><th>Tasks Done</th></tr>
             </thead>
             <tbody>
-              ${data.linkedEpics.map((e) => `
+              ${data.linkedEpics
+                .map(
+                  (e) => `
               <tr>
                 <td><a href="/docs/epic/${escapeHtml(e.id)}">${escapeHtml(e.id)}</a></td>
                 <td>${escapeHtml(e.title)}</td>
                 <td>${statusBadge(e.status)}</td>
                 <td>${e.tasksDone} / ${e.tasksTotal}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   // ── Priority Queue ──────────────────────────────────────────
   const features = ctx.store.list({ type: "feature" });
@@ -201,7 +224,9 @@ export function poDeliveryPage(ctx: PersonaPageContext): string {
               <tr><th>Priority</th><th>ID</th><th>Title</th><th>Status</th><th>Sprint</th><th>Progress</th></tr>
             </thead>
             <tbody>
-              ${nonDoneFeatures.map((f) => `
+              ${nonDoneFeatures
+                .map(
+                  (f) => `
               <tr>
                 <td><span class="${priorityClass(f.frontmatter.priority as string)}">${escapeHtml((f.frontmatter.priority as string) ?? "—")}</span></td>
                 <td><a href="/docs/feature/${escapeHtml(f.frontmatter.id)}">${escapeHtml(f.frontmatter.id)}</a></td>
@@ -209,7 +234,9 @@ export function poDeliveryPage(ctx: PersonaPageContext): string {
                 <td>${statusBadge(f.frontmatter.status)}</td>
                 <td>${featureSprintLabel(f.frontmatter.id)}</td>
                 <td>${miniProgressBar(featureProgress(f.frontmatter.id))}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`
@@ -218,30 +245,35 @@ export function poDeliveryPage(ctx: PersonaPageContext): string {
   );
 
   // PO contributions table
-  const contributionsSection = poContributions.length > 0
-    ? collapsibleSection(
-        "po-delivery-contributions",
-        `PO Contributions (${poContributions.length})`,
-        `<div class="table-wrap">
+  const contributionsSection =
+    poContributions.length > 0
+      ? collapsibleSection(
+          "po-delivery-contributions",
+          `PO Contributions (${poContributions.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Date</th></tr>
             </thead>
             <tbody>
-              ${poContributions.map((d) => `
+              ${poContributions
+                .map(
+                  (d) => `
               <tr>
                 <td><a href="/docs/${escapeHtml(d.frontmatter.type)}/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${escapeHtml(typeLabel(d.frontmatter.type))}</td>
                 <td>${statusBadge(d.frontmatter.status)}</td>
                 <td>${formatDate(d.frontmatter.updated ?? d.frontmatter.created)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   return `
     <div class="page-header">

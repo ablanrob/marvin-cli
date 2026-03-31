@@ -13,10 +13,7 @@ function createTempMarvinDir(): string {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-persona-test-"));
   const marvinDir = path.join(tmpDir, ".marvin");
   fs.mkdirSync(marvinDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(marvinDir, "config.yaml"),
-    YAML.stringify({ name: "test-project" }),
-  );
+  fs.writeFileSync(path.join(marvinDir, "config.yaml"), YAML.stringify({ name: "test-project" }));
   for (const dir of ["decisions", "actions", "questions"]) {
     fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
   }

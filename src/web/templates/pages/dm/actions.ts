@@ -27,7 +27,9 @@ export function dmActionsPage(ctx: PersonaPageContext): string {
   const allActions = ctx.store.list({ type: "action" });
   const openActions = allActions.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
   const overdueActions = upcoming.dueSoonActions.filter((a) => a.urgency === "overdue");
-  const dueThisWeek = upcoming.dueSoonActions.filter((a) => a.urgency === "due-3d" || a.urgency === "due-7d");
+  const dueThisWeek = upcoming.dueSoonActions.filter(
+    (a) => a.urgency === "due-3d" || a.urgency === "due-7d",
+  );
   const unownedActions = openActions.filter((d) => !d.frontmatter.owner);
 
   const statsCards = `
@@ -55,17 +57,20 @@ export function dmActionsPage(ctx: PersonaPageContext): string {
     </div>`;
 
   // Actions with due dates sorted by urgency
-  const dueSoonSection = upcoming.dueSoonActions.length > 0
-    ? collapsibleSection(
-        "dm-actions-due",
-        `Actions by Due Date (${upcoming.dueSoonActions.length})`,
-        `<div class="table-wrap">
+  const dueSoonSection =
+    upcoming.dueSoonActions.length > 0
+      ? collapsibleSection(
+          "dm-actions-due",
+          `Actions by Due Date (${upcoming.dueSoonActions.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Status</th><th>Owner</th><th>Due Date</th><th>Urgency</th></tr>
             </thead>
             <tbody>
-              ${upcoming.dueSoonActions.map((a) => `
+              ${upcoming.dueSoonActions
+                .map(
+                  (a) => `
               <tr class="${urgencyRowClass(a.urgency)}">
                 <td><a href="/docs/action/${escapeHtml(a.id)}">${escapeHtml(a.id)}</a></td>
                 <td>${escapeHtml(a.title)}</td>
@@ -73,40 +78,47 @@ export function dmActionsPage(ctx: PersonaPageContext): string {
                 <td>${a.owner ? escapeHtml(a.owner) : '<span class="text-dim">—</span>'}</td>
                 <td>${formatDate(a.dueDate)}</td>
                 <td>${urgencyBadge(a.urgency)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   // Actions without due dates
   const noDueDateActions = openActions.filter((d) => !d.frontmatter.dueDate);
-  const noDueDateSection = noDueDateActions.length > 0
-    ? collapsibleSection(
-        "dm-actions-nodate",
-        `Actions Without Due Date (${noDueDateActions.length})`,
-        `<div class="table-wrap">
+  const noDueDateSection =
+    noDueDateActions.length > 0
+      ? collapsibleSection(
+          "dm-actions-nodate",
+          `Actions Without Due Date (${noDueDateActions.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Status</th><th>Owner</th><th>Created</th></tr>
             </thead>
             <tbody>
-              ${noDueDateActions.map((d) => `
+              ${noDueDateActions
+                .map(
+                  (d) => `
               <tr>
                 <td><a href="/docs/action/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${statusBadge(d.frontmatter.status)}</td>
                 <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3", defaultCollapsed: true },
-      )
-    : "";
+          { titleTag: "h3", defaultCollapsed: true },
+        )
+      : "";
 
   return `
     <div class="page-header">

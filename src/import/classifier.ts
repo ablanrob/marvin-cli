@@ -20,10 +20,7 @@ export function classifyPath(
   }
 
   // Check if it's a .marvin/ directory or contains config.yaml
-  if (
-    path.basename(resolved) === ".marvin" ||
-    fs.existsSync(path.join(resolved, "config.yaml"))
-  ) {
+  if (path.basename(resolved) === ".marvin" || fs.existsSync(path.join(resolved, "config.yaml"))) {
     return { type: "marvin-project", inputPath: resolved };
   }
 
@@ -31,9 +28,7 @@ export function classifyPath(
   const allDirNames = new Set([...CORE_DIR_NAMES, ...knownDirNames]);
   const entries = fs.readdirSync(resolved);
   const hasDocSubdirs = entries.some(
-    (e) =>
-      allDirNames.has(e) &&
-      fs.statSync(path.join(resolved, e)).isDirectory(),
+    (e) => allDirNames.has(e) && fs.statSync(path.join(resolved, e)).isDirectory(),
   );
   if (hasDocSubdirs) {
     return { type: "docs-directory", inputPath: resolved };
@@ -60,10 +55,7 @@ export function classifyPath(
   return { type: "raw-source-dir", inputPath: resolved };
 }
 
-export function classifyFile(
-  filePath: string,
-  knownTypes: string[],
-): ImportClassification {
+export function classifyFile(filePath: string, knownTypes: string[]): ImportClassification {
   const resolved = path.resolve(filePath);
   const ext = path.extname(resolved).toLowerCase();
 

@@ -2,7 +2,12 @@ import ora from "ora";
 import { loadProject } from "../../core/project.js";
 import { resolvePlugin } from "../../plugins/registry.js";
 import { DocumentStore } from "../../storage/store.js";
-import { collectGarMetrics, evaluateGar, renderAscii, renderConfluence } from "../../reports/gar/index.js";
+import {
+  collectGarMetrics,
+  evaluateGar,
+  renderAscii,
+  renderConfluence,
+} from "../../reports/gar/index.js";
 import {
   collectHealthMetrics,
   evaluateHealth,
@@ -61,7 +66,10 @@ export async function sprintSummaryCommand(options: {
   const allSkills = loadAllSkills(project.marvinDir);
   const allSkillIds = [...allSkills.keys()];
   const skillRegistrations = collectSkillRegistrations(allSkillIds, allSkills);
-  const store = new DocumentStore(project.marvinDir, [...pluginRegistrations, ...skillRegistrations]);
+  const store = new DocumentStore(project.marvinDir, [
+    ...pluginRegistrations,
+    ...skillRegistrations,
+  ]);
 
   const data = collectSprintSummaryData(store, options.sprint);
   if (!data) {

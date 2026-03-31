@@ -25,7 +25,15 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
 
   // Sort features: open/in-progress first, then by priority, then by ID
   const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-  const statusOrder: Record<string, number> = { "in-progress": 0, open: 1, draft: 2, blocked: 3, done: 4, closed: 5, resolved: 6 };
+  const statusOrder: Record<string, number> = {
+    "in-progress": 0,
+    open: 1,
+    draft: 2,
+    blocked: 3,
+    done: 4,
+    closed: 5,
+    resolved: 6,
+  };
 
   const sortedFeatures = [...features].sort((a, b) => {
     const sa = statusOrder[a.frontmatter.status] ?? 3;
@@ -78,15 +86,26 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
         progressSum += getEffectiveProgress(t.frontmatter);
       }
     }
-    return { epicCount: fEpics.length, total, done, avgProgress: total > 0 ? Math.round(progressSum / total) : 0 };
+    return {
+      epicCount: fEpics.length,
+      total,
+      done,
+      avgProgress: total > 0 ? Math.round(progressSum / total) : 0,
+    };
   }
 
   // Unique filter values
   const featureStatuses = [...new Set(features.map((d) => d.frontmatter.status))].sort();
-  const featurePriorities = [...new Set(features.map((d) => (d.frontmatter.priority as string) ?? "").filter(Boolean))].sort();
-  const featureEpicIds = [...new Set(
-    features.flatMap((d) => (featureToEpics.get(d.frontmatter.id) ?? []).map((e) => e.frontmatter.id)),
-  )].sort();
+  const featurePriorities = [
+    ...new Set(features.map((d) => (d.frontmatter.priority as string) ?? "").filter(Boolean)),
+  ].sort();
+  const featureEpicIds = [
+    ...new Set(
+      features.flatMap((d) =>
+        (featureToEpics.get(d.frontmatter.id) ?? []).map((e) => e.frontmatter.id),
+      ),
+    ),
+  ].sort();
 
   const featuresFilters = `<div class="filters">
     ${tableFilter("features-table", 2, "Status", featureStatuses)}
@@ -94,21 +113,26 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
     ${featureEpicIds.length > 0 ? tableFilter("features-table", 4, "Epic", featureEpicIds) : ""}
   </div>`;
 
-  const featuresTable = sortedFeatures.length > 0
-    ? `${featuresFilters}
+  const featuresTable =
+    sortedFeatures.length > 0
+      ? `${featuresFilters}
       <div class="table-wrap table-short">
         <table id="features-table">
           <thead>
             <tr>${sortableTh("ID", "features-table", 0)}${sortableTh("Title", "features-table", 1)}${sortableTh("Status", "features-table", 2)}${sortableTh("Priority", "features-table", 3)}<th>Epics</th><th>Tasks</th><th>Progress</th></tr>
           </thead>
           <tbody>
-            ${sortedFeatures.map((d) => {
-              const stats = featureTaskStats(d.frontmatter.id);
-              const linkedEpicDocs = featureToEpics.get(d.frontmatter.id) ?? [];
-              const epicLinks = linkedEpicDocs
-                .map((e) => `<a href="/docs/epic/${escapeHtml(e.frontmatter.id)}">${escapeHtml(e.frontmatter.id)}</a>`)
-                .join(", ");
-              return `
+            ${sortedFeatures
+              .map((d) => {
+                const stats = featureTaskStats(d.frontmatter.id);
+                const linkedEpicDocs = featureToEpics.get(d.frontmatter.id) ?? [];
+                const epicLinks = linkedEpicDocs
+                  .map(
+                    (e) =>
+                      `<a href="/docs/epic/${escapeHtml(e.frontmatter.id)}">${escapeHtml(e.frontmatter.id)}</a>`,
+                  )
+                  .join(", ");
+                return `
             <tr>
               <td><a href="/docs/feature/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
               <td>${escapeHtml(d.frontmatter.title)}</td>
@@ -118,39 +142,47 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
               <td>${stats.total > 0 ? `${stats.done}/${stats.total}` : '<span class="text-dim">—</span>'}</td>
               <td>${stats.total > 0 ? miniProgressBar(stats.avgProgress) : '<span class="text-dim">—</span>'}</td>
             </tr>`;
-            }).join("")}
+              })
+              .join("")}
           </tbody>
         </table>
       </div>`
-    : '<div class="empty"><p>No features found.</p></div>';
+      : '<div class="empty"><p>No features found.</p></div>';
 
   // Question owners for filter
-  const questionOwners = [...new Set(openQuestions.map((d) => d.frontmatter.owner).filter(Boolean) as string[])].sort();
+  const questionOwners = [
+    ...new Set(openQuestions.map((d) => d.frontmatter.owner).filter(Boolean) as string[]),
+  ].sort();
 
-  const questionsTable = openQuestions.length > 0
-    ? collapsibleSection(
-        "po-backlog-questions",
-        `Open Questions (${openQuestions.length})`,
-        `${questionOwners.length > 0 ? `<div class="filters">${tableFilter("questions-table", 2, "Owner", questionOwners)}</div>` : ""}
+  const questionsTable =
+    openQuestions.length > 0
+      ? collapsibleSection(
+          "po-backlog-questions",
+          `Open Questions (${openQuestions.length})`,
+          `${questionOwners.length > 0 ? `<div class="filters">${tableFilter("questions-table", 2, "Owner", questionOwners)}</div>` : ""}
         <div class="table-wrap table-short">
           <table id="questions-table">
             <thead>
               <tr>${sortableTh("ID", "questions-table", 0)}${sortableTh("Title", "questions-table", 1)}${sortableTh("Owner", "questions-table", 2)}${sortableTh("Created", "questions-table", 3)}</tr>
             </thead>
             <tbody>
-              ${openQuestions.map((d) => `
+              ${openQuestions
+                .map(
+                  (d) => `
               <tr>
                 <td><a href="/docs/question/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   return `
     <div class="page-header">

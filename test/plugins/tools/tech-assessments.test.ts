@@ -25,7 +25,18 @@ describe("Tech Assessment Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "use-cases", "tech-assessments", "extension-designs"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "use-cases",
+      "tech-assessments",
+      "extension-designs",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, AEM_REGISTRATIONS);
@@ -128,13 +139,20 @@ describe("Tech Assessment Tools", () => {
       await ucTools.create_use_case({ title: "UC B", content: "B", status: "approved" });
 
       await taTools.create_tech_assessment({
-        title: "TA 1", content: "T1", linkedUseCase: "UC-001",
+        title: "TA 1",
+        content: "T1",
+        linkedUseCase: "UC-001",
       });
       await taTools.create_tech_assessment({
-        title: "TA 2", content: "T2", linkedUseCase: "UC-001", status: "recommended",
+        title: "TA 2",
+        content: "T2",
+        linkedUseCase: "UC-001",
+        status: "recommended",
       });
       await taTools.create_tech_assessment({
-        title: "TA 3", content: "T3", linkedUseCase: "UC-002",
+        title: "TA 3",
+        content: "T3",
+        linkedUseCase: "UC-002",
       });
     });
 

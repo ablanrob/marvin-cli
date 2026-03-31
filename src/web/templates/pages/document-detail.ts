@@ -22,18 +22,17 @@ export function documentDetailPage(doc: Document, store?: DocumentStore): string
   const skipKeys = new Set(["title", "type", "assessmentHistory", "assessmentSummary"]);
 
   const entries = Object.entries(fm).filter(
-    ([key, value]) => !skipKeys.has(key) && value != null && typeof value !== "object",
+    ([key, value]) =>
+      !skipKeys.has(key) && value !== null && value !== undefined && typeof value !== "object",
   );
 
   // Also render simple arrays (tags) but skip complex arrays/objects
   const arrayEntries = Object.entries(fm).filter(
-    ([key, value]) => !skipKeys.has(key) && Array.isArray(value) && value.every(v => typeof v === "string"),
+    ([key, value]) =>
+      !skipKeys.has(key) && Array.isArray(value) && value.every((v) => typeof v === "string"),
   );
 
-  const allEntries = [
-    ...entries.filter(([, v]) => !Array.isArray(v)),
-    ...arrayEntries,
-  ];
+  const allEntries = [...entries.filter(([, v]) => !Array.isArray(v)), ...arrayEntries];
 
   const dtDd = allEntries
     .map(([key, value]) => {
@@ -41,8 +40,15 @@ export function documentDetailPage(doc: Document, store?: DocumentStore): string
       if (key === "status") {
         rendered = statusBadge(value as string);
       } else if (key === "tags" && Array.isArray(value)) {
-        rendered = (value as string[]).map((t) => `<span class="badge badge-default">${escapeHtml(t)}</span>`).join(" ");
-      } else if (key === "created" || key === "updated" || key === "lastAssessedAt" || key === "lastJiraSyncAt") {
+        rendered = (value as string[])
+          .map((t) => `<span class="badge badge-default">${escapeHtml(t)}</span>`)
+          .join(" ");
+      } else if (
+        key === "created" ||
+        key === "updated" ||
+        key === "lastAssessedAt" ||
+        key === "lastJiraSyncAt"
+      ) {
         rendered = formatDate(value as string);
       } else {
         rendered = linkArtifactIds(escapeHtml(String(value)));
@@ -60,9 +66,8 @@ export function documentDetailPage(doc: Document, store?: DocumentStore): string
   const assessmentHistory = (rawHistory as unknown[])
     .filter(isValidAssessmentEntry)
     .sort((a, b) => (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""));
-  const timelineHtml = assessmentHistory.length > 0
-    ? renderAssessmentTimeline(assessmentHistory)
-    : "";
+  const timelineHtml =
+    assessmentHistory.length > 0 ? renderAssessmentTimeline(assessmentHistory) : "";
 
   return `
     <div class="breadcrumb">
@@ -82,11 +87,7 @@ export function documentDetailPage(doc: Document, store?: DocumentStore): string
       </dl>
     </div>
 
-    ${
-      doc.content.trim()
-        ? `<div class="detail-content">${renderMarkdown(doc.content)}</div>`
-        : ""
-    }
+    ${doc.content.trim() ? `<div class="detail-content">${renderMarkdown(doc.content)}</div>` : ""}
 
     ${timelineHtml}
 
@@ -100,13 +101,15 @@ function renderRelationshipsAndLineage(store: DocumentStore, docId: string): str
   const relationships = getArtifactRelationships(store, docId);
   if (relationships) {
     const graphHtml = buildArtifactRelationGraph(relationships);
-    parts.push(collapsibleSection("rel-graph-" + docId, "Relationships", graphHtml));
+    parts.push(collapsibleSection(`rel-graph-${docId}`, "Relationships", graphHtml));
   }
 
   const events = getArtifactLineageEvents(store, docId);
   if (events.length > 0) {
     const lineageHtml = buildLineageTimeline(events);
-    parts.push(collapsibleSection("lineage-" + docId, "Lineage", lineageHtml, { defaultCollapsed: true }));
+    parts.push(
+      collapsibleSection(`lineage-${docId}`, "Lineage", lineageHtml, { defaultCollapsed: true }),
+    );
   }
 
   return parts.join("\n");
@@ -129,11 +132,13 @@ function normalizeEntry(entry: AssessmentSummary): AssessmentSummary {
   return {
     generatedAt: entry.generatedAt ?? "",
     commentSummary: typeof entry.commentSummary === "string" ? entry.commentSummary : null,
-    commentAnalysisProgress: typeof entry.commentAnalysisProgress === "number" ? entry.commentAnalysisProgress : null,
-    signals: Array.isArray(entry.signals) ? entry.signals.filter(s => typeof s === "string") : [],
+    commentAnalysisProgress:
+      typeof entry.commentAnalysisProgress === "number" ? entry.commentAnalysisProgress : null,
+    signals: Array.isArray(entry.signals) ? entry.signals.filter((s) => typeof s === "string") : [],
     childCount: typeof entry.childCount === "number" ? entry.childCount : 0,
     childDoneCount: typeof entry.childDoneCount === "number" ? entry.childDoneCount : 0,
-    childRollupProgress: typeof entry.childRollupProgress === "number" ? entry.childRollupProgress : null,
+    childRollupProgress:
+      typeof entry.childRollupProgress === "number" ? entry.childRollupProgress : null,
     linkedIssueCount: typeof entry.linkedIssueCount === "number" ? entry.linkedIssueCount : 0,
     blockerProgress: typeof entry.blockerProgress === "number" ? entry.blockerProgress : null,
     totalBlockers: typeof entry.totalBlockers === "number" ? entry.totalBlockers : 0,
@@ -151,21 +156,29 @@ function renderAssessmentTimeline(history: AssessmentSummary[]): string {
     const parts: string[] = [];
 
     if (entry.commentSummary) {
-      parts.push(`<div class="assessment-comment">${linkArtifactIds(escapeHtml(entry.commentSummary))}</div>`);
+      parts.push(
+        `<div class="assessment-comment">${linkArtifactIds(escapeHtml(entry.commentSummary))}</div>`,
+      );
     }
 
     if (entry.commentAnalysisProgress !== null) {
-      parts.push(`<div class="assessment-stat">📊 Comment-derived progress: <strong>${entry.commentAnalysisProgress}%</strong></div>`);
+      parts.push(
+        `<div class="assessment-stat">📊 Comment-derived progress: <strong>${entry.commentAnalysisProgress}%</strong></div>`,
+      );
     }
 
     if (entry.childCount > 0) {
       const bar = progressBarHtml(entry.childRollupProgress ?? 0);
-      parts.push(`<div class="assessment-stat">👶 Children: ${entry.childDoneCount}/${entry.childCount} done ${bar} ${entry.childRollupProgress ?? 0}%</div>`);
+      parts.push(
+        `<div class="assessment-stat">👶 Children: ${entry.childDoneCount}/${entry.childCount} done ${bar} ${entry.childRollupProgress ?? 0}%</div>`,
+      );
     }
 
     if (entry.totalBlockers > 0) {
       const bar = progressBarHtml(entry.blockerProgress ?? 0);
-      parts.push(`<div class="assessment-stat">🚧 Blockers: ${entry.resolvedBlockers}/${entry.totalBlockers} resolved ${bar} ${entry.blockerProgress ?? 0}%</div>`);
+      parts.push(
+        `<div class="assessment-stat">🚧 Blockers: ${entry.resolvedBlockers}/${entry.totalBlockers} resolved ${bar} ${entry.blockerProgress ?? 0}%</div>`,
+      );
     }
 
     if (entry.linkedIssueCount > 0) {
@@ -174,7 +187,7 @@ function renderAssessmentTimeline(history: AssessmentSummary[]): string {
 
     if (entry.signals.length > 0) {
       const signalItems = entry.signals
-        .map(s => `<li>${linkArtifactIds(escapeHtml(s))}</li>`)
+        .map((s) => `<li>${linkArtifactIds(escapeHtml(s))}</li>`)
         .join("");
       parts.push(`<ul class="assessment-signals">${signalItems}</ul>`);
     }

@@ -23,15 +23,16 @@ function findMatchingSprints(
     }));
 }
 
-export function createActionTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createActionTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_actions",
       "List all action items in the project, optionally filtered by status or owner",
       {
-        status: z.string().optional().describe("Filter by status (e.g. 'open', 'in-progress', 'done')"),
+        status: z
+          .string()
+          .optional()
+          .describe("Filter by status (e.g. 'open', 'in-progress', 'done')"),
         owner: z.string().optional().describe("Filter by owner"),
       },
       async (args) => {
@@ -78,11 +79,7 @@ export function createActionTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -102,8 +99,14 @@ export function createActionTools(
         priority: z.string().optional().describe("Priority (high, medium, low)"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
         dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
-        sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (e.g. ['SP-001']). Adds sprint:SP-xxx tags."),
-        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Adds a focus:<value> tag."),
+        sprints: z
+          .array(z.string())
+          .optional()
+          .describe("Sprint IDs to assign (e.g. ['SP-001']). Adds sprint:SP-xxx tags."),
+        workFocus: z
+          .string()
+          .optional()
+          .describe("Work focus name (e.g. 'Budget UX'). Adds a focus:<value> tag."),
       },
       async (args) => {
         const tags = [...(args.tags ?? [])];
@@ -140,7 +143,9 @@ export function createActionTools(
             const suggestions = matching
               .map((s) => `${s.id} "${s.title}" (${s.startDate} – ${s.endDate})`)
               .join(", ");
-            parts.push(`Suggested sprints for dueDate ${args.dueDate}: ${suggestions}. Use the sprints parameter or update_action to assign.`);
+            parts.push(
+              `Suggested sprints for dueDate ${args.dueDate}: ${suggestions}. Use the sprints parameter or update_action to assign.`,
+            );
           }
         }
 
@@ -162,14 +167,47 @@ export function createActionTools(
         assignee: z.string().optional().describe("Person assigned to do the work"),
         priority: z.string().optional().describe("New priority"),
         dueDate: z.string().optional().describe("Due date in ISO format (e.g. '2026-03-15')"),
-        tags: z.array(z.string()).optional().describe("Replace all tags. When provided with sprints, sprint tags are merged into this array."),
-        sprints: z.array(z.string()).optional().describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
-        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
-        progress: z.number().nullable().optional().describe("Explicit progress percentage (0-100). Pass null to clear the override and revert to auto-calculation from children."),
-        progressOverride: z.boolean().optional().describe("Control auto-calculation lock. true = lock progress to explicit value, false = allow auto-calculation from children. When omitted: setting progress implies true, null progress implies false."),
+        tags: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Replace all tags. When provided with sprints, sprint tags are merged into this array.",
+          ),
+        sprints: z
+          .array(z.string())
+          .optional()
+          .describe("Sprint IDs to assign (replaces existing sprint tags). E.g. ['SP-001']."),
+        workFocus: z
+          .string()
+          .optional()
+          .describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
+        progress: z
+          .number()
+          .nullable()
+          .optional()
+          .describe(
+            "Explicit progress percentage (0-100). Pass null to clear the override and revert to auto-calculation from children.",
+          ),
+        progressOverride: z
+          .boolean()
+          .optional()
+          .describe(
+            "Control auto-calculation lock. true = lock progress to explicit value, false = allow auto-calculation from children. When omitted: setting progress implies true, null progress implies false.",
+          ),
       },
       async (args) => {
-        const { id, content, sprints, tags, workFocus, progress, progressOverride, owner, assignee, ...updates } = args;
+        const {
+          id,
+          content,
+          sprints,
+          tags,
+          workFocus,
+          progress,
+          progressOverride,
+          owner,
+          assignee,
+          ...updates
+        } = args;
         if (owner !== undefined) (updates as any).owner = normalizeOwner(owner);
         if (assignee !== undefined) (updates as any).assignee = assignee;
 

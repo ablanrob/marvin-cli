@@ -48,11 +48,7 @@ describe("buildSystemPrompt", () => {
   });
 
   it("should inject CLAUDE.md content when file exists", () => {
-    fs.writeFileSync(
-      path.join(tmpDir, "CLAUDE.md"),
-      "Custom project instructions here.",
-      "utf-8",
-    );
+    fs.writeFileSync(path.join(tmpDir, "CLAUDE.md"), "Custom project instructions here.", "utf-8");
 
     const result = buildSystemPrompt(testPersona, testConfig, undefined, undefined, tmpDir);
     expect(result).toContain("## Project Instructions");
@@ -60,11 +56,7 @@ describe("buildSystemPrompt", () => {
   });
 
   it("should position CLAUDE.md before Available Tools", () => {
-    fs.writeFileSync(
-      path.join(tmpDir, "CLAUDE.md"),
-      "Custom instructions.",
-      "utf-8",
-    );
+    fs.writeFileSync(path.join(tmpDir, "CLAUDE.md"), "Custom instructions.", "utf-8");
 
     const result = buildSystemPrompt(testPersona, testConfig, undefined, undefined, tmpDir);
     const instructionsIdx = result.indexOf("## Project Instructions");
@@ -74,11 +66,7 @@ describe("buildSystemPrompt", () => {
   });
 
   it("should position CLAUDE.md after persona prompt", () => {
-    fs.writeFileSync(
-      path.join(tmpDir, "CLAUDE.md"),
-      "Custom instructions.",
-      "utf-8",
-    );
+    fs.writeFileSync(path.join(tmpDir, "CLAUDE.md"), "Custom instructions.", "utf-8");
 
     const result = buildSystemPrompt(testPersona, testConfig, undefined, undefined, tmpDir);
     const personaIdx = result.indexOf("You are a Product Owner.");

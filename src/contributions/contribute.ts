@@ -21,7 +21,7 @@ export async function contributeFromPersona(options: ContributeOptions): Promise
   if (allowedTypes.length > 0 && !allowedTypes.includes(options.contributionType)) {
     throw new Error(
       `Contribution type "${options.contributionType}" is not valid for persona "${persona.name}". ` +
-      `Allowed types: ${allowedTypes.join(", ")}`,
+        `Allowed types: ${allowedTypes.join(", ")}`,
     );
   }
 
@@ -83,7 +83,12 @@ export async function contributeFromPersona(options: ContributeOptions): Promise
 
   const pluginTools = plugin ? getPluginTools(plugin, store, marvinDir) : [];
   const mcpServer = createMarvinMcpServer(store, { pluginTools });
-  const systemPrompt = buildContributeSystemPrompt(persona, options.contributionType, config.project, draft);
+  const systemPrompt = buildContributeSystemPrompt(
+    persona,
+    options.contributionType,
+    config.project,
+    draft,
+  );
   const userPrompt = buildContributeUserPrompt(
     contributionId,
     options.contributionType,
@@ -139,7 +144,14 @@ export async function contributeFromPersona(options: ContributeOptions): Promise
     // Post-processing: append Effects section to contribution document
     const effects = [...createdArtifacts, ...updatedArtifacts];
     if (!draft && effects.length > 0) {
-      appendEffectsToContribution(store, contributionId, contributionDoc.content, createdArtifacts, updatedArtifacts, store);
+      appendEffectsToContribution(
+        store,
+        contributionId,
+        contributionDoc.content,
+        createdArtifacts,
+        updatedArtifacts,
+        store,
+      );
     }
 
     spinner.stop();
@@ -149,7 +161,11 @@ export async function contributeFromPersona(options: ContributeOptions): Promise
       console.log(chalk.dim(`Use --no-draft to execute effects directly.`));
     } else {
       const totalEffects = createdArtifacts.length + updatedArtifacts.length;
-      console.log(chalk.green(`\nContribution ${contributionId} processed: ${totalEffects} effect${totalEffects === 1 ? "" : "s"}`));
+      console.log(
+        chalk.green(
+          `\nContribution ${contributionId} processed: ${totalEffects} effect${totalEffects === 1 ? "" : "s"}`,
+        ),
+      );
       if (createdArtifacts.length > 0) {
         console.log(chalk.dim(`  Created: ${createdArtifacts.join(", ")}`));
       }
@@ -199,21 +215,16 @@ function appendEffectsToContribution(
   store.update(contributionId, { status: "processed" }, updatedContent);
 }
 
-function handleContributeMessage(
-  message: SDKMessage,
-  spinner: ReturnType<typeof ora>,
-): void {
+function handleContributeMessage(message: SDKMessage, spinner: ReturnType<typeof ora>): void {
   switch (message.type) {
     case "assistant": {
       spinner.stop();
       const textBlocks = message.message.content.filter(
-        (b: { type: string }): b is { type: "text"; text: string } =>
-          b.type === "text",
+        (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
       );
       if (textBlocks.length > 0) {
         console.log(
-          chalk.cyan("\nMarvin: ") +
-            textBlocks.map((b: { text: string }) => b.text).join("\n"),
+          chalk.cyan("\nMarvin: ") + textBlocks.map((b: { text: string }) => b.text).join("\n"),
         );
       }
       break;
@@ -227,9 +238,7 @@ function handleContributeMessage(
     case "result": {
       spinner.stop();
       if (message.subtype !== "success") {
-        console.log(
-          chalk.red(`\nContribution analysis ended with error: ${message.subtype}`),
-        );
+        console.log(chalk.red(`\nContribution analysis ended with error: ${message.subtype}`));
       }
       break;
     }

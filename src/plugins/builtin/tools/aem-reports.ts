@@ -1,10 +1,7 @@
-import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 
-export function createAemReportTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createAemReportTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "generate_extension_portfolio",
@@ -54,7 +51,18 @@ export function createAemReportTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({ portfolio, summary: { useCases: useCases.length, techAssessments: techAssessments.length, extensionDesigns: extensionDesigns.length } }, null, 2),
+              text: JSON.stringify(
+                {
+                  portfolio,
+                  summary: {
+                    useCases: useCases.length,
+                    techAssessments: techAssessments.length,
+                    extensionDesigns: extensionDesigns.length,
+                  },
+                },
+                null,
+                2,
+              ),
             },
           ],
         };
@@ -92,9 +100,7 @@ export function createAemReportTools(
         }));
 
         // Find use cases without tech assessments
-        const assessedUCIds = new Set(
-          techAssessments.map((ta) => ta.frontmatter.linkedUseCase),
-        );
+        const assessedUCIds = new Set(techAssessments.map((ta) => ta.frontmatter.linkedUseCase));
         const unassessedUseCases = useCases
           .filter((uc) => !assessedUCIds.has(uc.frontmatter.id))
           .map((uc) => ({
@@ -107,15 +113,19 @@ export function createAemReportTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({
-                btpServices: services,
-                unassessedUseCases,
-                summary: {
-                  totalServices: services.length,
-                  totalAssessments: techAssessments.length,
-                  unassessedCount: unassessedUseCases.length,
+              text: JSON.stringify(
+                {
+                  btpServices: services,
+                  unassessedUseCases,
+                  summary: {
+                    totalServices: services.length,
+                    totalAssessments: techAssessments.length,
+                    unassessedCount: unassessedUseCases.length,
+                  },
                 },
-              }, null, 2),
+                null,
+                2,
+              ),
             },
           ],
         };
@@ -151,31 +161,41 @@ export function createAemReportTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({
-                phases: {
-                  "assess-use-case": {
-                    total: useCases.length,
-                    byStatus: ucByStatus,
-                    gateReady: useCases.length > 0 && useCases.every(
-                      (uc) => ["assessed", "approved", "deferred"].includes(uc.frontmatter.status),
-                    ),
-                  },
-                  "assess-technology": {
-                    total: techAssessments.length,
-                    byStatus: taByStatus,
-                    gateReady: techAssessments.length > 0 && techAssessments.every(
-                      (ta) => ["recommended", "rejected"].includes(ta.frontmatter.status),
-                    ),
-                  },
-                  "define-solution": {
-                    total: extensionDesigns.length,
-                    byStatus: xdByStatus,
-                    gateReady: extensionDesigns.length > 0 && extensionDesigns.every(
-                      (xd) => ["validated", "approved"].includes(xd.frontmatter.status),
-                    ),
+              text: JSON.stringify(
+                {
+                  phases: {
+                    "assess-use-case": {
+                      total: useCases.length,
+                      byStatus: ucByStatus,
+                      gateReady:
+                        useCases.length > 0 &&
+                        useCases.every((uc) =>
+                          ["assessed", "approved", "deferred"].includes(uc.frontmatter.status),
+                        ),
+                    },
+                    "assess-technology": {
+                      total: techAssessments.length,
+                      byStatus: taByStatus,
+                      gateReady:
+                        techAssessments.length > 0 &&
+                        techAssessments.every((ta) =>
+                          ["recommended", "rejected"].includes(ta.frontmatter.status),
+                        ),
+                    },
+                    "define-solution": {
+                      total: extensionDesigns.length,
+                      byStatus: xdByStatus,
+                      gateReady:
+                        extensionDesigns.length > 0 &&
+                        extensionDesigns.every((xd) =>
+                          ["validated", "approved"].includes(xd.frontmatter.status),
+                        ),
+                    },
                   },
                 },
-              }, null, 2),
+                null,
+                2,
+              ),
             },
           ],
         };

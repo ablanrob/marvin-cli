@@ -22,8 +22,10 @@ export function renderGarWidget(report: GarReport): string {
       <div class="dot ${dotClass}"></div>
       <div class="label">${escapeHtml(report.overall.toUpperCase())}</div>
     </div>
-    ${metrics.length > 0
-      ? `<div class="gar-overall-metrics">${metrics.map((m) => `<span class="gar-metric">${m}</span>`).join("")}</div>`
-      : `<div class="gar-overall-metrics"><span class="gar-metric">No issues detected</span></div>`}
+    ${
+      metrics.length > 0
+        ? `<div class="gar-overall-metrics">${metrics.map((m) => `<span class="gar-metric">${m}</span>`).join("")}</div>`
+        : `<div class="gar-overall-metrics"><span class="gar-metric">No issues detected</span></div>`
+    }
   </div>`;
 }

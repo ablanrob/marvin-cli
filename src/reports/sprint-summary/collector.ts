@@ -1,10 +1,7 @@
 import type { DocumentStore } from "../../storage/store.js";
 import type { Document } from "../../storage/types.js";
 import { normalizeLinkedEpics } from "../../plugins/builtin/tools/task-utils.js";
-import {
-  calculateSprintCompletionPct,
-  getEffectiveProgress,
-} from "../../storage/progress.js";
+import { calculateSprintCompletionPct, getEffectiveProgress } from "../../storage/progress.js";
 import type {
   SprintSummaryData,
   SprintEpicSummary,
@@ -16,7 +13,11 @@ import type {
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
 const COMPLEXITY_WEIGHTS: Record<string, number> = {
-  trivial: 1, simple: 2, moderate: 3, complex: 5, "very-complex": 8,
+  trivial: 1,
+  simple: 2,
+  moderate: 3,
+  complex: 5,
+  "very-complex": 8,
 };
 const DEFAULT_WEIGHT = 3;
 
@@ -42,7 +43,7 @@ export function collectSprintSummaryData(
   const startDate = fm.startDate as string | undefined;
   const endDate = fm.endDate as string | undefined;
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const _todayStr = today.toISOString().slice(0, 10);
 
   // --- Timeline ---
   let daysElapsed = 0;
@@ -143,7 +144,7 @@ export function collectSprintSummaryData(
 
   for (const doc of workItemDocs) {
     const about = doc.frontmatter.aboutArtifact as string | undefined;
-    const focusTag = (doc.frontmatter.tags as string[] ?? []).find((t) => t.startsWith("focus:"));
+    const focusTag = ((doc.frontmatter.tags as string[]) ?? []).find((t) => t.startsWith("focus:"));
     const complexity = doc.frontmatter.complexity as string | undefined;
     const item: SprintWorkItem = {
       id: doc.frontmatter.id,
@@ -151,9 +152,10 @@ export function collectSprintSummaryData(
       type: doc.frontmatter.type,
       status: doc.frontmatter.status,
       progress: getEffectiveProgress(doc.frontmatter),
-      weight: complexity && complexity in COMPLEXITY_WEIGHTS
-        ? COMPLEXITY_WEIGHTS[complexity]
-        : DEFAULT_WEIGHT,
+      weight:
+        complexity && complexity in COMPLEXITY_WEIGHTS
+          ? COMPLEXITY_WEIGHTS[complexity]
+          : DEFAULT_WEIGHT,
       owner: doc.frontmatter.owner as string | undefined,
       workFocus: focusTag ? focusTag.slice(6) : undefined,
       aboutArtifact: about,
@@ -291,11 +293,7 @@ export function collectSprintSummaryData(
 
   // --- Blockers ---
   const blockers = allDocs
-    .filter(
-      (d) =>
-        d.frontmatter.status === "blocked" &&
-        d.frontmatter.tags?.includes(sprintTag),
-    )
+    .filter((d) => d.frontmatter.status === "blocked" && d.frontmatter.tags?.includes(sprintTag))
     .map((d) => ({
       id: d.frontmatter.id,
       title: d.frontmatter.title,
@@ -317,13 +315,17 @@ export function collectSprintSummaryData(
     }));
 
   // --- Velocity comparison ---
-  let velocity: SprintSummaryData["velocity"] = null;
+  let velocity: SprintSummaryData["velocity"];
   const currentRate = workItems.completionPct;
 
   // Find the most recently completed sprint (before current one)
   const completedSprints = sprintDocs
     .filter((s) => DONE_STATUSES.has(s.frontmatter.status) && s.frontmatter.id !== fm.id)
-    .sort((a, b) => (b.frontmatter.endDate as string ?? "").localeCompare(a.frontmatter.endDate as string ?? ""));
+    .sort((a, b) =>
+      ((b.frontmatter.endDate as string) ?? "").localeCompare(
+        (a.frontmatter.endDate as string) ?? "",
+      ),
+    );
 
   if (completedSprints.length > 0) {
     const prev = completedSprints[0];

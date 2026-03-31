@@ -37,9 +37,7 @@ describe("resolveConflicts", () => {
   });
 
   it("should pass through documents with no conflicts", () => {
-    const incoming = [
-      { frontmatter: makeFrontmatter({ id: "D-001" }), content: "Content" },
-    ];
+    const incoming = [{ frontmatter: makeFrontmatter({ id: "D-001" }), content: "Content" }];
 
     const result = resolveConflicts(incoming, store, "renumber");
 
@@ -53,9 +51,7 @@ describe("resolveConflicts", () => {
     store.create("decision", { title: "Existing" });
     // D-001 now exists in store
 
-    const incoming = [
-      { frontmatter: makeFrontmatter({ id: "D-001" }), content: "New content" },
-    ];
+    const incoming = [{ frontmatter: makeFrontmatter({ id: "D-001" }), content: "New content" }];
 
     const result = resolveConflicts(incoming, store, "skip");
 
@@ -66,9 +62,7 @@ describe("resolveConflicts", () => {
   it("should renumber conflicting documents with renumber strategy", () => {
     store.create("decision", { title: "Existing" });
 
-    const incoming = [
-      { frontmatter: makeFrontmatter({ id: "D-001" }), content: "New content" },
-    ];
+    const incoming = [{ frontmatter: makeFrontmatter({ id: "D-001" }), content: "New content" }];
 
     const result = resolveConflicts(incoming, store, "renumber");
 

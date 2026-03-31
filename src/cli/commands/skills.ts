@@ -4,7 +4,11 @@ import * as YAML from "yaml";
 import matter from "gray-matter";
 import chalk from "chalk";
 import { loadProject } from "../../core/project.js";
-import { loadProjectConfig, saveProjectConfig, type MarvinProjectConfig } from "../../core/config.js";
+import {
+  loadProjectConfig,
+  saveProjectConfig,
+  type MarvinProjectConfig,
+} from "../../core/config.js";
 import { loadAllSkills, listAllSkillInfo, migrateYamlToSkillMd } from "../../skills/registry.js";
 import { listPersonas } from "../../personas/registry.js";
 
@@ -38,9 +42,8 @@ export async function skillsListCommand(): Promise<void> {
   console.log(chalk.dim("-".repeat(header.length)));
 
   for (const info of infos) {
-    const personas = info.assignedPersonas.length > 0
-      ? info.assignedPersonas.join(", ")
-      : chalk.dim("(none)");
+    const personas =
+      info.assignedPersonas.length > 0 ? info.assignedPersonas.join(", ") : chalk.dim("(none)");
     console.log(
       [
         info.id.padEnd(idWidth),
@@ -74,11 +77,11 @@ export async function skillsInstallCommand(
     return;
   }
 
-  const targets = persona === "all"
-    ? listPersonas().map((p) => p.id)
-    : [persona];
+  const targets = persona === "all" ? listPersonas().map((p) => p.id) : [persona];
 
-  const config = loadProjectConfig(project.marvinDir) as MarvinProjectConfig & { skills?: Record<string, string[]> };
+  const config = loadProjectConfig(project.marvinDir) as MarvinProjectConfig & {
+    skills?: Record<string, string[]>;
+  };
   if (!config.skills) {
     config.skills = {};
   }
@@ -98,10 +101,7 @@ export async function skillsInstallCommand(
   saveProjectConfig(project.marvinDir, config);
 }
 
-export async function skillsRemoveCommand(
-  skillId: string,
-  options: { as: string },
-): Promise<void> {
+export async function skillsRemoveCommand(skillId: string, options: { as: string }): Promise<void> {
   const project = loadProject();
 
   const persona = options.as;
@@ -110,11 +110,11 @@ export async function skillsRemoveCommand(
     return;
   }
 
-  const targets = persona === "all"
-    ? listPersonas().map((p) => p.id)
-    : [persona];
+  const targets = persona === "all" ? listPersonas().map((p) => p.id) : [persona];
 
-  const config = loadProjectConfig(project.marvinDir) as MarvinProjectConfig & { skills?: Record<string, string[]> };
+  const config = loadProjectConfig(project.marvinDir) as MarvinProjectConfig & {
+    skills?: Record<string, string[]>;
+  };
 
   for (const target of targets) {
     if (!config.skills?.[target]) {
@@ -128,7 +128,7 @@ export async function skillsRemoveCommand(
     }
     config.skills[target].splice(idx, 1);
     if (config.skills[target].length === 0) {
-      delete config.skills[target];
+      Reflect.deleteProperty(config.skills, target);
     }
     console.log(chalk.green(`Removed skill "${skillId}" from ${target}.`));
   }
@@ -173,7 +173,8 @@ export async function skillsCreateCommand(name: string): Promise<void> {
       id: "run",
       name: `Run ${name}`,
       description: `Execute the ${name} skill`,
-      systemPrompt: "You are a helpful assistant. Complete the requested task using the available governance tools.",
+      systemPrompt:
+        "You are a helpful assistant. Complete the requested task using the available governance tools.",
       maxTurns: 5,
     },
   ];

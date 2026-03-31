@@ -22,8 +22,15 @@ describe("Sprint Tools", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
     for (const dir of [
-      "decisions", "actions", "questions", "meetings", "reports",
-      "features", "epics", "contributions", "sprints",
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "contributions",
+      "sprints",
     ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
@@ -320,21 +327,33 @@ describe("Sprint Tools", () => {
       });
 
       // Create tagged work items
-      store.create("action", {
-        title: "Implement login",
-        status: "done",
-        tags: ["sprint:SP-001"],
-      }, "Login action");
-      store.create("action", {
-        title: "Implement logout",
-        status: "open",
-        tags: ["sprint:SP-001"],
-      }, "Logout action");
-      store.create("question", {
-        title: "Which auth library?",
-        status: "open",
-        tags: ["sprint:SP-001"],
-      }, "Question about auth");
+      store.create(
+        "action",
+        {
+          title: "Implement login",
+          status: "done",
+          tags: ["sprint:SP-001"],
+        },
+        "Login action",
+      );
+      store.create(
+        "action",
+        {
+          title: "Implement logout",
+          status: "open",
+          tags: ["sprint:SP-001"],
+        },
+        "Logout action",
+      );
+      store.create(
+        "question",
+        {
+          title: "Which auth library?",
+          status: "open",
+          tags: ["sprint:SP-001"],
+        },
+        "Question about auth",
+      );
 
       const result = await reportTools.generate_sprint_progress({ sprint: "SP-001" });
       const data = JSON.parse(result.content[0].text);
