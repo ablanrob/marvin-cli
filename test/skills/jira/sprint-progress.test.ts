@@ -12,14 +12,9 @@ import {
   resolveWeight,
   resolveProgress,
   computeWeightedProgress,
-  COMPLEXITY_WEIGHTS,
-  STATUS_PROGRESS_DEFAULTS,
   type SprintProgressReport,
   type SprintProgressItemReport,
-  type FocusAreaRollup,
-  type LinkedIssueSignal,
   type ArtifactAssessmentReport,
-  type AssessmentSummary,
   parseCommentAnalysis,
   buildAssessmentSummary,
   computeBlockerProgress,
@@ -35,7 +30,9 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
 
 // --- Helpers ---
 
-function makeArtifactReport(overrides: Partial<ArtifactAssessmentReport> = {}): ArtifactAssessmentReport {
+function makeArtifactReport(
+  overrides: Partial<ArtifactAssessmentReport> = {},
+): ArtifactAssessmentReport {
   return {
     artifactId: "T-001",
     title: "Test task",
@@ -221,12 +218,17 @@ function createMockJiraClient(options?: { withLinks?: boolean }): JiraClient {
           { key: "PROJ-100-1", fields: { summary: "Sub 1", status: { name: "Done" } } },
           { key: "PROJ-100-2", fields: { summary: "Sub 2", status: { name: "In Progress" } } },
         ],
-        issuelinks: options?.withLinks ? [
-          {
-            type: { name: "Blocks", inward: "is blocked by", outward: "blocks" },
-            outwardIssue: { key: "PROJ-301", fields: { summary: "Setup infra", status: { name: "Done" } } },
-          },
-        ] : [],
+        issuelinks: options?.withLinks
+          ? [
+              {
+                type: { name: "Blocks", inward: "is blocked by", outward: "blocks" },
+                outwardIssue: {
+                  key: "PROJ-301",
+                  fields: { summary: "Setup infra", status: { name: "Done" } },
+                },
+              },
+            ]
+          : [],
       },
     },
     "PROJ-101": {
@@ -236,12 +238,17 @@ function createMockJiraClient(options?: { withLinks?: boolean }): JiraClient {
         status: { name: "In Review" },
         issuetype: { name: "Task" },
         subtasks: [],
-        issuelinks: options?.withLinks ? [
-          {
-            type: { name: "Relates", inward: "relates to", outward: "relates to" },
-            outwardIssue: { key: "PROJ-302", fields: { summary: "DBA approval", status: { name: "In Progress" } } },
-          },
-        ] : [],
+        issuelinks: options?.withLinks
+          ? [
+              {
+                type: { name: "Relates", inward: "relates to", outward: "relates to" },
+                outwardIssue: {
+                  key: "PROJ-302",
+                  fields: { summary: "DBA approval", status: { name: "In Progress" } },
+                },
+              },
+            ]
+          : [],
       },
     },
     "PROJ-102": {
@@ -251,16 +258,24 @@ function createMockJiraClient(options?: { withLinks?: boolean }): JiraClient {
         status: { name: "Blocked" },
         issuetype: { name: "Task" },
         subtasks: [],
-        issuelinks: options?.withLinks ? [
-          {
-            type: { name: "Blocks", inward: "is blocked by", outward: "blocks" },
-            inwardIssue: { key: "PROJ-303", fields: { summary: "DBA sign-off", status: { name: "Done" } } },
-          },
-          {
-            type: { name: "Relates", inward: "relates to", outward: "relates to" },
-            outwardIssue: { key: "PROJ-304", fields: { summary: "Cancelled feature", status: { name: "Wont Do" } } },
-          },
-        ] : [],
+        issuelinks: options?.withLinks
+          ? [
+              {
+                type: { name: "Blocks", inward: "is blocked by", outward: "blocks" },
+                inwardIssue: {
+                  key: "PROJ-303",
+                  fields: { summary: "DBA sign-off", status: { name: "Done" } },
+                },
+              },
+              {
+                type: { name: "Relates", inward: "relates to", outward: "relates to" },
+                outwardIssue: {
+                  key: "PROJ-304",
+                  fields: { summary: "Cancelled feature", status: { name: "Wont Do" } },
+                },
+              },
+            ]
+          : [],
       },
     },
     "PROJ-200": {
@@ -292,12 +307,17 @@ function createMockJiraClient(options?: { withLinks?: boolean }): JiraClient {
         issuetype: { name: "Task" },
         subtasks: [],
         // 2nd hop: PROJ-302 links to PROJ-305 (only discovered via recursive traversal)
-        issuelinks: options?.withLinks ? [
-          {
-            type: { name: "Relates", inward: "relates to", outward: "relates to" },
-            outwardIssue: { key: "PROJ-305", fields: { summary: "Schema design doc", status: { name: "Done" } } },
-          },
-        ] : [],
+        issuelinks: options?.withLinks
+          ? [
+              {
+                type: { name: "Relates", inward: "relates to", outward: "relates to" },
+                outwardIssue: {
+                  key: "PROJ-305",
+                  fields: { summary: "Schema design doc", status: { name: "Done" } },
+                },
+              },
+            ]
+          : [],
       },
     },
     "PROJ-303": {
@@ -329,12 +349,17 @@ function createMockJiraClient(options?: { withLinks?: boolean }): JiraClient {
         issuetype: { name: "Task" },
         subtasks: [],
         // Circular link back to PROJ-302 — tests cycle safety
-        issuelinks: options?.withLinks ? [
-          {
-            type: { name: "Relates", inward: "relates to", outward: "relates to" },
-            inwardIssue: { key: "PROJ-302", fields: { summary: "DBA approval", status: { name: "In Progress" } } },
-          },
-        ] : [],
+        issuelinks: options?.withLinks
+          ? [
+              {
+                type: { name: "Relates", inward: "relates to", outward: "relates to" },
+                inwardIssue: {
+                  key: "PROJ-302",
+                  fields: { summary: "DBA approval", status: { name: "In Progress" } },
+                },
+              },
+            ]
+          : [],
       },
     },
   };
@@ -455,9 +480,9 @@ describe("resolveProgress", () => {
 describe("computeWeightedProgress", () => {
   it("computes weighted average", () => {
     const items = [
-      makeItem({ progress: 65, weight: 3 }),  // 3 × 65 = 195
-      makeItem({ progress: 80, weight: 5 }),   // 5 × 80 = 400
-      makeItem({ progress: 0, weight: 3 }),    // 3 × 0 = 0
+      makeItem({ progress: 65, weight: 3 }), // 3 × 65 = 195
+      makeItem({ progress: 80, weight: 5 }), // 5 × 80 = 400
+      makeItem({ progress: 0, weight: 3 }), // 3 × 0 = 0
     ];
     // total weight = 11, weighted sum = 595, 595/11 = 54.09 → 54
     expect(computeWeightedProgress(items)).toBe(54);
@@ -473,17 +498,17 @@ describe("computeWeightedProgress", () => {
 
   it("spec example: Analytics focus area", () => {
     const items = [
-      makeItem({ progress: 65, weight: 3 }),   // moderate
-      makeItem({ progress: 80, weight: 5 }),   // complex
-      makeItem({ progress: 0, weight: 3 }),    // moderate
-      makeItem({ progress: 50, weight: 3 }),   // moderate
-      makeItem({ progress: 70, weight: 3 }),   // moderate
-      makeItem({ progress: 30, weight: 3 }),   // moderate
-      makeItem({ progress: 55, weight: 3 }),   // default
-      makeItem({ progress: 0, weight: 5 }),    // complex
-      makeItem({ progress: 85, weight: 3 }),   // default
-      makeItem({ progress: 70, weight: 3 }),   // default
-      makeItem({ progress: 0, weight: 3 }),    // default
+      makeItem({ progress: 65, weight: 3 }), // moderate
+      makeItem({ progress: 80, weight: 5 }), // complex
+      makeItem({ progress: 0, weight: 3 }), // moderate
+      makeItem({ progress: 50, weight: 3 }), // moderate
+      makeItem({ progress: 70, weight: 3 }), // moderate
+      makeItem({ progress: 30, weight: 3 }), // moderate
+      makeItem({ progress: 55, weight: 3 }), // default
+      makeItem({ progress: 0, weight: 5 }), // complex
+      makeItem({ progress: 85, weight: 3 }), // default
+      makeItem({ progress: 70, weight: 3 }), // default
+      makeItem({ progress: 0, weight: 3 }), // default
     ];
     // total weight = 37
     // weighted sum = 3*65 + 5*80 + 3*0 + 3*50 + 3*70 + 3*30 + 3*55 + 5*0 + 3*85 + 3*70 + 3*0
@@ -548,7 +573,7 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const allIds = report.itemReports.flatMap(r => [r.id, ...r.children.map(c => c.id)]);
+    const allIds = report.itemReports.flatMap((r) => [r.id, ...r.children.map((c) => c.id)]);
     expect(allIds).toContain("A-001");
     expect(allIds).toContain("A-002");
     expect(allIds).toContain("T-001");
@@ -560,7 +585,9 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const a002 = report.itemReports.flatMap(r => [r, ...r.children]).find(r => r.id === "A-002");
+    const a002 = report.itemReports
+      .flatMap((r) => [r, ...r.children])
+      .find((r) => r.id === "A-002");
     expect(a002?.jiraKey).toBe("PROJ-200");
     expect(a002?.jiraStatus).toBe("To Do");
   });
@@ -570,10 +597,12 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const t001 = report.itemReports.flatMap(r => [r, ...r.children]).find(r => r.id === "T-001");
+    const t001 = report.itemReports
+      .flatMap((r) => [r, ...r.children])
+      .find((r) => r.id === "T-001");
     expect(t001?.statusDrift).toBe(true);
     expect(t001?.proposedMarvinStatus).toBe("review");
-    expect(report.driftItems.some(d => d.id === "T-001")).toBe(true);
+    expect(report.driftItems.some((d) => d.id === "T-001")).toBe(true);
   });
 
   it("computes subtask progress from Jira", async () => {
@@ -581,7 +610,7 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const a001 = report.itemReports.find(r => r.id === "A-001");
+    const a001 = report.itemReports.find((r) => r.id === "A-001");
     expect(a001?.jiraSubtaskProgress).toBe(50);
   });
 
@@ -590,8 +619,8 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const authArea = report.focusAreas.find(a => a.name === "Authentication");
-    const infraArea = report.focusAreas.find(a => a.name === "Infrastructure");
+    const authArea = report.focusAreas.find((a) => a.name === "Authentication");
+    const infraArea = report.focusAreas.find((a) => a.name === "Infrastructure");
 
     expect(authArea).toBeDefined();
     expect(infraArea).toBeDefined();
@@ -604,7 +633,7 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    expect(report.blockers.some(b => b.id === "T-002")).toBe(true);
+    expect(report.blockers.some((b) => b.id === "T-002")).toBe(true);
   });
 
   it("generates proposed updates for drift items", async () => {
@@ -613,7 +642,7 @@ describe("assessSprintProgress", () => {
     });
 
     const statusUpdate = report.proposedUpdates.find(
-      u => u.artifactId === "T-001" && u.field === "status",
+      (u) => u.artifactId === "T-001" && u.field === "status",
     );
     expect(statusUpdate).toBeDefined();
     expect(statusUpdate!.proposedValue).toBe("review");
@@ -634,7 +663,9 @@ describe("assessSprintProgress", () => {
 
   it("handles Jira fetch errors gracefully", async () => {
     const failingClient = {
-      getIssueWithLinks: vi.fn(async () => { throw new Error("Network error"); }),
+      getIssueWithLinks: vi.fn(async () => {
+        throw new Error("Network error");
+      }),
       getComments: vi.fn(async () => []),
     } as unknown as JiraClient;
 
@@ -653,11 +684,11 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
-    const a001 = allItems.find(r => r.id === "A-001");
-    const t001 = allItems.find(r => r.id === "T-001");
-    const t002 = allItems.find(r => r.id === "T-002");
-    const a002 = allItems.find(r => r.id === "A-002");
+    const allItems = report.itemReports.flatMap((r) => [r, ...r.children]);
+    const a001 = allItems.find((r) => r.id === "A-001");
+    const t001 = allItems.find((r) => r.id === "T-001");
+    const t002 = allItems.find((r) => r.id === "T-002");
+    const a002 = allItems.find((r) => r.id === "A-002");
 
     expect(a001?.weight).toBe(5); // complex
     expect(a001?.weightSource).toBe("complexity");
@@ -674,21 +705,21 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
+    const allItems = report.itemReports.flatMap((r) => [r, ...r.children]);
     for (const item of allItems) {
       expect(["explicit", "comment-analysis", "status-default"]).toContain(item.progressSource);
     }
 
     // A-001 has children → progress derived from child weighted average
-    const a001 = allItems.find(r => r.id === "A-001");
+    const a001 = allItems.find((r) => r.id === "A-001");
     expect(a001?.progressSource).toBe("status-default"); // derived from children
 
     // T-001 has explicit progress: 50
-    const t001 = allItems.find(r => r.id === "T-001");
+    const t001 = allItems.find((r) => r.id === "T-001");
     expect(t001?.progressSource).toBe("explicit");
 
     // T-002 has explicit progress: 30 (blocked but has prior value)
-    const t002 = allItems.find(r => r.id === "T-002");
+    const t002 = allItems.find((r) => r.id === "T-002");
     expect(t002?.progress).toBe(30);
     expect(t002?.progressSource).toBe("explicit");
   });
@@ -699,7 +730,7 @@ describe("assessSprintProgress", () => {
     });
 
     // A-002 has no progress field, status=open → 0%
-    const a002 = report.itemReports.find(r => r.id === "A-002");
+    const a002 = report.itemReports.find((r) => r.id === "A-002");
     expect(a002?.progress).toBe(0);
     expect(a002?.progressSource).toBe("status-default");
   });
@@ -721,7 +752,7 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const a001 = report.itemReports.find(r => r.id === "A-001");
+    const a001 = report.itemReports.find((r) => r.id === "A-001");
     expect(a001).toBeDefined();
     expect(a001!.children.length).toBeGreaterThan(0);
     // A-001 has child T-001 (progress: 50, weight: 3)
@@ -734,7 +765,7 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const authArea = report.focusAreas.find(a => a.name === "Authentication");
+    const authArea = report.focusAreas.find((a) => a.name === "Authentication");
     expect(authArea).toBeDefined();
     // Root items in Auth: A-001 only (T-001 is nested under it)
     expect(authArea!.items.length).toBe(1);
@@ -746,8 +777,8 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
-    const t002 = allItems.find(r => r.id === "T-002");
+    const allItems = report.itemReports.flatMap((r) => [r, ...r.children]);
+    const t002 = allItems.find((r) => r.id === "T-002");
     // T-002 is blocked with explicit progress: 30 → freezes at 30
     expect(t002?.progress).toBe(30);
   });
@@ -757,7 +788,7 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const infraArea = report.focusAreas.find(a => a.name === "Infrastructure");
+    const infraArea = report.focusAreas.find((a) => a.name === "Infrastructure");
     expect(infraArea).toBeDefined();
     expect(typeof infraArea!.blockedWeightPct).toBe("number");
     // Infrastructure has A-002 (w3, open) and T-002 (w8, blocked)
@@ -771,7 +802,7 @@ describe("assessSprintProgress", () => {
       sprintId: "SP-001",
     });
 
-    const infraArea = report.focusAreas.find(a => a.name === "Infrastructure");
+    const infraArea = report.focusAreas.find((a) => a.name === "Infrastructure");
     expect(infraArea).toBeDefined();
     expect(infraArea!.riskWarning).not.toBeNull();
     expect(infraArea!.riskWarning).toContain("blocked");
@@ -806,10 +837,12 @@ No focus tag.
     });
 
     // T-003 should appear in itemReports but not in any focus area
-    const allFocusItems = report.focusAreas.flatMap(a => a.items.flatMap(i => [i, ...i.children]));
-    expect(allFocusItems.find(i => i.id === "T-003")).toBeUndefined();
-    const allReportItems = report.itemReports.flatMap(r => [r, ...r.children]);
-    expect(allReportItems.find(i => i.id === "T-003")).toBeDefined();
+    const allFocusItems = report.focusAreas.flatMap((a) =>
+      a.items.flatMap((i) => [i, ...i.children]),
+    );
+    expect(allFocusItems.find((i) => i.id === "T-003")).toBeUndefined();
+    const allReportItems = report.itemReports.flatMap((r) => [r, ...r.children]);
+    expect(allReportItems.find((i) => i.id === "T-003")).toBeDefined();
   });
 });
 
@@ -866,19 +899,21 @@ describe("formatProgressReport", () => {
           blockedCount: 0,
           blockedWeightPct: 0,
           riskWarning: null,
-          items: [makeItem({
-            id: "A-001",
-            title: "Build auth",
-            type: "action",
-            marvinStatus: "in-progress",
-            progress: 50,
-            progressSource: "explicit",
-            weight: 5,
-            weightSource: "complexity",
-            jiraKey: "PROJ-100",
-            jiraStatus: "In Progress",
-            focusArea: "Authentication",
-          })],
+          items: [
+            makeItem({
+              id: "A-001",
+              title: "Build auth",
+              type: "action",
+              marvinStatus: "in-progress",
+              progress: 50,
+              progressSource: "explicit",
+              weight: 5,
+              weightSource: "complexity",
+              jiraKey: "PROJ-100",
+              jiraStatus: "In Progress",
+              focusArea: "Authentication",
+            }),
+          ],
         },
       ],
       driftItems: [],
@@ -900,7 +935,13 @@ describe("formatProgressReport", () => {
       sprintId: "SP-001",
       sprintTitle: "Sprint 1",
       generatedAt: "2026-03-20T10:00:00Z",
-      timeline: { startDate: null, endDate: null, daysRemaining: 0, totalDays: 0, percentComplete: 0 },
+      timeline: {
+        startDate: null,
+        endDate: null,
+        daysRemaining: 0,
+        totalDays: 0,
+        percentComplete: 0,
+      },
       overallProgress: 10,
       itemReports: [],
       focusAreas: [
@@ -952,19 +993,27 @@ describe("formatProgressReport", () => {
       sprintId: "SP-001",
       sprintTitle: "Sprint 1",
       generatedAt: "2026-03-20T10:00:00Z",
-      timeline: { startDate: null, endDate: null, daysRemaining: 0, totalDays: 0, percentComplete: 0 },
+      timeline: {
+        startDate: null,
+        endDate: null,
+        daysRemaining: 0,
+        totalDays: 0,
+        percentComplete: 0,
+      },
       overallProgress: 30,
       itemReports: [],
       focusAreas: [],
       driftItems: [driftItem],
       blockers: [blockerItem],
-      proposedUpdates: [{
-        artifactId: "T-001",
-        field: "status",
-        currentValue: "in-progress",
-        proposedValue: "review",
-        reason: 'Jira PROJ-101 is "In Review"',
-      }],
+      proposedUpdates: [
+        {
+          artifactId: "T-001",
+          field: "status",
+          currentValue: "in-progress",
+          proposedValue: "review",
+          reason: 'Jira PROJ-101 is "In Review"',
+        },
+      ],
       appliedUpdates: [],
       errors: [],
     };
@@ -980,28 +1029,54 @@ describe("formatProgressReport", () => {
 
   it("shows progress source labels", () => {
     const items = [
-      makeItem({ id: "T-010", title: "Explicit", progress: 50, progressSource: "explicit", weight: 3 }),
-      makeItem({ id: "T-011", title: "Estimated", progress: 40, progressSource: "status-default", weight: 3 }),
-      makeItem({ id: "T-012", title: "LLM", progress: 65, progressSource: "comment-analysis", weight: 3 }),
+      makeItem({
+        id: "T-010",
+        title: "Explicit",
+        progress: 50,
+        progressSource: "explicit",
+        weight: 3,
+      }),
+      makeItem({
+        id: "T-011",
+        title: "Estimated",
+        progress: 40,
+        progressSource: "status-default",
+        weight: 3,
+      }),
+      makeItem({
+        id: "T-012",
+        title: "LLM",
+        progress: 65,
+        progressSource: "comment-analysis",
+        weight: 3,
+      }),
     ];
 
     const report: SprintProgressReport = {
       sprintId: "SP-001",
       sprintTitle: "Sprint 1",
       generatedAt: "2026-03-20T10:00:00Z",
-      timeline: { startDate: null, endDate: null, daysRemaining: 0, totalDays: 0, percentComplete: 0 },
+      timeline: {
+        startDate: null,
+        endDate: null,
+        daysRemaining: 0,
+        totalDays: 0,
+        percentComplete: 0,
+      },
       overallProgress: 50,
       itemReports: items,
-      focusAreas: [{
-        name: "Test",
-        progress: 52,
-        taskCount: 3,
-        doneCount: 0,
-        blockedCount: 0,
-        blockedWeightPct: 0,
-        riskWarning: null,
-        items,
-      }],
+      focusAreas: [
+        {
+          name: "Test",
+          progress: 52,
+          taskCount: 3,
+          doneCount: 0,
+          blockedCount: 0,
+          blockedWeightPct: 0,
+          riskWarning: null,
+          items,
+        },
+      ],
       driftItems: [],
       blockers: [],
       proposedUpdates: [],
@@ -1028,12 +1103,29 @@ describe("formatProgressReport", () => {
       jiraKey: "PROJ-100",
       jiraStatus: "In Progress",
       linkedIssues: [
-        { key: "PROJ-301", summary: "Setup infra", status: "Done", relationship: "blocks", isDone: true },
-        { key: "PROJ-302", summary: "DBA approval", status: "In Progress", relationship: "is blocked by", isDone: false },
+        {
+          key: "PROJ-301",
+          summary: "Setup infra",
+          status: "Done",
+          relationship: "blocks",
+          isDone: true,
+        },
+        {
+          key: "PROJ-302",
+          summary: "DBA approval",
+          status: "In Progress",
+          relationship: "is blocked by",
+          isDone: false,
+        },
       ],
       linkedIssueSignals: [
         { sourceKey: "PROJ-301", linkType: "blocks", commentSignals: [], commentSummary: null },
-        { sourceKey: "PROJ-302", linkType: "is blocked by", commentSignals: [], commentSummary: "DBA review scheduled for Thursday" },
+        {
+          sourceKey: "PROJ-302",
+          linkType: "is blocked by",
+          commentSignals: [],
+          commentSummary: "DBA review scheduled for Thursday",
+        },
       ],
     });
 
@@ -1041,19 +1133,27 @@ describe("formatProgressReport", () => {
       sprintId: "SP-001",
       sprintTitle: "Sprint 1",
       generatedAt: "2026-03-20T10:00:00Z",
-      timeline: { startDate: null, endDate: null, daysRemaining: 0, totalDays: 0, percentComplete: 0 },
+      timeline: {
+        startDate: null,
+        endDate: null,
+        daysRemaining: 0,
+        totalDays: 0,
+        percentComplete: 0,
+      },
       overallProgress: 50,
       itemReports: [item],
-      focusAreas: [{
-        name: "Auth",
-        progress: 50,
-        taskCount: 1,
-        doneCount: 0,
-        blockedCount: 0,
-        blockedWeightPct: 0,
-        riskWarning: null,
-        items: [item],
-      }],
+      focusAreas: [
+        {
+          name: "Auth",
+          progress: 50,
+          taskCount: 1,
+          doneCount: 0,
+          blockedCount: 0,
+          blockedWeightPct: 0,
+          riskWarning: null,
+          items: [item],
+        },
+      ],
       driftItems: [],
       blockers: [],
       proposedUpdates: [],
@@ -1073,7 +1173,13 @@ describe("formatProgressReport", () => {
       id: "T-001",
       title: "Task",
       linkedIssues: [
-        { key: "PROJ-304", summary: "Cancelled feature", status: "Wont Do", relationship: "relates to", isDone: false },
+        {
+          key: "PROJ-304",
+          summary: "Cancelled feature",
+          status: "Wont Do",
+          relationship: "relates to",
+          isDone: false,
+        },
       ],
       linkedIssueSignals: [],
     });
@@ -1082,19 +1188,27 @@ describe("formatProgressReport", () => {
       sprintId: "SP-001",
       sprintTitle: "Sprint 1",
       generatedAt: "2026-03-20T10:00:00Z",
-      timeline: { startDate: null, endDate: null, daysRemaining: 0, totalDays: 0, percentComplete: 0 },
+      timeline: {
+        startDate: null,
+        endDate: null,
+        daysRemaining: 0,
+        totalDays: 0,
+        percentComplete: 0,
+      },
       overallProgress: 0,
       itemReports: [item],
-      focusAreas: [{
-        name: "Test",
-        progress: 0,
-        taskCount: 1,
-        doneCount: 0,
-        blockedCount: 0,
-        blockedWeightPct: 0,
-        riskWarning: null,
-        items: [item],
-      }],
+      focusAreas: [
+        {
+          name: "Test",
+          progress: 0,
+          taskCount: 1,
+          doneCount: 0,
+          blockedCount: 0,
+          blockedWeightPct: 0,
+          riskWarning: null,
+          items: [item],
+        },
+      ],
       driftItems: [],
       blockers: [],
       proposedUpdates: [],
@@ -1125,9 +1239,7 @@ describe("collectLinkedIssues", () => {
         labels: [],
         created: "",
         updated: "",
-        subtasks: [
-          { key: "PROJ-100-1", fields: { summary: "Sub 1", status: { name: "Done" } } },
-        ],
+        subtasks: [{ key: "PROJ-100-1", fields: { summary: "Sub 1", status: { name: "Done" } } }],
         issuelinks: [],
       },
     } as JiraIssue;
@@ -1158,11 +1270,17 @@ describe("collectLinkedIssues", () => {
         issuelinks: [
           {
             type: { name: "Blocks", inward: "is blocked by", outward: "blocks" },
-            outwardIssue: { key: "PROJ-200", fields: { summary: "Blocked task", status: { name: "To Do" } } },
+            outwardIssue: {
+              key: "PROJ-200",
+              fields: { summary: "Blocked task", status: { name: "To Do" } },
+            },
           },
           {
             type: { name: "Relates", inward: "relates to", outward: "relates to" },
-            inwardIssue: { key: "PROJ-300", fields: { summary: "Related task", status: { name: "Done" } } },
+            inwardIssue: {
+              key: "PROJ-300",
+              fields: { summary: "Related task", status: { name: "Done" } },
+            },
           },
         ],
       },
@@ -1233,7 +1351,7 @@ describe("assessSprintProgress with traverseLinks", () => {
       traverseLinks: false,
     });
 
-    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
+    const allItems = report.itemReports.flatMap((r) => [r, ...r.children]);
     for (const item of allItems) {
       expect(item.linkedIssues).toHaveLength(0);
       expect(item.linkedIssueSignals).toHaveLength(0);
@@ -1247,20 +1365,20 @@ describe("assessSprintProgress with traverseLinks", () => {
       traverseLinks: true,
     });
 
-    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
+    const allItems = report.itemReports.flatMap((r) => [r, ...r.children]);
 
     // A-001 has one outward link: blocks PROJ-301
-    const a001 = allItems.find(r => r.id === "A-001");
+    const a001 = allItems.find((r) => r.id === "A-001");
     expect(a001?.linkedIssues).toHaveLength(1);
     expect(a001?.linkedIssues[0].key).toBe("PROJ-301");
     expect(a001?.linkedIssues[0].relationship).toBe("blocks");
 
     // T-001 links to PROJ-302, which transitively links to PROJ-305
-    const t001 = allItems.find(r => r.id === "T-001");
+    const t001 = allItems.find((r) => r.id === "T-001");
     expect(t001?.linkedIssues.length).toBeGreaterThanOrEqual(1);
-    expect(t001?.linkedIssues.some(l => l.key === "PROJ-302")).toBe(true);
+    expect(t001?.linkedIssues.some((l) => l.key === "PROJ-302")).toBe(true);
     // 2nd hop: PROJ-305 is discovered via PROJ-302
-    expect(t001?.linkedIssues.some(l => l.key === "PROJ-305")).toBe(true);
+    expect(t001?.linkedIssues.some((l) => l.key === "PROJ-305")).toBe(true);
   });
 
   it("traverseLinks=true → linked issues fetched via client", async () => {
@@ -1287,7 +1405,10 @@ describe("assessSprintProgress with traverseLinks", () => {
 
     // T-002 is blocked and has a blocker link (PROJ-303) that is Done
     const unblockUpdate = report.proposedUpdates.find(
-      u => u.artifactId === "T-002" && u.field === "status" && u.reason.includes("blocking issues resolved"),
+      (u) =>
+        u.artifactId === "T-002" &&
+        u.field === "status" &&
+        u.reason.includes("blocking issues resolved"),
     );
     expect(unblockUpdate).toBeDefined();
     expect(unblockUpdate!.proposedValue).toBe("in-progress");
@@ -1303,7 +1424,7 @@ describe("assessSprintProgress with traverseLinks", () => {
 
     // T-002 has a linked issue PROJ-304 with status "Wont Do"
     const reviewUpdate = report.proposedUpdates.find(
-      u => u.artifactId === "T-002" && u.field === "review",
+      (u) => u.artifactId === "T-002" && u.field === "review",
     );
     expect(reviewUpdate).toBeDefined();
     expect(reviewUpdate!.reason).toContain("PROJ-304");
@@ -1317,10 +1438,10 @@ describe("assessSprintProgress with traverseLinks", () => {
       traverseLinks: true,
     });
 
-    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
-    const t002 = allItems.find(r => r.id === "T-002");
+    const allItems = report.itemReports.flatMap((r) => [r, ...r.children]);
+    const t002 = allItems.find((r) => r.id === "T-002");
     // T-002 links to PROJ-303 which has comments
-    const signal303 = t002?.linkedIssueSignals.find(s => s.sourceKey === "PROJ-303");
+    const signal303 = t002?.linkedIssueSignals.find((s) => s.sourceKey === "PROJ-303");
     expect(signal303).toBeDefined();
     expect(signal303!.linkType).toBe("is blocked by");
   });
@@ -1334,9 +1455,9 @@ describe("assessSprintProgress with traverseLinks", () => {
 
     // T-001 → PROJ-302 → PROJ-305 (2nd hop)
     // PROJ-305 should be fetched and appear in T-001's linked issues
-    const allItems = report.itemReports.flatMap(r => [r, ...r.children]);
-    const t001 = allItems.find(r => r.id === "T-001");
-    expect(t001?.linkedIssues.some(l => l.key === "PROJ-305")).toBe(true);
+    const allItems = report.itemReports.flatMap((r) => [r, ...r.children]);
+    const t001 = allItems.find((r) => r.id === "T-001");
+    expect(t001?.linkedIssues.some((l) => l.key === "PROJ-305")).toBe(true);
 
     // PROJ-305 was fetched via getIssueWithLinks
     const fetchedKeys = (mockClient.getIssueWithLinks as any).mock.calls.map((c: any[]) => c[0]);
@@ -1413,7 +1534,7 @@ describe("assessArtifact", () => {
 
     expect(report.statusDrift).toBe(true);
     expect(report.proposedMarvinStatus).toBe("review");
-    expect(report.proposedUpdates.some(u => u.field === "status")).toBe(true);
+    expect(report.proposedUpdates.some((u) => u.field === "status")).toBe(true);
   });
 
   it("traverses linked issues recursively", async () => {
@@ -1423,8 +1544,8 @@ describe("assessArtifact", () => {
     });
 
     // T-001 (PROJ-101) → PROJ-302 → PROJ-305 (2nd hop)
-    expect(report.linkedIssues.some(l => l.key === "PROJ-302")).toBe(true);
-    expect(report.linkedIssues.some(l => l.key === "PROJ-305")).toBe(true);
+    expect(report.linkedIssues.some((l) => l.key === "PROJ-302")).toBe(true);
+    expect(report.linkedIssues.some((l) => l.key === "PROJ-305")).toBe(true);
   });
 
   it("recursively assesses children with Jira data and drift detection", async () => {
@@ -1435,7 +1556,7 @@ describe("assessArtifact", () => {
 
     // A-001 has T-001 as a child (aboutArtifact: A-001)
     expect(report.children.length).toBeGreaterThanOrEqual(1);
-    const t001Child = report.children.find(c => c.artifactId === "T-001");
+    const t001Child = report.children.find((c) => c.artifactId === "T-001");
     expect(t001Child).toBeDefined();
 
     // Child should have Jira data fetched (not null like before)
@@ -1447,7 +1568,7 @@ describe("assessArtifact", () => {
     expect(t001Child!.proposedMarvinStatus).toBe("review");
 
     // Child should have linked issues (traverseLinks always on)
-    expect(t001Child!.linkedIssues.some(l => l.key === "PROJ-302")).toBe(true);
+    expect(t001Child!.linkedIssues.some((l) => l.key === "PROJ-302")).toBe(true);
   });
 
   it("resolves sprint and parent from tags/frontmatter", async () => {
@@ -1469,9 +1590,9 @@ describe("assessArtifact", () => {
     });
 
     // T-002 is blocked, PROJ-303 (blocker) is Done → unblock signal
-    expect(report.signals.some(s => s.includes("Unblocked"))).toBe(true);
+    expect(report.signals.some((s) => s.includes("Unblocked"))).toBe(true);
     // PROJ-304 is "Wont Do" → superseded signal
-    expect(report.signals.some(s => s.includes("Superseded"))).toBe(true);
+    expect(report.signals.some((s) => s.includes("Superseded"))).toBe(true);
   });
 
   it("proposes unblock when all blockers are resolved", async () => {
@@ -1481,7 +1602,7 @@ describe("assessArtifact", () => {
     });
 
     const unblockUpdate = report.proposedUpdates.find(
-      u => u.field === "status" && u.reason.includes("blocking issues resolved"),
+      (u) => u.field === "status" && u.reason.includes("blocking issues resolved"),
     );
     expect(unblockUpdate).toBeDefined();
     expect(unblockUpdate!.proposedValue).toBe("in-progress");
@@ -1558,13 +1679,31 @@ describe("formatArtifactReport", () => {
       commentSummary: "S/4 setup completed on Gamma. No blockers.",
       commentAnalysisProgress: null,
       linkedIssues: [
-        { key: "MCB1-293", summary: "Setup Planner Groups API", status: "Done", relationship: "implements", isDone: true },
+        {
+          key: "MCB1-293",
+          summary: "Setup Planner Groups API",
+          status: "Done",
+          relationship: "implements",
+          isDone: true,
+        },
       ],
       linkedIssueSignals: [],
       children: [],
       proposedUpdates: [
-        { artifactId: "T-063", field: "status", currentValue: "backlog", proposedValue: "done", reason: 'Jira MCB1-277 is "Done"' },
-        { artifactId: "T-063", field: "progress", currentValue: 0, proposedValue: 100, reason: 'Status changing to "done"' },
+        {
+          artifactId: "T-063",
+          field: "status",
+          currentValue: "backlog",
+          proposedValue: "done",
+          reason: 'Jira MCB1-277 is "Done"',
+        },
+        {
+          artifactId: "T-063",
+          field: "progress",
+          currentValue: 0,
+          proposedValue: 100,
+          reason: 'Status changing to "done"',
+        },
       ],
       appliedUpdates: [],
       signals: ["✅ No active blockers or concerns detected"],
@@ -1608,8 +1747,20 @@ describe("formatArtifactReport", () => {
       linkedIssues: [],
       linkedIssueSignals: [],
       children: [
-        makeArtifactReport({ artifactId: "T-001", title: "JWT tokens", marvinStatus: "done", marvinProgress: 100, jiraKey: "PROJ-101" }),
-        makeArtifactReport({ artifactId: "T-002", title: "DB migration", marvinStatus: "blocked", marvinProgress: 30, jiraKey: "PROJ-102" }),
+        makeArtifactReport({
+          artifactId: "T-001",
+          title: "JWT tokens",
+          marvinStatus: "done",
+          marvinProgress: 100,
+          jiraKey: "PROJ-101",
+        }),
+        makeArtifactReport({
+          artifactId: "T-002",
+          title: "DB migration",
+          marvinStatus: "blocked",
+          marvinProgress: 30,
+          jiraKey: "PROJ-102",
+        }),
       ],
       proposedUpdates: [],
       appliedUpdates: [],
@@ -1650,7 +1801,7 @@ describe("formatArtifactReport", () => {
       appliedUpdates: [],
       signals: [
         "✅ Unblocked — all blocking issues resolved: PROJ-303",
-        "🔄 Superseded — PROJ-304 \"Cancelled feature\" is Wont Do",
+        '🔄 Superseded — PROJ-304 "Cancelled feature" is Wont Do',
       ],
       errors: [],
     };
@@ -1718,7 +1869,9 @@ describe("parseCommentAnalysis", () => {
   });
 
   it("handles JSON wrapped in markdown code block", () => {
-    const result = parseCommentAnalysis('```json\n{"summary": "Wrapped.", "progressEstimate": 50}\n```');
+    const result = parseCommentAnalysis(
+      '```json\n{"summary": "Wrapped.", "progressEstimate": 50}\n```',
+    );
     expect(result.summary).toBe("Wrapped.");
     expect(result.progressEstimate).toBe(50);
   });
@@ -1737,9 +1890,7 @@ describe("parseCommentAnalysis", () => {
 
 describe("buildAssessmentSummary", () => {
   it("builds summary with no children", () => {
-    const result = buildAssessmentSummary(
-      "All good.", 80, ["✅ No blockers"], [], [],
-    );
+    const result = buildAssessmentSummary("All good.", 80, ["✅ No blockers"], [], []);
     expect(result.commentSummary).toBe("All good.");
     expect(result.commentAnalysisProgress).toBe(80);
     expect(result.signals).toEqual(["✅ No blockers"]);
@@ -1768,7 +1919,13 @@ describe("buildAssessmentSummary", () => {
         marvinStatus: "in-progress",
         marvinProgress: 40,
         appliedUpdates: [
-          { artifactId: "T-001", field: "status", currentValue: "in-progress", proposedValue: "done", reason: "test" },
+          {
+            artifactId: "T-001",
+            field: "status",
+            currentValue: "in-progress",
+            proposedValue: "done",
+            reason: "test",
+          },
         ],
       }),
       makeArtifactReport({ artifactId: "T-002", marvinStatus: "in-progress", marvinProgress: 60 }),
@@ -1785,7 +1942,13 @@ describe("buildAssessmentSummary", () => {
         artifactId: "T-001",
         marvinProgress: 20,
         appliedUpdates: [
-          { artifactId: "T-001", field: "progress", currentValue: 20, proposedValue: 90, reason: "test" },
+          {
+            artifactId: "T-001",
+            field: "progress",
+            currentValue: 20,
+            proposedValue: 90,
+            reason: "test",
+          },
         ],
       }),
     ];
@@ -1847,7 +2010,13 @@ describe("computeBlockerProgress", () => {
   it("computes partial blocker resolution", () => {
     const links = [
       { key: "PROJ-1", summary: "A", status: "Done", relationship: "is blocked by", isDone: true },
-      { key: "PROJ-2", summary: "B", status: "In Progress", relationship: "is blocked by", isDone: false },
+      {
+        key: "PROJ-2",
+        summary: "B",
+        status: "In Progress",
+        relationship: "is blocked by",
+        isDone: false,
+      },
     ];
     const result = computeBlockerProgress(links, 0.3);
     expect(result).not.toBeNull();
@@ -1871,7 +2040,13 @@ describe("computeBlockerProgress", () => {
 
   it("counts Won't Do as resolved", () => {
     const links = [
-      { key: "PROJ-1", summary: "A", status: "Won't Do", relationship: "is blocked by", isDone: true },
+      {
+        key: "PROJ-1",
+        summary: "A",
+        status: "Won't Do",
+        relationship: "is blocked by",
+        isDone: true,
+      },
       { key: "PROJ-2", summary: "B", status: "Open", relationship: "is blocked by", isDone: false },
     ];
     const result = computeBlockerProgress(links, 0.3);
@@ -1932,5 +2107,409 @@ describe("formatArtifactReport — blocker resolution", () => {
     });
     const output = formatArtifactReport(report);
     expect(output).toContain("n/a (skipped)");
+  });
+});
+
+// ========================================================================
+// Comment-derived progress proposals
+// ========================================================================
+
+describe("assessArtifact — comment-derived progress proposals", () => {
+  let tmpDir: string;
+  let marvinDir: string;
+  let store: DocumentStore;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-progress-diverge-"));
+    marvinDir = path.join(tmpDir, ".marvin");
+    store = setupStore(marvinDir);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  async function mockLlmProgressEstimate(
+    progressEstimate: number,
+    summary = "Progress update from comments.",
+  ) {
+    const { query } = vi.mocked(await import("@anthropic-ai/claude-agent-sdk"));
+    (query as ReturnType<typeof vi.fn>).mockReturnValue(
+      (async function* () {
+        yield {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ summary, progressEstimate }),
+              },
+            ],
+          },
+        };
+      })(),
+    );
+  }
+
+  it("proposes progress update when comment-derived estimate diverges by >= threshold", async () => {
+    // T-001 has progress: 50, mock LLM returns 90% → divergence = 40pp > default 15pp
+    await mockLlmProgressEstimate(90);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    // Add comments so LLM analysis triggers
+    const originalGetComments = mockClient.getComments.bind(mockClient);
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Almost done with the implementation.",
+          },
+        ];
+      }
+      return originalGetComments(key);
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      (u) => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeDefined();
+    expect(progressUpdate!.proposedValue).toBe(90);
+    expect(progressUpdate!.reason).toContain("diverges from current");
+    expect(progressUpdate!.reason).toContain("40pp");
+  });
+
+  it("does not propose progress update when divergence is below threshold", async () => {
+    // T-001 has progress: 50, mock LLM returns 55% → divergence = 5pp < 15pp
+    await mockLlmProgressEstimate(55);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Minor progress.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      (u) => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeUndefined();
+  });
+
+  it("respects custom progressDivergenceThreshold", async () => {
+    // T-001 has progress: 50, mock LLM returns 55% → divergence = 5pp
+    // With threshold=5, this should trigger
+    await mockLlmProgressEstimate(55);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Minor progress.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+      progressDivergenceThreshold: 5,
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      (u) => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeDefined();
+    expect(progressUpdate!.proposedValue).toBe(55);
+  });
+
+  it("warns about progressOverride but still proposes update", async () => {
+    // Create a task with progressOverride: true
+    const docsDir = path.join(marvinDir, "docs");
+    fs.writeFileSync(
+      path.join(docsDir, "tasks", "T-020.md"),
+      `---
+id: T-020
+title: Locked progress task
+type: task
+status: in-progress
+progress: 5
+progressOverride: true
+created: "2026-03-11T00:00:00Z"
+updated: "2026-03-14T00:00:00Z"
+jiraKey: PROJ-101
+tags:
+  - sprint:SP-001
+---
+Locked progress.
+`,
+    );
+    const newStore = new DocumentStore(marvinDir, [
+      { type: "sprint", dirName: "sprints", idPrefix: "SP" },
+      { type: "task", dirName: "tasks", idPrefix: "T" },
+    ]);
+
+    await mockLlmProgressEstimate(90);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Almost done.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(newStore, mockClient, "jira.example.com", {
+      artifactId: "T-020",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      (u) => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeDefined();
+    expect(progressUpdate!.reason).toContain("progressOverride is set");
+    expect(progressUpdate!.proposedValue).toBe(90);
+  });
+
+  it("proposes downward progress correction when estimate is lower", async () => {
+    // T-001 has progress: 50, mock LLM returns 20% → divergence = 30pp
+    await mockLlmProgressEstimate(20);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Realized scope is much larger.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      (u) => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeDefined();
+    expect(progressUpdate!.currentValue).toBe(50);
+    expect(progressUpdate!.proposedValue).toBe(20);
+    expect(progressUpdate!.reason).toContain("30pp");
+  });
+
+  it("does not propose when no comment-derived estimate is available", async () => {
+    // LLM returns no progress estimate
+    const { query } = vi.mocked(await import("@anthropic-ai/claude-agent-sdk"));
+    (query as ReturnType<typeof vi.fn>).mockReturnValue(
+      (async function* () {
+        yield {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ summary: "No estimate available.", progressEstimate: null }),
+              },
+            ],
+          },
+        };
+      })(),
+    );
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Update.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      (u) => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeUndefined();
+  });
+
+  it("does not propose no-op update when estimate equals current progress with threshold=0", async () => {
+    // T-001 has progress: 50, mock LLM returns 50% → divergence = 0
+    // Even with threshold=0, no update should be proposed since the value hasn't changed
+    await mockLlmProgressEstimate(50);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Status check.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+      progressDivergenceThreshold: 0,
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      (u) => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeUndefined();
+  });
+
+  it("applies comment-derived progress update when applyUpdates=true", async () => {
+    await mockLlmProgressEstimate(90);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Nearly done.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+      applyUpdates: true,
+    });
+
+    // Should be in appliedUpdates, not proposedUpdates
+    expect(report.proposedUpdates).toHaveLength(0);
+    // May be replaced by dependency-weighted progress; check either way
+    expect(report.appliedUpdates.some((u) => u.field === "progress")).toBe(true);
+  });
+});
+
+// ========================================================================
+// formatArtifactReport — comment-derived progress proposals
+// ========================================================================
+
+describe("formatArtifactReport — comment-derived progress proposals", () => {
+  it("shows comment-derived progress proposal with divergence reason", () => {
+    const report = makeArtifactReport({
+      artifactId: "T-067",
+      marvinProgress: 5,
+      proposedUpdates: [
+        {
+          artifactId: "T-067",
+          field: "progress",
+          currentValue: 5,
+          proposedValue: 90,
+          reason: "Comment-derived estimate (90%) diverges from current (5%) by 85pp",
+        },
+      ],
+    });
+    const output = formatArtifactReport(report);
+    expect(output).toContain("T-067.progress: 5 → 90");
+    expect(output).toContain("Comment-derived estimate (90%) diverges from current (5%) by 85pp");
+  });
+
+  it("shows progressOverride warning in proposal", () => {
+    const report = makeArtifactReport({
+      artifactId: "T-067",
+      marvinProgress: 5,
+      proposedUpdates: [
+        {
+          artifactId: "T-067",
+          field: "progress",
+          currentValue: 5,
+          proposedValue: 90,
+          reason:
+            "Comment-derived estimate (90%) diverges from current (5%) by 85pp ⚠ progressOverride is set — review before applying",
+        },
+      ],
+    });
+    const output = formatArtifactReport(report);
+    expect(output).toContain("progressOverride is set");
+  });
+
+  it("shows both status and progress proposals together", () => {
+    const report = makeArtifactReport({
+      artifactId: "T-067",
+      marvinStatus: "ready",
+      marvinProgress: 5,
+      statusDrift: true,
+      proposedMarvinStatus: "review",
+      jiraKey: "MCB1-291",
+      jiraStatus: "REVIEWING",
+      proposedUpdates: [
+        {
+          artifactId: "T-067",
+          field: "status",
+          currentValue: "ready",
+          proposedValue: "review",
+          reason: 'Jira MCB1-291 is "REVIEWING" → maps to "review"',
+        },
+        {
+          artifactId: "T-067",
+          field: "progress",
+          currentValue: 5,
+          proposedValue: 90,
+          reason: "Comment-derived estimate (90%) diverges from current (5%) by 85pp",
+        },
+      ],
+    });
+    const output = formatArtifactReport(report);
+    expect(output).toContain("## Proposed Updates (2)");
+    expect(output).toContain("T-067.status: ready → review");
+    expect(output).toContain("T-067.progress: 5 → 90");
   });
 });
