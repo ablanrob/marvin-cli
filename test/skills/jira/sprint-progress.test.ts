@@ -22,6 +22,7 @@ import {
   type AssessmentSummary,
   parseCommentAnalysis,
   buildAssessmentSummary,
+  computeBlockerProgress,
 } from "../../../src/skills/builtin/jira/sprint-progress.js";
 import { collectLinkedIssues } from "../../../src/skills/builtin/jira/sync.js";
 import type { JiraClient, JiraIssue } from "../../../src/skills/builtin/jira/client.js";
@@ -55,6 +56,9 @@ function makeArtifactReport(overrides: Partial<ArtifactAssessmentReport> = {}): 
     commentAnalysisProgress: null,
     linkedIssues: [],
     linkedIssueSignals: [],
+    blockerProgress: null,
+    totalBlockers: 0,
+    resolvedBlockers: 0,
     children: [],
     proposedUpdates: [],
     appliedUpdates: [],
@@ -1807,5 +1811,126 @@ describe("buildAssessmentSummary", () => {
     ];
     const result = buildAssessmentSummary(null, null, [], [], linkedIssues);
     expect(result.linkedIssueCount).toBe(2);
+  });
+
+  it("includes blocker progress fields", () => {
+    const result = buildAssessmentSummary(null, null, [], [], [], 15, 2, 1);
+    expect(result.blockerProgress).toBe(15);
+    expect(result.totalBlockers).toBe(2);
+    expect(result.resolvedBlockers).toBe(1);
+  });
+
+  it("defaults blocker progress fields when not provided", () => {
+    const result = buildAssessmentSummary(null, null, [], [], []);
+    expect(result.blockerProgress).toBeNull();
+    expect(result.totalBlockers).toBe(0);
+    expect(result.resolvedBlockers).toBe(0);
+  });
+});
+
+// ========================================================================
+// computeBlockerProgress
+// ========================================================================
+
+describe("computeBlockerProgress", () => {
+  it("returns null when there are no blockers", () => {
+    const links = [
+      { key: "PROJ-1", summary: "A", status: "Open", relationship: "relates to", isDone: false },
+    ];
+    expect(computeBlockerProgress(links, 0.3)).toBeNull();
+  });
+
+  it("returns null for empty linked issues", () => {
+    expect(computeBlockerProgress([], 0.3)).toBeNull();
+  });
+
+  it("computes partial blocker resolution", () => {
+    const links = [
+      { key: "PROJ-1", summary: "A", status: "Done", relationship: "is blocked by", isDone: true },
+      { key: "PROJ-2", summary: "B", status: "In Progress", relationship: "is blocked by", isDone: false },
+    ];
+    const result = computeBlockerProgress(links, 0.3);
+    expect(result).not.toBeNull();
+    expect(result!.totalBlockers).toBe(2);
+    expect(result!.resolvedBlockers).toBe(1);
+    // (1/2) * 0.3 * 100 = 15
+    expect(result!.blockerProgress).toBe(15);
+  });
+
+  it("computes full blocker resolution", () => {
+    const links = [
+      { key: "PROJ-1", summary: "A", status: "Done", relationship: "blocks", isDone: true },
+      { key: "PROJ-2", summary: "B", status: "Closed", relationship: "blocks", isDone: true },
+    ];
+    const result = computeBlockerProgress(links, 0.3);
+    expect(result).not.toBeNull();
+    expect(result!.resolvedBlockers).toBe(2);
+    // (2/2) * 0.3 * 100 = 30
+    expect(result!.blockerProgress).toBe(30);
+  });
+
+  it("counts Won't Do as resolved", () => {
+    const links = [
+      { key: "PROJ-1", summary: "A", status: "Won't Do", relationship: "is blocked by", isDone: true },
+      { key: "PROJ-2", summary: "B", status: "Open", relationship: "is blocked by", isDone: false },
+    ];
+    const result = computeBlockerProgress(links, 0.3);
+    expect(result!.resolvedBlockers).toBe(1);
+    expect(result!.blockerProgress).toBe(15);
+  });
+
+  it("respects custom prerequisiteWeight", () => {
+    const links = [
+      { key: "PROJ-1", summary: "A", status: "Done", relationship: "is blocked by", isDone: true },
+      { key: "PROJ-2", summary: "B", status: "Open", relationship: "is blocked by", isDone: false },
+    ];
+    // (1/2) * 0.5 * 100 = 25
+    const result = computeBlockerProgress(links, 0.5);
+    expect(result!.blockerProgress).toBe(25);
+  });
+
+  it("ignores non-blocker relationships", () => {
+    const links = [
+      { key: "PROJ-1", summary: "A", status: "Done", relationship: "relates to", isDone: true },
+      { key: "PROJ-2", summary: "B", status: "Done", relationship: "is blocked by", isDone: true },
+    ];
+    const result = computeBlockerProgress(links, 0.3);
+    expect(result!.totalBlockers).toBe(1);
+    expect(result!.resolvedBlockers).toBe(1);
+    expect(result!.blockerProgress).toBe(30);
+  });
+});
+
+// ========================================================================
+// formatArtifactReport — blocker resolution section
+// ========================================================================
+
+describe("formatArtifactReport — blocker resolution", () => {
+  it("shows blocker resolution section when blockers exist", () => {
+    const report = makeArtifactReport({
+      totalBlockers: 4,
+      resolvedBlockers: 2,
+      blockerProgress: 15,
+    });
+    const output = formatArtifactReport(report);
+    expect(output).toContain("## Blocker Resolution");
+    expect(output).toContain("2/4 blockers resolved");
+    expect(output).toContain("15%");
+  });
+
+  it("omits blocker resolution section when no blockers", () => {
+    const report = makeArtifactReport({ totalBlockers: 0 });
+    const output = formatArtifactReport(report);
+    expect(output).not.toContain("## Blocker Resolution");
+  });
+
+  it("shows n/a when blockerProgress is null (skipped)", () => {
+    const report = makeArtifactReport({
+      totalBlockers: 2,
+      resolvedBlockers: 1,
+      blockerProgress: null,
+    });
+    const output = formatArtifactReport(report);
+    expect(output).toContain("n/a (skipped)");
   });
 });

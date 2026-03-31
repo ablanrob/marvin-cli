@@ -858,6 +858,23 @@ function analyzeLinkedIssueSignals(
   }
 }
 
+// --- Blocker-weighted progress ---
+
+export function computeBlockerProgress(
+  linkedIssues: LinkedIssueSummary[],
+  prerequisiteWeight: number,
+): { blockerProgress: number; totalBlockers: number; resolvedBlockers: number } | null {
+  const blockerLinks = linkedIssues.filter(l =>
+    BLOCKER_LINK_PATTERNS.some(p => l.relationship.toLowerCase().includes(p.split(" ")[0])),
+  );
+  if (blockerLinks.length === 0) return null;
+
+  const resolved = blockerLinks.filter(l => l.isDone).length;
+  const blockerProgress = Math.round((resolved / blockerLinks.length) * prerequisiteWeight * 100);
+
+  return { blockerProgress, totalBlockers: blockerLinks.length, resolvedBlockers: resolved };
+}
+
 // --- Linked Issue LLM Comment Analysis ---
 
 const LINKED_COMMENT_ANALYSIS_PROMPT = `You are a delivery management assistant analyzing Jira comments from linked issues for progress signals.
@@ -1133,6 +1150,9 @@ export interface ArtifactAssessmentReport {
   commentAnalysisProgress: number | null;
   linkedIssues: LinkedIssueSummary[];
   linkedIssueSignals: LinkedIssueSignal[];
+  blockerProgress: number | null;
+  totalBlockers: number;
+  resolvedBlockers: number;
   children: ArtifactAssessmentReport[];
   proposedUpdates: ProposedUpdate[];
   appliedUpdates: ProposedUpdate[];
@@ -1144,6 +1164,8 @@ export interface AssessArtifactOptions {
   artifactId: string;
   applyUpdates?: boolean;
   statusMap?: ResolvedStatusMap;
+  /** Weight for blocker-resolution progress signal (0–1, default 0.3). */
+  prerequisiteWeight?: number;
 }
 
 const MAX_ARTIFACT_NODES = 50;
@@ -1432,6 +1454,51 @@ async function _assessArtifactRecursive(
     }
   }
 
+  // 6b. Dependency-weighted progress
+  const prerequisiteWeight = options.prerequisiteWeight ?? 0.3;
+  const blockerResult = computeBlockerProgress(linkedIssues, prerequisiteWeight);
+  let blockerProgressValue: number | null = null;
+  let totalBlockersCount = 0;
+  let resolvedBlockersCount = 0;
+
+  if (blockerResult && !fm.progressOverride && !DONE_STATUSES.has(fm.status)) {
+    blockerProgressValue = blockerResult.blockerProgress;
+    totalBlockersCount = blockerResult.totalBlockers;
+    resolvedBlockersCount = blockerResult.resolvedBlockers;
+
+    // Determine best implementation progress from existing proposals
+    const lastProgressUpdate = findLast(proposedUpdates, u => u.artifactId === fm.id && u.field === "progress");
+    const implementationProgress = lastProgressUpdate
+      ? (lastProgressUpdate.proposedValue as number)
+      : currentProgress;
+
+    // Combine: blocker progress + scaled implementation progress
+    const combinedProgress = Math.round(
+      blockerResult.blockerProgress + implementationProgress * (1 - prerequisiteWeight),
+    );
+    const estimatedProgress = Math.max(currentProgress, combinedProgress);
+
+    if (estimatedProgress !== currentProgress && estimatedProgress !== implementationProgress) {
+      // Remove existing progress proposals for this artifact — replaced by combined value
+      for (let i = proposedUpdates.length - 1; i >= 0; i--) {
+        if (proposedUpdates[i].artifactId === fm.id && proposedUpdates[i].field === "progress") {
+          proposedUpdates.splice(i, 1);
+        }
+      }
+      proposedUpdates.push({
+        artifactId: fm.id,
+        field: "progress",
+        currentValue: currentProgress,
+        proposedValue: estimatedProgress,
+        reason: `Blocker resolution (${resolvedBlockersCount}/${totalBlockersCount}) + implementation → dependency-weighted progress ${estimatedProgress}%`,
+      });
+    }
+  } else if (blockerResult) {
+    // Still record counts for reporting even when skipped
+    totalBlockersCount = blockerResult.totalBlockers;
+    resolvedBlockersCount = blockerResult.resolvedBlockers;
+  }
+
   // 7. Build contextual signals summary
   const signals = buildSignals(commentSignals, linkedIssues, statusDrift, proposedMarvinStatus);
 
@@ -1498,6 +1565,9 @@ async function _assessArtifactRecursive(
       signals,
       children,
       linkedIssues,
+      blockerProgressValue,
+      totalBlockersCount,
+      resolvedBlockersCount,
     );
     const existingHistory = Array.isArray(fm.assessmentHistory)
       ? (fm.assessmentHistory as AssessmentSummary[])
@@ -1555,6 +1625,9 @@ async function _assessArtifactRecursive(
     commentAnalysisProgress,
     linkedIssues,
     linkedIssueSignals,
+    blockerProgress: blockerProgressValue,
+    totalBlockers: totalBlockersCount,
+    resolvedBlockers: resolvedBlockersCount,
     children,
     proposedUpdates: options.applyUpdates ? [] : proposedUpdates,
     appliedUpdates,
@@ -1813,6 +1886,9 @@ function emptyArtifactReport(artifactId: string, errors: string[]): ArtifactAsse
     commentAnalysisProgress: null,
     linkedIssues: [],
     linkedIssueSignals: [],
+    blockerProgress: null,
+    totalBlockers: 0,
+    resolvedBlockers: 0,
     children: [],
     proposedUpdates: [],
     appliedUpdates: [],
@@ -1832,6 +1908,9 @@ export interface AssessmentSummary {
   childDoneCount: number;
   childRollupProgress: number | null;
   linkedIssueCount: number;
+  blockerProgress: number | null;
+  totalBlockers: number;
+  resolvedBlockers: number;
 }
 
 export function buildAssessmentSummary(
@@ -1840,6 +1919,9 @@ export function buildAssessmentSummary(
   signals: string[],
   children: ArtifactAssessmentReport[],
   linkedIssues: LinkedIssueSummary[],
+  blockerProgress: number | null = null,
+  totalBlockers: number = 0,
+  resolvedBlockers: number = 0,
 ): AssessmentSummary {
   // Use post-update child progress (from appliedUpdates) when available,
   // falling back to marvinProgress for children that weren't updated.
@@ -1870,6 +1952,9 @@ export function buildAssessmentSummary(
     childDoneCount,
     childRollupProgress,
     linkedIssueCount: linkedIssues.length,
+    blockerProgress,
+    totalBlockers,
+    resolvedBlockers,
   };
 }
 
@@ -1915,6 +2000,16 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
     if (report.commentAnalysisProgress !== null) {
       parts.push(`  📊 Comment-derived progress estimate: ${report.commentAnalysisProgress}%`);
     }
+    parts.push("");
+  }
+
+  // Blocker resolution
+  if (report.totalBlockers > 0) {
+    parts.push(`## Blocker Resolution`);
+    const bpLabel = report.blockerProgress !== null
+      ? `${report.blockerProgress}%`
+      : "n/a (skipped)";
+    parts.push(`  ${report.resolvedBlockers}/${report.totalBlockers} blockers resolved → ${bpLabel} prerequisite progress`);
     parts.push("");
   }
 

@@ -957,10 +957,11 @@ export function createJiraTools(
 
     tool(
       "assess_artifact",
-      "Deep assessment of a single Marvin artifact (task, action, or epic). Fetches live Jira status, analyzes comments with LLM, traverses all linked issues, detects drift, rolls up child progress, and extracts contextual signals (blockers, unblocks, handoffs, superseded work).",
+      "Deep assessment of a single Marvin artifact (task, action, or epic). Fetches live Jira status, analyzes comments with LLM, traverses all linked issues, detects drift, rolls up child progress, computes dependency-weighted progress from blocker resolution, and extracts contextual signals (blockers, unblocks, handoffs, superseded work).",
       {
         artifactId: z.string().describe("Marvin artifact ID (e.g. 'T-063', 'A-151', 'E-003')"),
         applyUpdates: z.boolean().optional().describe("Apply proposed status/progress updates to the artifact (default false)"),
+        prerequisiteWeight: z.number().min(0).max(1).optional().describe("Weight for blocker-resolution progress signal (0-1, default 0.3). Portion of effort attributed to dependency readiness."),
       },
       async (args) => {
         const jira = createJiraClient(jiraUserConfig);
@@ -973,6 +974,7 @@ export function createJiraTools(
           {
             artifactId: args.artifactId,
             applyUpdates: args.applyUpdates ?? false,
+            prerequisiteWeight: args.prerequisiteWeight,
             statusMap,
           },
         );

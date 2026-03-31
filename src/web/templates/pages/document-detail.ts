@@ -135,6 +135,9 @@ function normalizeEntry(entry: AssessmentSummary): AssessmentSummary {
     childDoneCount: typeof entry.childDoneCount === "number" ? entry.childDoneCount : 0,
     childRollupProgress: typeof entry.childRollupProgress === "number" ? entry.childRollupProgress : null,
     linkedIssueCount: typeof entry.linkedIssueCount === "number" ? entry.linkedIssueCount : 0,
+    blockerProgress: typeof entry.blockerProgress === "number" ? entry.blockerProgress : null,
+    totalBlockers: typeof entry.totalBlockers === "number" ? entry.totalBlockers : 0,
+    resolvedBlockers: typeof entry.resolvedBlockers === "number" ? entry.resolvedBlockers : 0,
   };
 }
 
