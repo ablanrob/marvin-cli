@@ -1,3 +1,4 @@
+import type { DocumentStore } from "../../../storage/store.js";
 import type { Document } from "../../../storage/types.js";
 import type { AssessmentSummary } from "../../../skills/builtin/jira/sprint-progress.js";
 import {
@@ -8,9 +9,12 @@ import {
   renderMarkdown,
   integrationIcons,
   linkArtifactIds,
+  collapsibleSection,
 } from "../layout.js";
+import { getArtifactRelationships, getArtifactLineageEvents } from "../../data.js";
+import { buildArtifactRelationGraph, buildLineageTimeline } from "../artifact-graph.js";
 
-export function documentDetailPage(doc: Document): string {
+export function documentDetailPage(doc: Document, store?: DocumentStore): string {
   const fm = doc.frontmatter;
   const label = typeLabel(fm.type);
 
@@ -85,7 +89,27 @@ export function documentDetailPage(doc: Document): string {
     }
 
     ${timelineHtml}
+
+    ${store ? renderRelationshipsAndLineage(store, fm.id) : ""}
   `;
+}
+
+function renderRelationshipsAndLineage(store: DocumentStore, docId: string): string {
+  const parts: string[] = [];
+
+  const relationships = getArtifactRelationships(store, docId);
+  if (relationships) {
+    const graphHtml = buildArtifactRelationGraph(relationships);
+    parts.push(collapsibleSection("rel-graph-" + docId, "Relationships", graphHtml));
+  }
+
+  const events = getArtifactLineageEvents(store, docId);
+  if (events.length > 0) {
+    const lineageHtml = buildLineageTimeline(events);
+    parts.push(collapsibleSection("lineage-" + docId, "Lineage", lineageHtml, { defaultCollapsed: true }));
+  }
+
+  return parts.join("\n");
 }
 
 // --- Assessment Timeline ---
