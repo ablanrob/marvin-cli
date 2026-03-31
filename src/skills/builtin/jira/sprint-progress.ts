@@ -1166,11 +1166,14 @@ export interface AssessArtifactOptions {
   statusMap?: ResolvedStatusMap;
   /** Weight for blocker-resolution progress signal (0–1, default 0.3). */
   prerequisiteWeight?: number;
+  /** Minimum divergence (percentage points) between comment-derived estimate and stored progress to trigger a proposal (default 15). */
+  progressDivergenceThreshold?: number;
 }
 
 const MAX_ARTIFACT_NODES = 50;
 const MAX_LLM_DEPTH = 3;            // LLM analysis for depth 0, 1, 2
 const MAX_LLM_COMMENT_CHARS = 8000; // skip LLM if collected comment text exceeds this
+const DEFAULT_PROGRESS_DIVERGENCE_THRESHOLD = 15; // percentage points
 
 export async function assessArtifact(
   store: DocumentStore,
@@ -1386,17 +1389,21 @@ async function _assessArtifactRecursive(
         commentSummary = analysis.summary;
         commentAnalysisProgress = analysis.progressEstimate;
 
-        // If the LLM estimated progress and the artifact doesn't have explicit
-        // progress or a child rollup, propose a comment-derived progress update
+        // Propose a comment-derived progress update when the estimate diverges
+        // from the stored value by at least the configured threshold (default 15pp).
         if (commentAnalysisProgress !== null) {
-          const hasExplicitProgress = "progress" in fm && typeof fm.progress === "number";
-          if (!hasExplicitProgress && !fm.progressOverride && commentAnalysisProgress !== currentProgress) {
+          const divergence = Math.abs(commentAnalysisProgress - currentProgress);
+          const threshold = options.progressDivergenceThreshold ?? DEFAULT_PROGRESS_DIVERGENCE_THRESHOLD;
+          if (divergence >= threshold) {
+            const overrideWarning = fm.progressOverride
+              ? " ⚠ progressOverride is set — review before applying"
+              : "";
             proposedUpdates.push({
               artifactId: fm.id,
               field: "progress",
               currentValue: currentProgress,
               proposedValue: commentAnalysisProgress,
-              reason: `Comment analysis estimates ${commentAnalysisProgress}% progress`,
+              reason: `Comment-derived estimate (${commentAnalysisProgress}%) diverges from current (${currentProgress}%) by ${divergence}pp${overrideWarning}`,
             });
           }
         }

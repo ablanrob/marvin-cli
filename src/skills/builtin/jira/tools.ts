@@ -962,6 +962,7 @@ export function createJiraTools(
         artifactId: z.string().describe("Marvin artifact ID (e.g. 'T-063', 'A-151', 'E-003')"),
         applyUpdates: z.boolean().optional().describe("Apply proposed status/progress updates to the artifact (default false)"),
         prerequisiteWeight: z.number().min(0).max(1).optional().describe("Weight for blocker-resolution progress signal (0-1, default 0.3). Portion of effort attributed to dependency readiness."),
+        progressDivergenceThreshold: z.number().min(0).max(100).optional().describe("Minimum divergence in percentage points between comment-derived progress estimate and stored progress to trigger a proposal (default 15)."),
       },
       async (args) => {
         const jira = createJiraClient(jiraUserConfig);
@@ -975,6 +976,7 @@ export function createJiraTools(
             artifactId: args.artifactId,
             applyUpdates: args.applyUpdates ?? false,
             prerequisiteWeight: args.prerequisiteWeight,
+            progressDivergenceThreshold: args.progressDivergenceThreshold,
             statusMap,
           },
         );

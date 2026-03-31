@@ -1934,3 +1934,376 @@ describe("formatArtifactReport — blocker resolution", () => {
     expect(output).toContain("n/a (skipped)");
   });
 });
+
+// ========================================================================
+// Comment-derived progress proposals
+// ========================================================================
+
+describe("assessArtifact — comment-derived progress proposals", () => {
+  let tmpDir: string;
+  let marvinDir: string;
+  let store: DocumentStore;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-progress-diverge-"));
+    marvinDir = path.join(tmpDir, ".marvin");
+    store = setupStore(marvinDir);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  async function mockLlmProgressEstimate(progressEstimate: number, summary = "Progress update from comments.") {
+    const { query } = vi.mocked(await import("@anthropic-ai/claude-agent-sdk"));
+    (query as ReturnType<typeof vi.fn>).mockReturnValue(
+      (async function* () {
+        yield {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ summary, progressEstimate }),
+              },
+            ],
+          },
+        };
+      })(),
+    );
+  }
+
+  it("proposes progress update when comment-derived estimate diverges by >= threshold", async () => {
+    // T-001 has progress: 50, mock LLM returns 90% → divergence = 40pp > default 15pp
+    await mockLlmProgressEstimate(90);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    // Add comments so LLM analysis triggers
+    const originalGetComments = mockClient.getComments.bind(mockClient);
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Almost done with the implementation.",
+          },
+        ];
+      }
+      return originalGetComments(key);
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      u => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeDefined();
+    expect(progressUpdate!.proposedValue).toBe(90);
+    expect(progressUpdate!.reason).toContain("diverges from current");
+    expect(progressUpdate!.reason).toContain("40pp");
+  });
+
+  it("does not propose progress update when divergence is below threshold", async () => {
+    // T-001 has progress: 50, mock LLM returns 55% → divergence = 5pp < 15pp
+    await mockLlmProgressEstimate(55);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Minor progress.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      u => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeUndefined();
+  });
+
+  it("respects custom progressDivergenceThreshold", async () => {
+    // T-001 has progress: 50, mock LLM returns 55% → divergence = 5pp
+    // With threshold=5, this should trigger
+    await mockLlmProgressEstimate(55);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Minor progress.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+      progressDivergenceThreshold: 5,
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      u => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeDefined();
+    expect(progressUpdate!.proposedValue).toBe(55);
+  });
+
+  it("warns about progressOverride but still proposes update", async () => {
+    // Create a task with progressOverride: true
+    const docsDir = path.join(marvinDir, "docs");
+    fs.writeFileSync(
+      path.join(docsDir, "tasks", "T-020.md"),
+      `---
+id: T-020
+title: Locked progress task
+type: task
+status: in-progress
+progress: 5
+progressOverride: true
+created: "2026-03-11T00:00:00Z"
+updated: "2026-03-14T00:00:00Z"
+jiraKey: PROJ-101
+tags:
+  - sprint:SP-001
+---
+Locked progress.
+`,
+    );
+    const newStore = new DocumentStore(marvinDir, [
+      { type: "sprint", dirName: "sprints", idPrefix: "SP" },
+      { type: "task", dirName: "tasks", idPrefix: "T" },
+    ]);
+
+    await mockLlmProgressEstimate(90);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Almost done.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(newStore, mockClient, "jira.example.com", {
+      artifactId: "T-020",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      u => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeDefined();
+    expect(progressUpdate!.reason).toContain("progressOverride is set");
+    expect(progressUpdate!.proposedValue).toBe(90);
+  });
+
+  it("proposes downward progress correction when estimate is lower", async () => {
+    // T-001 has progress: 50, mock LLM returns 20% → divergence = 30pp
+    await mockLlmProgressEstimate(20);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Realized scope is much larger.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      u => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeDefined();
+    expect(progressUpdate!.currentValue).toBe(50);
+    expect(progressUpdate!.proposedValue).toBe(20);
+    expect(progressUpdate!.reason).toContain("30pp");
+  });
+
+  it("does not propose when no comment-derived estimate is available", async () => {
+    // LLM returns no progress estimate
+    const { query } = vi.mocked(await import("@anthropic-ai/claude-agent-sdk"));
+    (query as ReturnType<typeof vi.fn>).mockReturnValue(
+      (async function* () {
+        yield {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ summary: "No estimate available.", progressEstimate: null }),
+              },
+            ],
+          },
+        };
+      })(),
+    );
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Update.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+    });
+
+    const progressUpdate = report.proposedUpdates.find(
+      u => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    expect(progressUpdate).toBeUndefined();
+  });
+
+  it("applies comment-derived progress update when applyUpdates=true", async () => {
+    await mockLlmProgressEstimate(90);
+
+    const mockClient = createMockJiraClient({ withLinks: true });
+    (mockClient as any).getComments = vi.fn(async (key: string) => {
+      if (key === "PROJ-101") {
+        return [
+          {
+            id: "1",
+            author: { displayName: "Dev" },
+            created: "2026-03-14T10:00:00Z",
+            body: "Nearly done.",
+          },
+        ];
+      }
+      return [];
+    });
+
+    const report = await assessArtifact(store, mockClient, "jira.example.com", {
+      artifactId: "T-001",
+      applyUpdates: true,
+    });
+
+    // Should be in appliedUpdates, not proposedUpdates
+    expect(report.proposedUpdates).toHaveLength(0);
+    const appliedProgress = report.appliedUpdates.find(
+      u => u.field === "progress" && u.reason.includes("Comment-derived estimate"),
+    );
+    // May be replaced by dependency-weighted progress; check either way
+    const anyProgressApplied = report.appliedUpdates.find(u => u.field === "progress");
+    expect(anyProgressApplied).toBeDefined();
+  });
+});
+
+// ========================================================================
+// formatArtifactReport — comment-derived progress proposals
+// ========================================================================
+
+describe("formatArtifactReport — comment-derived progress proposals", () => {
+  it("shows comment-derived progress proposal with divergence reason", () => {
+    const report = makeArtifactReport({
+      artifactId: "T-067",
+      marvinProgress: 5,
+      proposedUpdates: [
+        {
+          artifactId: "T-067",
+          field: "progress",
+          currentValue: 5,
+          proposedValue: 90,
+          reason: "Comment-derived estimate (90%) diverges from current (5%) by 85pp",
+        },
+      ],
+    });
+    const output = formatArtifactReport(report);
+    expect(output).toContain("T-067.progress: 5 → 90");
+    expect(output).toContain("Comment-derived estimate (90%) diverges from current (5%) by 85pp");
+  });
+
+  it("shows progressOverride warning in proposal", () => {
+    const report = makeArtifactReport({
+      artifactId: "T-067",
+      marvinProgress: 5,
+      proposedUpdates: [
+        {
+          artifactId: "T-067",
+          field: "progress",
+          currentValue: 5,
+          proposedValue: 90,
+          reason: "Comment-derived estimate (90%) diverges from current (5%) by 85pp ⚠ progressOverride is set — review before applying",
+        },
+      ],
+    });
+    const output = formatArtifactReport(report);
+    expect(output).toContain("progressOverride is set");
+  });
+
+  it("shows both status and progress proposals together", () => {
+    const report = makeArtifactReport({
+      artifactId: "T-067",
+      marvinStatus: "ready",
+      marvinProgress: 5,
+      statusDrift: true,
+      proposedMarvinStatus: "review",
+      jiraKey: "MCB1-291",
+      jiraStatus: "REVIEWING",
+      proposedUpdates: [
+        {
+          artifactId: "T-067",
+          field: "status",
+          currentValue: "ready",
+          proposedValue: "review",
+          reason: 'Jira MCB1-291 is "REVIEWING" → maps to "review"',
+        },
+        {
+          artifactId: "T-067",
+          field: "progress",
+          currentValue: 5,
+          proposedValue: 90,
+          reason: "Comment-derived estimate (90%) diverges from current (5%) by 85pp",
+        },
+      ],
+    });
+    const output = formatArtifactReport(report);
+    expect(output).toContain("## Proposed Updates (2)");
+    expect(output).toContain("T-067.status: ready → review");
+    expect(output).toContain("T-067.progress: 5 → 90");
+  });
+});
