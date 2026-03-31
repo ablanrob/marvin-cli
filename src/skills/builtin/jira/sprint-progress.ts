@@ -10,11 +10,7 @@ import {
   isInActiveSprint,
   collectLinkedIssues,
 } from "./sync.js";
-import {
-  detectCommentSignals,
-  extractCommentText,
-  type CommentSignal,
-} from "./daily.js";
+import { detectCommentSignals, extractCommentText, type CommentSignal } from "./daily.js";
 import { collectSprintSummaryData } from "../../../reports/sprint-summary/collector.js";
 import {
   propagateProgressFromTask,
@@ -125,7 +121,10 @@ export { STATUS_PROGRESS_DEFAULTS };
 
 // --- Resolution helpers ---
 
-export function resolveWeight(complexity: string | undefined): { weight: number; weightSource: WeightSource } {
+export function resolveWeight(complexity: string | undefined): {
+  weight: number;
+  weightSource: WeightSource;
+} {
   if (complexity && complexity in COMPLEXITY_WEIGHTS) {
     return { weight: COMPLEXITY_WEIGHTS[complexity], weightSource: "complexity" };
   }
@@ -139,12 +138,18 @@ export function resolveProgress(
   // 1. Explicit progress field (check if truly set, not just 0-from-default)
   const hasExplicitProgress = "progress" in frontmatter && typeof frontmatter.progress === "number";
   if (hasExplicitProgress) {
-    return { progress: Math.max(0, Math.min(100, Math.round(frontmatter.progress))), progressSource: "explicit" };
+    return {
+      progress: Math.max(0, Math.min(100, Math.round(frontmatter.progress))),
+      progressSource: "explicit",
+    };
   }
 
   // 2. LLM comment analysis
   if (commentAnalysisProgress !== null) {
-    return { progress: Math.max(0, Math.min(100, Math.round(commentAnalysisProgress))), progressSource: "comment-analysis" };
+    return {
+      progress: Math.max(0, Math.min(100, Math.round(commentAnalysisProgress))),
+      progressSource: "comment-analysis",
+    };
   }
 
   // 3. Status-based fallback (using shared STATUS_PROGRESS_DEFAULTS)
@@ -194,7 +199,13 @@ export async function assessSprintProgress(
       sprintId: options.sprintId ?? "unknown",
       sprintTitle: "Sprint not found",
       generatedAt: new Date().toISOString(),
-      timeline: { startDate: null, endDate: null, daysRemaining: 0, totalDays: 0, percentComplete: 0 },
+      timeline: {
+        startDate: null,
+        endDate: null,
+        daysRemaining: 0,
+        totalDays: 0,
+        percentComplete: 0,
+      },
       overallProgress: 0,
       itemReports: [],
       focusAreas: [],
@@ -202,7 +213,9 @@ export async function assessSprintProgress(
       blockers: [],
       proposedUpdates: [],
       appliedUpdates: [],
-      errors: [`Sprint ${options.sprintId ?? "(active)"} not found. Create a sprint artifact first.`],
+      errors: [
+        `Sprint ${options.sprintId ?? "(active)"} not found. Create a sprint artifact first.`,
+      ],
     };
   }
 
@@ -212,16 +225,18 @@ export async function assessSprintProgress(
   const tasks = store.list({ type: "task", tag: sprintTag });
 
   // Also include tasks/actions nested under sprint-tagged parents via aboutArtifact
-  const sprintItemIds = new Set([...actions, ...tasks].map(d => d.frontmatter.id));
+  const sprintItemIds = new Set([...actions, ...tasks].map((d) => d.frontmatter.id));
   const allTasks = store.list({ type: "task" });
   const allActions = store.list({ type: "action" });
   const nestedTasks = allTasks.filter(
-    d => !sprintItemIds.has(d.frontmatter.id) &&
+    (d) =>
+      !sprintItemIds.has(d.frontmatter.id) &&
       d.frontmatter.aboutArtifact &&
       sprintItemIds.has(d.frontmatter.aboutArtifact as string),
   );
   const nestedActions = allActions.filter(
-    d => !sprintItemIds.has(d.frontmatter.id) &&
+    (d) =>
+      !sprintItemIds.has(d.frontmatter.id) &&
       d.frontmatter.aboutArtifact &&
       sprintItemIds.has(d.frontmatter.aboutArtifact as string),
   );
@@ -231,8 +246,9 @@ export async function assessSprintProgress(
   // 3. Resolve Jira keys
   const itemJiraKeys = new Map<string, string>();
   for (const doc of allItems) {
-    const jiraKey = (doc.frontmatter.jiraKey as string | undefined)
-      ?? extractJiraKeyFromTags(doc.frontmatter.tags as string[] | undefined);
+    const jiraKey =
+      (doc.frontmatter.jiraKey as string | undefined) ??
+      extractJiraKeyFromTags(doc.frontmatter.tags as string[] | undefined);
     if (jiraKey) {
       itemJiraKeys.set(doc.frontmatter.id, jiraKey);
     }
@@ -262,7 +278,9 @@ export async function assessSprintProgress(
         });
       } else {
         const batchKey = batch[results.indexOf(result)];
-        errors.push(`Failed to fetch ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+        errors.push(
+          `Failed to fetch ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+        );
       }
     }
   }
@@ -316,13 +334,17 @@ export async function assessSprintProgress(
           }
         } else {
           const batchKey = batch[results.indexOf(result)];
-          errors.push(`Failed to fetch linked issue ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+          errors.push(
+            `Failed to fetch linked issue ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+          );
         }
       }
     }
 
     if (queue.length > 0) {
-      errors.push(`Link traversal capped at ${MAX_LINKED_ISSUES} linked issues (${queue.length} remaining undiscovered)`);
+      errors.push(
+        `Link traversal capped at ${MAX_LINKED_ISSUES} linked issues (${queue.length} remaining undiscovered)`,
+      );
     }
   }
 
@@ -347,9 +369,10 @@ export async function assessSprintProgress(
       // Map Jira status to Marvin status (sprint-scoped items are always "in sprint")
       const inSprint = isInActiveSprint(store, fm.tags as string[] | undefined);
       const resolved = options.statusMap ?? {};
-      proposedMarvinStatus = fm.type === "task"
-        ? mapJiraStatusForTask(jiraStatus!, resolved, inSprint)
-        : mapJiraStatusForAction(jiraStatus!, resolved, inSprint);
+      proposedMarvinStatus =
+        fm.type === "task"
+          ? mapJiraStatusForTask(jiraStatus!, resolved, inSprint)
+          : mapJiraStatusForAction(jiraStatus!, resolved, inSprint);
 
       // Compute subtask progress
       const subtasks = jiraData.issue.fields.subtasks ?? [];
@@ -367,7 +390,8 @@ export async function assessSprintProgress(
 
     const statusDrift = proposedMarvinStatus !== null && proposedMarvinStatus !== fm.status;
     const currentProgress = getEffectiveProgress(fm);
-    const progressDrift = jiraSubtaskProgress !== null &&
+    const progressDrift =
+      jiraSubtaskProgress !== null &&
       !fm.progressOverride &&
       jiraSubtaskProgress !== currentProgress;
 
@@ -408,7 +432,7 @@ export async function assessSprintProgress(
     }
 
     const tags = (fm.tags as string[]) ?? [];
-    const focusTag = tags.find(t => t.startsWith("focus:"));
+    const focusTag = tags.find((t) => t.startsWith("focus:"));
 
     // Resolve weight from complexity
     const { weight, weightSource } = resolveWeight(fm.complexity as string | undefined);
@@ -432,12 +456,7 @@ export async function assessSprintProgress(
       itemLinkedIssueSignals.push(...allSignals);
 
       // 6. Link signal analysis for proposed updates (uses full transitive chain)
-      analyzeLinkedIssueSignals(
-        allLinks,
-        fm,
-        jiraKey!,
-        proposedUpdates,
-      );
+      analyzeLinkedIssueSignals(allLinks, fm, jiraKey!, proposedUpdates);
     }
 
     const report: SprintProgressItemReport = {
@@ -490,7 +509,7 @@ export async function assessSprintProgress(
   for (const children of childReportsByParent.values()) {
     for (const child of children) childIds.add(child.id);
   }
-  const rootReports = itemReports.filter(r => !childIds.has(r.id));
+  const rootReports = itemReports.filter((r) => !childIds.has(r.id));
 
   // 6a. Action-level rollup: actions with children get weighted average of child tasks
   //     unless the action has an explicit progress override
@@ -515,9 +534,9 @@ export async function assessSprintProgress(
 
   const focusAreas: FocusAreaRollup[] = [];
   for (const [name, items] of focusAreaMap) {
-    const allFlatItems = items.flatMap(i => [i, ...i.children]);
-    const doneCount = allFlatItems.filter(i => DONE_STATUSES.has(i.marvinStatus)).length;
-    const blockedCount = allFlatItems.filter(i => i.marvinStatus === "blocked").length;
+    const allFlatItems = items.flatMap((i) => [i, ...i.children]);
+    const doneCount = allFlatItems.filter((i) => DONE_STATUSES.has(i.marvinStatus)).length;
+    const blockedCount = allFlatItems.filter((i) => i.marvinStatus === "blocked").length;
 
     // Weighted rollup using top-level items only (no double-counting children)
     const progress = computeWeightedProgress(items);
@@ -525,15 +544,14 @@ export async function assessSprintProgress(
     // Blocked weight percentage
     const totalWeight = items.reduce((s, i) => s + i.weight, 0);
     const blockedWeight = items
-      .filter(i => i.marvinStatus === "blocked")
+      .filter((i) => i.marvinStatus === "blocked")
       .reduce((s, i) => s + i.weight, 0);
-    const blockedWeightPct = totalWeight > 0
-      ? Math.round((blockedWeight / totalWeight) * 100)
-      : 0;
+    const blockedWeightPct = totalWeight > 0 ? Math.round((blockedWeight / totalWeight) * 100) : 0;
 
-    const riskWarning = blockedWeightPct > BLOCKED_WEIGHT_RISK_THRESHOLD * 100
-      ? `${blockedWeightPct}% of scope is blocked`
-      : null;
+    const riskWarning =
+      blockedWeightPct > BLOCKED_WEIGHT_RISK_THRESHOLD * 100
+        ? `${blockedWeightPct}% of scope is blocked`
+        : null;
 
     focusAreas.push({
       name,
@@ -551,15 +569,14 @@ export async function assessSprintProgress(
   focusAreas.sort((a, b) => a.name.localeCompare(b.name));
 
   // Drift and blocker items
-  const driftItems = itemReports.filter(r => r.statusDrift || r.progressDrift);
-  const blockers = itemReports.filter(r =>
-    r.marvinStatus === "blocked" ||
-    r.commentSignals.some(s => s.type === "blocker"),
+  const driftItems = itemReports.filter((r) => r.statusDrift || r.progressDrift);
+  const blockers = itemReports.filter(
+    (r) => r.marvinStatus === "blocked" || r.commentSignals.some((s) => s.type === "blocker"),
   );
 
   // 7. LLM comment analysis (Phase 3)
   if (options.analyzeComments) {
-    const itemsWithComments = itemReports.filter(r => r.commentSignals.length > 0 && r.jiraKey);
+    const itemsWithComments = itemReports.filter((r) => r.commentSignals.length > 0 && r.jiraKey);
     if (itemsWithComments.length > 0) {
       try {
         const summaries = await analyzeCommentsForProgress(
@@ -568,7 +585,7 @@ export async function assessSprintProgress(
           itemJiraKeys,
         );
         for (const [artifactId, summary] of summaries) {
-          const report = itemReports.find(r => r.id === artifactId);
+          const report = itemReports.find((r) => r.id === artifactId);
           if (report) {
             report.commentSummary = summary;
             // If this item didn't have explicit progress, upgrade to comment-analysis source
@@ -593,22 +610,21 @@ export async function assessSprintProgress(
     // 7b. LLM comment analysis for linked issues
     if (options.traverseLinks) {
       try {
-        const linkedSummaries = await analyzeLinkedIssueComments(
-          itemReports,
-          linkedJiraIssues,
-        );
+        const linkedSummaries = await analyzeLinkedIssueComments(itemReports, linkedJiraIssues);
         for (const [artifactId, signalSummaries] of linkedSummaries) {
-          const report = itemReports.find(r => r.id === artifactId);
+          const report = itemReports.find((r) => r.id === artifactId);
           if (!report) continue;
           for (const [sourceKey, summary] of signalSummaries) {
-            const signal = report.linkedIssueSignals.find(s => s.sourceKey === sourceKey);
+            const signal = report.linkedIssueSignals.find((s) => s.sourceKey === sourceKey);
             if (signal) {
               signal.commentSummary = summary;
             }
           }
         }
       } catch (err) {
-        errors.push(`Linked issue comment analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+        errors.push(
+          `Linked issue comment analysis failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   }
@@ -654,7 +670,10 @@ export async function assessSprintProgress(
       totalDays: sprintData.timeline.totalDays,
       percentComplete: sprintData.timeline.percentComplete,
     },
-    overallProgress: rootReports.length > 0 ? computeWeightedProgress(rootReports) : sprintData.workItems.completionPct,
+    overallProgress:
+      rootReports.length > 0
+        ? computeWeightedProgress(rootReports)
+        : sprintData.workItems.completionPct,
     itemReports: rootReports,
     focusAreas,
     driftItems,
@@ -696,13 +715,15 @@ async function analyzeCommentsForProgress(
     if (!jiraData || jiraData.comments.length === 0) continue;
 
     const commentTexts = jiraData.comments
-      .map(c => {
+      .map((c) => {
         const text = extractCommentText(c.body);
         return `  [${c.author.displayName}, ${c.created.slice(0, 10)}]: ${text.slice(0, 500)}`;
       })
       .join("\n");
 
-    promptParts.push(`## ${item.id} — ${item.title} (${jiraKey}, Jira status: ${item.jiraStatus})\nComments:\n${commentTexts}`);
+    promptParts.push(
+      `## ${item.id} — ${item.title} (${jiraKey}, Jira status: ${item.jiraStatus})\nComments:\n${commentTexts}`,
+    );
   }
 
   if (promptParts.length === 0) return summaries;
@@ -743,7 +764,9 @@ async function analyzeCommentsForProgress(
                   summaries.set(id, summary);
                 }
               }
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           }
         }
       }
@@ -772,8 +795,7 @@ function collectTransitiveLinks(
   const visited = new Set<string>([primaryIssue.key]);
 
   // Seed with direct links from primary issue
-  const directLinks = collectLinkedIssues(primaryIssue)
-    .filter(l => l.relationship !== "subtask");
+  const directLinks = collectLinkedIssues(primaryIssue).filter((l) => l.relationship !== "subtask");
   const queue = [...directLinks];
 
   // Mark direct links as visited
@@ -807,8 +829,9 @@ function collectTransitiveLinks(
     }
 
     // Discover further links from this issue (next hop)
-    const nextLinks = collectLinkedIssues(linkedData.issue)
-      .filter(l => l.relationship !== "subtask" && !visited.has(l.key));
+    const nextLinks = collectLinkedIssues(linkedData.issue).filter(
+      (l) => l.relationship !== "subtask" && !visited.has(l.key),
+    );
     for (const next of nextLinks) {
       visited.add(next.key);
       queue.push(next);
@@ -830,30 +853,32 @@ function analyzeLinkedIssueSignals(
   if (linkedIssues.length === 0) return;
 
   // Check if all blockers are resolved → propose unblock
-  const blockerLinks = linkedIssues.filter(l =>
-    BLOCKER_LINK_PATTERNS.some(p => l.relationship.toLowerCase().includes(p.split(" ")[0])),
+  const blockerLinks = linkedIssues.filter((l) =>
+    BLOCKER_LINK_PATTERNS.some((p) => l.relationship.toLowerCase().includes(p.split(" ")[0])),
   );
-  if (blockerLinks.length > 0 && blockerLinks.every(l => l.isDone) && frontmatter.status === "blocked") {
+  if (
+    blockerLinks.length > 0 &&
+    blockerLinks.every((l) => l.isDone) &&
+    frontmatter.status === "blocked"
+  ) {
     proposedUpdates.push({
       artifactId: frontmatter.id,
       field: "status",
       currentValue: "blocked",
       proposedValue: "in-progress",
-      reason: `All blocking issues resolved: ${blockerLinks.map(l => l.key).join(", ")}`,
+      reason: `All blocking issues resolved: ${blockerLinks.map((l) => l.key).join(", ")}`,
     });
   }
 
   // Check for "Won't Do" / "Cancelled" linked issues → flag for review
-  const wontDoLinks = linkedIssues.filter(l =>
-    WONT_DO_STATUSES.has(l.status.toLowerCase()),
-  );
+  const wontDoLinks = linkedIssues.filter((l) => WONT_DO_STATUSES.has(l.status.toLowerCase()));
   if (wontDoLinks.length > 0) {
     proposedUpdates.push({
       artifactId: frontmatter.id,
       field: "review",
       currentValue: null,
       proposedValue: "needs-review",
-      reason: `Linked issue(s) cancelled/won't do: ${wontDoLinks.map(l => `${l.key} "${l.summary}"`).join(", ")}`,
+      reason: `Linked issue(s) cancelled/won't do: ${wontDoLinks.map((l) => `${l.key} "${l.summary}"`).join(", ")}`,
     });
   }
 }
@@ -864,12 +889,12 @@ export function computeBlockerProgress(
   linkedIssues: LinkedIssueSummary[],
   prerequisiteWeight: number,
 ): { blockerProgress: number; totalBlockers: number; resolvedBlockers: number } | null {
-  const blockerLinks = linkedIssues.filter(l =>
-    BLOCKER_LINK_PATTERNS.some(p => l.relationship.toLowerCase().includes(p.split(" ")[0])),
+  const blockerLinks = linkedIssues.filter((l) =>
+    BLOCKER_LINK_PATTERNS.some((p) => l.relationship.toLowerCase().includes(p.split(" ")[0])),
   );
   if (blockerLinks.length === 0) return null;
 
-  const resolved = blockerLinks.filter(l => l.isDone).length;
+  const resolved = blockerLinks.filter((l) => l.isDone).length;
   const blockerProgress = Math.round((resolved / blockerLinks.length) * prerequisiteWeight * 100);
 
   return { blockerProgress, totalBlockers: blockerLinks.length, resolvedBlockers: resolved };
@@ -904,7 +929,7 @@ async function analyzeLinkedIssueComments(
       if (!linkedData || linkedData.comments.length === 0) continue;
 
       const commentTexts = linkedData.comments
-        .map(c => {
+        .map((c) => {
           const text = extractCommentText(c.body);
           return `    [${c.author.displayName}, ${c.created.slice(0, 10)}]: ${text.slice(0, 300)}`;
         })
@@ -944,7 +969,9 @@ async function analyzeLinkedIssueComments(
           for (const [artifactId, linkedSummaries] of Object.entries(parsed)) {
             if (typeof linkedSummaries === "object" && linkedSummaries !== null) {
               const signalMap = new Map<string, string>();
-              for (const [key, summary] of Object.entries(linkedSummaries as Record<string, unknown>)) {
+              for (const [key, summary] of Object.entries(
+                linkedSummaries as Record<string, unknown>,
+              )) {
                 if (typeof summary === "string") {
                   signalMap.set(key, summary);
                 }
@@ -970,7 +997,9 @@ function parseLlmJson(text: string): Record<string, unknown> | null {
     if (match) {
       try {
         return JSON.parse(match[1]);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     return null;
   }
@@ -991,7 +1020,9 @@ export function formatProgressReport(report: SprintProgressReport): string {
   if (report.timeline.startDate && report.timeline.endDate) {
     parts.push(`## Timeline`);
     parts.push(`${report.timeline.startDate} → ${report.timeline.endDate}`);
-    parts.push(`Days remaining: ${report.timeline.daysRemaining} / ${report.timeline.totalDays} (${report.timeline.percentComplete}% elapsed)`);
+    parts.push(
+      `Days remaining: ${report.timeline.daysRemaining} / ${report.timeline.totalDays} (${report.timeline.percentComplete}% elapsed)`,
+    );
     parts.push(`Overall progress: ${report.overallProgress}%`);
     parts.push("");
   }
@@ -1004,7 +1035,9 @@ export function formatProgressReport(report: SprintProgressReport): string {
     for (const area of report.focusAreas) {
       const bar = progressBar(area.progress);
       parts.push(`### ${area.name} ${bar} ${area.progress}%`);
-      parts.push(`${area.doneCount}/${area.taskCount} done${area.blockedCount > 0 ? ` | ${area.blockedCount} blocked` : ""}`);
+      parts.push(
+        `${area.doneCount}/${area.taskCount} done${area.blockedCount > 0 ? ` | ${area.blockedCount} blocked` : ""}`,
+      );
       if (area.riskWarning) {
         parts.push(`  ⚠ ${area.riskWarning}`);
       }
@@ -1037,7 +1070,7 @@ export function formatProgressReport(report: SprintProgressReport): string {
   if (report.blockers.length > 0) {
     parts.push(`## Blockers (${report.blockers.length})`);
     for (const item of report.blockers) {
-      const blockerSignals = item.commentSignals.filter(s => s.type === "blocker");
+      const blockerSignals = item.commentSignals.filter((s) => s.type === "blocker");
       parts.push(`  🚫 ${item.id} — ${item.title}${item.jiraKey ? ` (${item.jiraKey})` : ""}`);
       for (const signal of blockerSignals) {
         parts.push(`     "${signal.snippet}"`);
@@ -1050,7 +1083,9 @@ export function formatProgressReport(report: SprintProgressReport): string {
   if (report.proposedUpdates.length > 0) {
     parts.push(`## Proposed Updates (${report.proposedUpdates.length})`);
     for (const update of report.proposedUpdates) {
-      parts.push(`  ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`);
+      parts.push(
+        `  ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`,
+      );
       parts.push(`    Reason: ${update.reason}`);
     }
     parts.push("");
@@ -1061,7 +1096,9 @@ export function formatProgressReport(report: SprintProgressReport): string {
   if (report.appliedUpdates.length > 0) {
     parts.push(`## Applied Updates (${report.appliedUpdates.length})`);
     for (const update of report.appliedUpdates) {
-      parts.push(`  ✓ ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`);
+      parts.push(
+        `  ✓ ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`,
+      );
     }
     parts.push("");
   }
@@ -1080,18 +1117,28 @@ export function formatProgressReport(report: SprintProgressReport): string {
 
 function formatItemLine(parts: string[], item: SprintProgressItemReport, depth: number): void {
   const indent = "  ".repeat(depth + 1);
-  const statusIcon = DONE_STATUSES.has(item.marvinStatus) ? "✓" :
-    item.marvinStatus === "blocked" ? "🚫" :
-    item.marvinStatus === "in-progress" ? "▶" : "○";
+  const statusIcon = DONE_STATUSES.has(item.marvinStatus)
+    ? "✓"
+    : item.marvinStatus === "blocked"
+      ? "🚫"
+      : item.marvinStatus === "in-progress"
+        ? "▶"
+        : "○";
 
   const jiraLabel = item.jiraKey ? ` [${item.jiraKey}: ${item.jiraStatus}]` : "";
   const driftFlag = item.statusDrift ? " ⚠drift" : "";
   const progressLabel = ` ${item.progress}%`;
   const weightLabel = `w${item.weight}`;
-  const sourceLabel = item.progressSource === "explicit" ? "" :
-    item.progressSource === "comment-analysis" ? " (llm)" : " (est)";
+  const sourceLabel =
+    item.progressSource === "explicit"
+      ? ""
+      : item.progressSource === "comment-analysis"
+        ? " (llm)"
+        : " (est)";
 
-  parts.push(`${indent}${statusIcon} ${item.id} — ${item.title} [${item.marvinStatus}]${progressLabel}${sourceLabel} (${weightLabel})${jiraLabel}${driftFlag}`);
+  parts.push(
+    `${indent}${statusIcon} ${item.id} — ${item.title} [${item.marvinStatus}]${progressLabel}${sourceLabel} (${weightLabel})${jiraLabel}${driftFlag}`,
+  );
 
   if (item.commentSummary) {
     parts.push(`${indent}  💬 ${item.commentSummary}`);
@@ -1101,14 +1148,18 @@ function formatItemLine(parts: string[], item: SprintProgressItemReport, depth: 
     parts.push(`${indent}  🔗 Linked Issues:`);
     for (const link of item.linkedIssues) {
       const doneMarker = link.isDone ? " ✓" : "";
-      const blockerResolved = link.isDone &&
-        BLOCKER_LINK_PATTERNS.some(p => link.relationship.toLowerCase().includes(p.split(" ")[0]))
-        ? " unblock signal" : "";
+      const blockerResolved =
+        link.isDone &&
+        BLOCKER_LINK_PATTERNS.some((p) => link.relationship.toLowerCase().includes(p.split(" ")[0]))
+          ? " unblock signal"
+          : "";
       const wontDo = WONT_DO_STATUSES.has(link.status.toLowerCase()) ? " ⚠ needs review" : "";
-      parts.push(`${indent}    ${link.relationship} ${link.key} "${link.summary}" [${link.status}]${doneMarker}${blockerResolved}${wontDo}`);
+      parts.push(
+        `${indent}    ${link.relationship} ${link.key} "${link.summary}" [${link.status}]${doneMarker}${blockerResolved}${wontDo}`,
+      );
 
       // Show linked issue comment summary if available
-      const signal = item.linkedIssueSignals.find(s => s.sourceKey === link.key);
+      const signal = item.linkedIssueSignals.find((s) => s.sourceKey === link.key);
       if (signal?.commentSummary) {
         parts.push(`${indent}      💬 ${signal.commentSummary}`);
       }
@@ -1171,7 +1222,7 @@ export interface AssessArtifactOptions {
 }
 
 const MAX_ARTIFACT_NODES = 50;
-const MAX_LLM_DEPTH = 3;            // LLM analysis for depth 0, 1, 2
+const MAX_LLM_DEPTH = 3; // LLM analysis for depth 0, 1, 2
 const MAX_LLM_COMMENT_CHARS = 8000; // skip LLM if collected comment text exceeds this
 const DEFAULT_PROGRESS_DIVERGENCE_THRESHOLD = 15; // percentage points
 
@@ -1203,12 +1254,16 @@ async function _assessArtifactRecursive(
 
   // Cycle detection
   if (visited.has(options.artifactId)) {
-    return emptyArtifactReport(options.artifactId, [`Cycle detected: ${options.artifactId} already visited`]);
+    return emptyArtifactReport(options.artifactId, [
+      `Cycle detected: ${options.artifactId} already visited`,
+    ]);
   }
 
   // Cap check
   if (visited.size >= MAX_ARTIFACT_NODES) {
-    return emptyArtifactReport(options.artifactId, [`Node cap reached (${MAX_ARTIFACT_NODES}), skipping ${options.artifactId}`]);
+    return emptyArtifactReport(options.artifactId, [
+      `Node cap reached (${MAX_ARTIFACT_NODES}), skipping ${options.artifactId}`,
+    ]);
   }
 
   visited.add(options.artifactId);
@@ -1220,12 +1275,13 @@ async function _assessArtifactRecursive(
   }
 
   const fm = doc.frontmatter;
-  const jiraKey = (fm.jiraKey as string | undefined)
-    ?? extractJiraKeyFromTags(fm.tags as string[] | undefined)
-    ?? null;
+  const jiraKey =
+    (fm.jiraKey as string | undefined) ??
+    extractJiraKeyFromTags(fm.tags as string[] | undefined) ??
+    null;
 
   const tags = (fm.tags as string[]) ?? [];
-  const sprintTag = tags.find(t => t.startsWith("sprint:"));
+  const sprintTag = tags.find((t) => t.startsWith("sprint:"));
   const sprint = sprintTag ? sprintTag.slice(7) : null;
   const parent = (fm.aboutArtifact as string | undefined) ?? null;
 
@@ -1256,9 +1312,10 @@ async function _assessArtifactRecursive(
       // Status mapping
       const inSprint = isInActiveSprint(store, fm.tags as string[] | undefined);
       const resolved = options.statusMap ?? {};
-      proposedMarvinStatus = fm.type === "task"
-        ? mapJiraStatusForTask(jiraStatus!, resolved, inSprint)
-        : mapJiraStatusForAction(jiraStatus!, resolved, inSprint);
+      proposedMarvinStatus =
+        fm.type === "task"
+          ? mapJiraStatusForTask(jiraStatus!, resolved, inSprint)
+          : mapJiraStatusForAction(jiraStatus!, resolved, inSprint);
 
       // Subtask progress
       const subtasks = issue.fields.subtasks ?? [];
@@ -1277,8 +1334,7 @@ async function _assessArtifactRecursive(
       const jiraVisited = new Set<string>([jiraKey]);
       const queue: string[] = [];
 
-      const directLinks = collectLinkedIssues(issue)
-        .filter(l => l.relationship !== "subtask");
+      const directLinks = collectLinkedIssues(issue).filter((l) => l.relationship !== "subtask");
       for (const link of directLinks) {
         if (!jiraVisited.has(link.key)) {
           jiraVisited.add(link.key);
@@ -1304,40 +1360,41 @@ async function _assessArtifactRecursive(
             const { key, issue: li, comments: lc } = result.value;
             linkedJiraIssues.set(key, { issue: li, comments: lc });
 
-            const newLinks = collectLinkedIssues(li)
-              .filter(l => l.relationship !== "subtask" && !jiraVisited.has(l.key));
+            const newLinks = collectLinkedIssues(li).filter(
+              (l) => l.relationship !== "subtask" && !jiraVisited.has(l.key),
+            );
             for (const nl of newLinks) {
               jiraVisited.add(nl.key);
               queue.push(nl.key);
             }
           } else {
             const batchKey = batch[results.indexOf(result)];
-            errors.push(`Failed to fetch linked issue ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+            errors.push(
+              `Failed to fetch linked issue ${batchKey}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+            );
           }
         }
       }
 
       // Collect transitive links and signals
-      const { allLinks, allSignals } = collectTransitiveLinks(
-        issue, jiraIssues, linkedJiraIssues,
-      );
+      const { allLinks, allSignals } = collectTransitiveLinks(issue, jiraIssues, linkedJiraIssues);
       linkedIssues = allLinks;
       linkedIssueSignals = allSignals;
 
       // Analyze link signals for proposed updates
       analyzeLinkedIssueSignals(allLinks, fm, jiraKey, proposedUpdates);
-
     } catch (err) {
-      errors.push(`Failed to fetch ${jiraKey}: ${err instanceof Error ? err.message : String(err)}`);
+      errors.push(
+        `Failed to fetch ${jiraKey}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
   // 3. Drift detection
   const currentProgress = getEffectiveProgress(fm);
   const statusDrift = proposedMarvinStatus !== null && proposedMarvinStatus !== fm.status;
-  const progressDrift = jiraSubtaskProgress !== null &&
-    !fm.progressOverride &&
-    jiraSubtaskProgress !== currentProgress;
+  const progressDrift =
+    jiraSubtaskProgress !== null && !fm.progressOverride && jiraSubtaskProgress !== currentProgress;
 
   if (statusDrift && proposedMarvinStatus) {
     proposedUpdates.push({
@@ -1379,12 +1436,21 @@ async function _assessArtifactRecursive(
   const primaryHasComments = jiraKey ? (jiraIssues.get(jiraKey)?.comments.length ?? 0) > 0 : false;
   let commentAnalysisProgress: number | null = null;
   if (depth < MAX_LLM_DEPTH && jiraKey && primaryHasComments) {
-    const estimatedChars = estimateCommentTextSize(jiraIssues, linkedJiraIssues, linkedIssueSignals);
+    const estimatedChars = estimateCommentTextSize(
+      jiraIssues,
+      linkedJiraIssues,
+      linkedIssueSignals,
+    );
     if (estimatedChars <= MAX_LLM_COMMENT_CHARS) {
       try {
         const analysis = await analyzeSingleArtifactComments(
-          fm.id, fm.title, jiraKey, jiraStatus,
-          jiraIssues, linkedJiraIssues, linkedIssueSignals,
+          fm.id,
+          fm.title,
+          jiraKey,
+          jiraStatus,
+          jiraIssues,
+          linkedJiraIssues,
+          linkedIssueSignals,
         );
         commentSummary = analysis.summary;
         commentAnalysisProgress = analysis.progressEstimate;
@@ -1393,8 +1459,9 @@ async function _assessArtifactRecursive(
         // from the stored value by at least the configured threshold (default 15pp).
         if (commentAnalysisProgress !== null) {
           const divergence = Math.abs(commentAnalysisProgress - currentProgress);
-          const threshold = options.progressDivergenceThreshold ?? DEFAULT_PROGRESS_DIVERGENCE_THRESHOLD;
-          if (divergence >= threshold) {
+          const threshold =
+            options.progressDivergenceThreshold ?? DEFAULT_PROGRESS_DIVERGENCE_THRESHOLD;
+          if (divergence >= threshold && commentAnalysisProgress !== currentProgress) {
             const overrideWarning = fm.progressOverride
               ? " ⚠ progressOverride is set — review before applying"
               : "";
@@ -1418,11 +1485,15 @@ async function _assessArtifactRecursive(
   const children: ArtifactAssessmentReport[] = [];
   for (const childId of childIds) {
     if (visited.size >= MAX_ARTIFACT_NODES) {
-      errors.push(`Node cap reached (${MAX_ARTIFACT_NODES}), ${childIds.length - children.length} children skipped`);
+      errors.push(
+        `Node cap reached (${MAX_ARTIFACT_NODES}), ${childIds.length - children.length} children skipped`,
+      );
       break;
     }
     const childReport = await _assessArtifactRecursive(
-      store, client, host,
+      store,
+      client,
+      host,
       { ...options, artifactId: childId },
       visited,
       depth + 1,
@@ -1435,15 +1506,15 @@ async function _assessArtifactRecursive(
   //    When applyUpdates=true, uses post-update child progress (from appliedUpdates)
   //    so the rollup reflects corrections already persisted in this pass.
   if (children.length > 0) {
-    const childProgressValues = children.map(c => {
+    const childProgressValues = children.map((c) => {
       // Use the most recent (last) update for each field so later
       // corrections aren't shadowed by earlier entries.
       // Status=done wins over any progress value (done→100% invariant).
       // "cancelled" is excluded — cancelled work isn't complete.
       const updates = c.appliedUpdates.length > 0 ? c.appliedUpdates : c.proposedUpdates;
-      const lastStatus = findLast(updates, u => u.field === "status");
+      const lastStatus = findLast(updates, (u) => u.field === "status");
       if (lastStatus && PROGRESS_DONE_STATUSES.has(String(lastStatus.proposedValue))) return 100;
-      const lastProgress = findLast(updates, u => u.field === "progress");
+      const lastProgress = findLast(updates, (u) => u.field === "progress");
       if (lastProgress) return lastProgress.proposedValue as number;
       return c.marvinProgress;
     });
@@ -1474,7 +1545,10 @@ async function _assessArtifactRecursive(
     resolvedBlockersCount = blockerResult.resolvedBlockers;
 
     // Determine best implementation progress from existing proposals
-    const lastProgressUpdate = findLast(proposedUpdates, u => u.artifactId === fm.id && u.field === "progress");
+    const lastProgressUpdate = findLast(
+      proposedUpdates,
+      (u) => u.artifactId === fm.id && u.field === "progress",
+    );
     const implementationProgress = lastProgressUpdate
       ? (lastProgressUpdate.proposedValue as number)
       : currentProgress;
@@ -1517,8 +1591,8 @@ async function _assessArtifactRecursive(
     // would overwrite the terminal value.
     const doneArtifacts = new Set(
       proposedUpdates
-        .filter(u => u.field === "status" && PROGRESS_DONE_STATUSES.has(String(u.proposedValue)))
-        .map(u => u.artifactId),
+        .filter((u) => u.field === "status" && PROGRESS_DONE_STATUSES.has(String(u.proposedValue)))
+        .map((u) => u.artifactId),
     );
 
     for (const update of proposedUpdates) {
@@ -1589,7 +1663,7 @@ async function _assessArtifactRecursive(
     const MAX_HISTORY = 100;
     const seen = new Set<string>();
     const assessmentHistory = allEntries
-      .filter(entry => {
+      .filter((entry) => {
         if (!entry.generatedAt) return false;
         if (seen.has(entry.generatedAt)) return false;
         seen.add(entry.generatedAt);
@@ -1608,7 +1682,9 @@ async function _assessArtifactRecursive(
       }
       store.update(fm.id, payload as any);
     } catch (err) {
-      errors.push(`Failed to persist assessment history: ${err instanceof Error ? err.message : String(err)}`);
+      errors.push(
+        `Failed to persist assessment history: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -1647,9 +1723,10 @@ async function _assessArtifactRecursive(
 
 function findChildIds(store: DocumentStore, fm: Record<string, any>): string[] {
   if (fm.type === "action") {
-    return store.list({ type: "task" })
-      .filter(d => d.frontmatter.aboutArtifact === fm.id)
-      .map(d => d.frontmatter.id);
+    return store
+      .list({ type: "task" })
+      .filter((d) => d.frontmatter.aboutArtifact === fm.id)
+      .map((d) => d.frontmatter.id);
   }
 
   if (fm.type === "epic") {
@@ -1663,7 +1740,7 @@ function findChildIds(store: DocumentStore, fm: Record<string, any>): string[] {
     return [
       ...store.list({ type: "action" }).filter(isLinked),
       ...store.list({ type: "task" }).filter(isLinked),
-    ].map(d => d.frontmatter.id);
+    ].map((d) => d.frontmatter.id);
   }
 
   return [];
@@ -1680,7 +1757,7 @@ function buildSignals(
   const signals: string[] = [];
 
   // Blocker signals from comments
-  const blockerSignals = commentSignals.filter(s => s.type === "blocker");
+  const blockerSignals = commentSignals.filter((s) => s.type === "blocker");
   if (blockerSignals.length > 0) {
     for (const s of blockerSignals) {
       signals.push(`🚫 Blocker — "${s.snippet}"`);
@@ -1688,11 +1765,9 @@ function buildSignals(
   }
 
   // Check blocking links
-  const blockingLinks = linkedIssues.filter(l =>
-    l.relationship.toLowerCase().includes("block"),
-  );
-  const activeBlockers = blockingLinks.filter(l => !l.isDone);
-  const resolvedBlockers = blockingLinks.filter(l => l.isDone);
+  const blockingLinks = linkedIssues.filter((l) => l.relationship.toLowerCase().includes("block"));
+  const activeBlockers = blockingLinks.filter((l) => !l.isDone);
+  const resolvedBlockers = blockingLinks.filter((l) => l.isDone);
 
   if (activeBlockers.length > 0) {
     for (const b of activeBlockers) {
@@ -1700,24 +1775,26 @@ function buildSignals(
     }
   }
   if (resolvedBlockers.length > 0 && activeBlockers.length === 0) {
-    signals.push(`✅ Unblocked — all blocking issues resolved: ${resolvedBlockers.map(l => l.key).join(", ")}`);
+    signals.push(
+      `✅ Unblocked — all blocking issues resolved: ${resolvedBlockers.map((l) => l.key).join(", ")}`,
+    );
   }
 
   // Won't Do / Cancelled links → superseded signal
-  const wontDoLinks = linkedIssues.filter(l => WONT_DO_STATUSES.has(l.status.toLowerCase()));
+  const wontDoLinks = linkedIssues.filter((l) => WONT_DO_STATUSES.has(l.status.toLowerCase()));
   for (const l of wontDoLinks) {
     signals.push(`🔄 Superseded — ${l.key} "${l.summary}" is ${l.status}`);
   }
 
   // Question signals from comments (may indicate waiting for input)
-  const questionSignals = commentSignals.filter(s => s.type === "question");
+  const questionSignals = commentSignals.filter((s) => s.type === "question");
   for (const s of questionSignals) {
     signals.push(`⏳ Waiting — "${s.snippet}"`);
   }
 
   // Handoff: related links that are in progress (work moved elsewhere)
-  const relatedInProgress = linkedIssues.filter(l =>
-    l.relationship.toLowerCase().includes("relate") && !l.isDone,
+  const relatedInProgress = linkedIssues.filter(
+    (l) => l.relationship.toLowerCase().includes("relate") && !l.isDone,
   );
   if (relatedInProgress.length > 0) {
     for (const l of relatedInProgress) {
@@ -1799,12 +1876,14 @@ async function analyzeSingleArtifactComments(
   const primaryData = jiraIssues.get(jiraKey);
   if (primaryData && primaryData.comments.length > 0) {
     const commentTexts = primaryData.comments
-      .map(c => {
+      .map((c) => {
         const text = extractCommentText(c.body);
         return `[${c.author.displayName}, ${c.created.slice(0, 10)}]: ${text.slice(0, 500)}`;
       })
       .join("\n");
-    promptParts.push(`## ${artifactId} — ${title} (${jiraKey}, status: ${jiraStatus})\nComments:\n${commentTexts}`);
+    promptParts.push(
+      `## ${artifactId} — ${title} (${jiraKey}, status: ${jiraStatus})\nComments:\n${commentTexts}`,
+    );
   }
 
   // Linked issue comments
@@ -1813,7 +1892,7 @@ async function analyzeSingleArtifactComments(
     if (!linkedData || linkedData.comments.length === 0) continue;
 
     const commentTexts = linkedData.comments
-      .map(c => {
+      .map((c) => {
         const text = extractCommentText(c.body);
         return `  [${c.author.displayName}, ${c.created.slice(0, 10)}]: ${text.slice(0, 300)}`;
       })
@@ -1853,10 +1932,12 @@ export function parseCommentAnalysis(text: string): CommentAnalysisResult {
   // Try to parse as JSON first
   const parsed = parseLlmJson(text);
   if (parsed && typeof parsed.summary === "string") {
-    const progressEstimate = typeof parsed.progressEstimate === "number"
-      && parsed.progressEstimate >= 0 && parsed.progressEstimate <= 100
-      ? Math.round(parsed.progressEstimate)
-      : null;
+    const progressEstimate =
+      typeof parsed.progressEstimate === "number" &&
+      parsed.progressEstimate >= 0 &&
+      parsed.progressEstimate <= 100
+        ? Math.round(parsed.progressEstimate)
+        : null;
     return { summary: parsed.summary, progressEstimate };
   }
 
@@ -1932,23 +2013,24 @@ export function buildAssessmentSummary(
 ): AssessmentSummary {
   // Use post-update child progress (from appliedUpdates) when available,
   // falling back to marvinProgress for children that weren't updated.
-  const childProgressValues = children.map(c => {
+  const childProgressValues = children.map((c) => {
     const updates = c.appliedUpdates.length > 0 ? c.appliedUpdates : c.proposedUpdates;
-    const lastStatus = findLast(updates, u => u.field === "status");
+    const lastStatus = findLast(updates, (u) => u.field === "status");
     if (lastStatus && PROGRESS_DONE_STATUSES.has(String(lastStatus.proposedValue))) return 100;
-    const lastProgress = findLast(updates, u => u.field === "progress");
+    const lastProgress = findLast(updates, (u) => u.field === "progress");
     if (lastProgress) return lastProgress.proposedValue as number;
     return c.marvinProgress;
   });
-  const childDoneCount = children.filter((c, i) => {
+  const childDoneCount = children.filter((c) => {
     const updates = c.appliedUpdates.length > 0 ? c.appliedUpdates : c.proposedUpdates;
-    const lastStatus = findLast(updates, u => u.field === "status");
+    const lastStatus = findLast(updates, (u) => u.field === "status");
     const effectiveStatus = lastStatus ? String(lastStatus.proposedValue) : c.marvinStatus;
     return DONE_STATUSES.has(effectiveStatus);
   }).length;
-  const childRollupProgress = children.length > 0
-    ? Math.round(childProgressValues.reduce((s, p) => s + p, 0) / childProgressValues.length)
-    : null;
+  const childRollupProgress =
+    children.length > 0
+      ? Math.round(childProgressValues.reduce((s, p) => s + p, 0) / childProgressValues.length)
+      : null;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -1988,7 +2070,8 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
     parts.push(`## Jira State (${report.jiraKey})`);
     const jiraParts = [`Status: ${report.jiraStatus ?? "unknown"}`];
     if (report.jiraAssignee) jiraParts.push(`Assignee: ${report.jiraAssignee}`);
-    if (report.jiraSubtaskProgress !== null) jiraParts.push(`Subtask progress: ${report.jiraSubtaskProgress}%`);
+    if (report.jiraSubtaskProgress !== null)
+      jiraParts.push(`Subtask progress: ${report.jiraSubtaskProgress}%`);
     parts.push(jiraParts.join(" | "));
 
     if (report.statusDrift) {
@@ -2013,23 +2096,26 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
   // Blocker resolution
   if (report.totalBlockers > 0) {
     parts.push(`## Blocker Resolution`);
-    const bpLabel = report.blockerProgress !== null
-      ? `${report.blockerProgress}%`
-      : "n/a (skipped)";
-    parts.push(`  ${report.resolvedBlockers}/${report.totalBlockers} blockers resolved → ${bpLabel} prerequisite progress`);
+    const bpLabel =
+      report.blockerProgress !== null ? `${report.blockerProgress}%` : "n/a (skipped)";
+    parts.push(
+      `  ${report.resolvedBlockers}/${report.totalBlockers} blockers resolved → ${bpLabel} prerequisite progress`,
+    );
     parts.push("");
   }
 
   // Children
   if (report.children.length > 0) {
-    const doneCount = report.children.filter(c => DONE_STATUSES.has(c.marvinStatus)).length;
+    const doneCount = report.children.filter((c) => DONE_STATUSES.has(c.marvinStatus)).length;
     // Simple average — matches propagateProgressToAction in the persistence layer
     const childProgress = Math.round(
       report.children.reduce((s, c) => s + c.marvinProgress, 0) / report.children.length,
     );
     const bar = progressBar(childProgress);
 
-    parts.push(`## Children (${doneCount}/${report.children.length} done) ${bar} ${childProgress}%`);
+    parts.push(
+      `## Children (${doneCount}/${report.children.length} done) ${bar} ${childProgress}%`,
+    );
     for (const child of report.children) {
       formatArtifactChild(parts, child, 1);
     }
@@ -2041,8 +2127,10 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
     parts.push(`## Linked Issues (${report.linkedIssues.length})`);
     for (const link of report.linkedIssues) {
       const doneMarker = link.isDone ? " ✓" : "";
-      parts.push(`  ${link.relationship} ${link.key} "${link.summary}" [${link.status}]${doneMarker}`);
-      const signal = report.linkedIssueSignals.find(s => s.sourceKey === link.key);
+      parts.push(
+        `  ${link.relationship} ${link.key} "${link.summary}" [${link.status}]${doneMarker}`,
+      );
+      const signal = report.linkedIssueSignals.find((s) => s.sourceKey === link.key);
       if (signal?.commentSummary) {
         parts.push(`    💬 ${signal.commentSummary}`);
       }
@@ -2063,7 +2151,9 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
   if (report.proposedUpdates.length > 0) {
     parts.push(`## Proposed Updates (${report.proposedUpdates.length})`);
     for (const update of report.proposedUpdates) {
-      parts.push(`  ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`);
+      parts.push(
+        `  ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`,
+      );
       parts.push(`    Reason: ${update.reason}`);
     }
     parts.push("");
@@ -2074,7 +2164,9 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
   if (report.appliedUpdates.length > 0) {
     parts.push(`## Applied Updates (${report.appliedUpdates.length})`);
     for (const update of report.appliedUpdates) {
-      parts.push(`  ✓ ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`);
+      parts.push(
+        `  ✓ ${update.artifactId}.${update.field}: ${String(update.currentValue)} → ${String(update.proposedValue)}`,
+      );
     }
     parts.push("");
   }
@@ -2091,24 +2183,30 @@ export function formatArtifactReport(report: ArtifactAssessmentReport): string {
   return parts.join("\n");
 }
 
-function formatArtifactChild(parts: string[], child: ArtifactAssessmentReport, depth: number): void {
+function formatArtifactChild(
+  parts: string[],
+  child: ArtifactAssessmentReport,
+  depth: number,
+): void {
   const indent = "  ".repeat(depth);
-  const icon = DONE_STATUSES.has(child.marvinStatus) ? "✓" :
-    child.marvinStatus === "blocked" ? "🚫" :
-    child.marvinStatus === "in-progress" ? "▶" : "○";
-  const jiraLabel = child.jiraKey
-    ? ` [${child.jiraKey}: ${child.jiraStatus ?? "?"}]`
-    : "";
-  const driftLabel = child.statusDrift
-    ? ` ⚠drift → ${child.proposedMarvinStatus}`
-    : "";
+  const icon = DONE_STATUSES.has(child.marvinStatus)
+    ? "✓"
+    : child.marvinStatus === "blocked"
+      ? "🚫"
+      : child.marvinStatus === "in-progress"
+        ? "▶"
+        : "○";
+  const jiraLabel = child.jiraKey ? ` [${child.jiraKey}: ${child.jiraStatus ?? "?"}]` : "";
+  const driftLabel = child.statusDrift ? ` ⚠drift → ${child.proposedMarvinStatus}` : "";
   const signalHints: string[] = [];
   for (const s of child.signals) {
     if (s.startsWith("✅ No active")) continue; // skip the "all clear" default
     signalHints.push(s);
   }
 
-  parts.push(`${indent}${icon} ${child.artifactId} — ${child.title} [${child.marvinStatus}] ${child.marvinProgress}%${jiraLabel}${driftLabel}`);
+  parts.push(
+    `${indent}${icon} ${child.artifactId} — ${child.title} [${child.marvinStatus}] ${child.marvinProgress}%${jiraLabel}${driftLabel}`,
+  );
 
   if (child.commentSummary) {
     parts.push(`${indent}  💬 ${child.commentSummary}`);
