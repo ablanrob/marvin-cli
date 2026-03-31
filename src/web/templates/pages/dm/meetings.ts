@@ -45,29 +45,34 @@ export function dmMeetingsPage(ctx: PersonaPageContext): string {
       </div>
     </div>`;
 
-  const meetingsTable = sortedMeetings.length > 0
-    ? `<div class="table-wrap">
+  const meetingsTable =
+    sortedMeetings.length > 0
+      ? `<div class="table-wrap">
         <table>
           <thead>
             <tr><th>Date</th><th>ID</th><th>Title</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            ${sortedMeetings.map((m) => {
-              const date = (m.frontmatter.date as string) ?? m.frontmatter.created;
-              const relatedActions = meetingActionMap.get(m.frontmatter.id) ?? [];
-              const openCount = relatedActions.filter((a) => !DONE_STATUSES.has(a.frontmatter.status)).length;
-              return `
+            ${sortedMeetings
+              .map((m) => {
+                const date = (m.frontmatter.date as string) ?? m.frontmatter.created;
+                const relatedActions = meetingActionMap.get(m.frontmatter.id) ?? [];
+                const openCount = relatedActions.filter(
+                  (a) => !DONE_STATUSES.has(a.frontmatter.status),
+                ).length;
+                return `
             <tr>
               <td>${formatDate(date)}</td>
               <td><a href="/docs/meeting/${escapeHtml(m.frontmatter.id)}">${escapeHtml(m.frontmatter.id)}</a></td>
               <td>${escapeHtml(m.frontmatter.title)}</td>
               <td>${relatedActions.length > 0 ? `${relatedActions.length} (${openCount} open)` : '<span class="text-dim">—</span>'}</td>
             </tr>`;
-            }).join("")}
+              })
+              .join("")}
           </tbody>
         </table>
       </div>`
-    : '<div class="empty"><p>No meetings recorded.</p></div>';
+      : '<div class="empty"><p>No meetings recorded.</p></div>';
 
   // Recent meeting action items
   const recentMeetingActions: Array<{ action: (typeof actions)[0]; meetingId: string }> = [];
@@ -84,17 +89,20 @@ export function dmMeetingsPage(ctx: PersonaPageContext): string {
     return da.localeCompare(db);
   });
 
-  const actionItemsSection = recentMeetingActions.length > 0
-    ? collapsibleSection(
-        "dm-meetings-actions",
-        `Open Meeting Action Items (${recentMeetingActions.length})`,
-        `<div class="table-wrap">
+  const actionItemsSection =
+    recentMeetingActions.length > 0
+      ? collapsibleSection(
+          "dm-meetings-actions",
+          `Open Meeting Action Items (${recentMeetingActions.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>Action ID</th><th>Title</th><th>Meeting</th><th>Owner</th><th>Due</th><th>Status</th></tr>
             </thead>
             <tbody>
-              ${recentMeetingActions.map(({ action: a, meetingId }) => `
+              ${recentMeetingActions
+                .map(
+                  ({ action: a, meetingId }) => `
               <tr>
                 <td><a href="/docs/action/${escapeHtml(a.frontmatter.id)}">${escapeHtml(a.frontmatter.id)}</a></td>
                 <td>${escapeHtml(a.frontmatter.title)}</td>
@@ -102,13 +110,15 @@ export function dmMeetingsPage(ctx: PersonaPageContext): string {
                 <td>${a.frontmatter.owner ? escapeHtml(a.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
                 <td>${a.frontmatter.dueDate ? formatDate(a.frontmatter.dueDate) : '<span class="text-dim">—</span>'}</td>
                 <td>${statusBadge(a.frontmatter.status)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   return `
     <div class="page-header">

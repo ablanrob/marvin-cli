@@ -138,7 +138,7 @@ describe("runDoctorFix", () => {
       progress: 50,
     } as any);
 
-    const report = runDoctorFix(store, "tag-migration");
+    runDoctorFix(store, "tag-migration");
     // Only tag-migration fixes should be applied
     const doc = store.get("A-001")!;
     expect(doc.frontmatter.tags).toContain("focus:backend");

@@ -12,10 +12,7 @@ const SEVERITY_ICONS: Record<string, string> = {
   info: chalk.blue("i"),
 };
 
-export async function doctorCommand(options: {
-  fix?: boolean;
-  rule?: string;
-}): Promise<void> {
+export async function doctorCommand(options: { fix?: boolean; rule?: string }): Promise<void> {
   const project = loadProject();
   const plugin = resolvePlugin(project.config.methodology);
   const pluginRegistrations = plugin?.documentTypeRegistrations ?? [];

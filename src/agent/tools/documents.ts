@@ -2,9 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
 
-export function createDocumentTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createDocumentTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "search_documents",
@@ -13,11 +11,16 @@ export function createDocumentTools(
         type: z
           .string()
           .optional()
-          .describe(`Filter by document type (registered types: ${store.registeredTypes.join(", ")})`),
+          .describe(
+            `Filter by document type (registered types: ${store.registeredTypes.join(", ")})`,
+          ),
         status: z.string().optional().describe("Filter by status"),
         owner: z.string().optional().describe("Filter by persona role owner (po, dm, tl)"),
         tag: z.string().optional().describe("Filter by tag"),
-        workFocus: z.string().optional().describe("Filter by work focus name (matches focus:<value> tag)"),
+        workFocus: z
+          .string()
+          .optional()
+          .describe("Filter by work focus name (matches focus:<value> tag)"),
       },
       async (args) => {
         let docs = store.list({
@@ -68,11 +71,7 @@ export function createDocumentTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };

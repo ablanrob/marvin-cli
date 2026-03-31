@@ -22,11 +22,15 @@ export function createAemPhaseTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({
-                currentPhase: phase ?? "unknown",
-                phases: PHASES,
-                description: getPhaseDescription(phase),
-              }, null, 2),
+              text: JSON.stringify(
+                {
+                  currentPhase: phase ?? "unknown",
+                  phases: PHASES,
+                  description: getPhaseDescription(phase),
+                },
+                null,
+                2,
+              ),
             },
           ],
         };
@@ -41,39 +45,47 @@ export function createAemPhaseTools(
         targetPhase: z
           .enum(["assess-use-case", "assess-technology", "define-solution"])
           .optional()
-          .describe("Target phase to advance to. If omitted, advances to the next sequential phase."),
+          .describe(
+            "Target phase to advance to. If omitted, advances to the next sequential phase.",
+          ),
       },
       async (args) => {
         const currentPhase = readPhase(marvinDir);
         if (!currentPhase) {
           return {
-            content: [{
-              type: "text" as const,
-              text: "Cannot determine current phase. Ensure config.yaml has aem.currentPhase set.",
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: "Cannot determine current phase. Ensure config.yaml has aem.currentPhase set.",
+              },
+            ],
             isError: true,
           };
         }
 
-        const currentIdx = PHASES.indexOf(currentPhase as typeof PHASES[number]);
+        const currentIdx = PHASES.indexOf(currentPhase as (typeof PHASES)[number]);
         const targetPhase = args.targetPhase ?? PHASES[currentIdx + 1];
 
         if (!targetPhase) {
           return {
-            content: [{
-              type: "text" as const,
-              text: `Already at the final phase: ${currentPhase}. No further phases to advance to.`,
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: `Already at the final phase: ${currentPhase}. No further phases to advance to.`,
+              },
+            ],
           };
         }
 
-        const targetIdx = PHASES.indexOf(targetPhase as typeof PHASES[number]);
+        const targetIdx = PHASES.indexOf(targetPhase as (typeof PHASES)[number]);
         if (targetIdx <= currentIdx) {
           return {
-            content: [{
-              type: "text" as const,
-              text: `Cannot move backward from '${currentPhase}' to '${targetPhase}'. Current phase index: ${currentIdx}, target: ${targetIdx}.`,
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: `Cannot move backward from '${currentPhase}' to '${targetPhase}'. Current phase index: ${currentIdx}, target: ${targetIdx}.`,
+              },
+            ],
             isError: true,
           };
         }
@@ -89,7 +101,10 @@ export function createAemPhaseTools(
             warnings.push(`${drafts.length} use case(s) still in draft status.`);
           }
         }
-        if (currentPhase === "assess-technology" || (currentPhase === "assess-use-case" && targetPhase === "define-solution")) {
+        if (
+          currentPhase === "assess-technology" ||
+          (currentPhase === "assess-use-case" && targetPhase === "define-solution")
+        ) {
           const tas = store.list({ type: "tech-assessment" });
           const drafts = tas.filter((ta) => ta.frontmatter.status === "draft");
           if (tas.length === 0) {
@@ -112,10 +127,12 @@ export function createAemPhaseTools(
         }
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify(result, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
         };
       },
     ),

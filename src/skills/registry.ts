@@ -14,7 +14,7 @@ import { prdGeneratorSkill } from "./builtin/prd-generator/index.js";
 
 const BUILTIN_SKILLS: Record<string, SkillDefinition> = {
   "governance-review": governanceReviewSkill,
-  "jira": jiraSkill,
+  jira: jiraSkill,
   "prd-generator": prdGeneratorSkill,
 };
 
@@ -235,8 +235,7 @@ export function getSkillPromptFragment(
   for (const id of skillIds) {
     const skill = allSkills.get(id);
     if (!skill?.promptFragments) continue;
-    const fragment =
-      skill.promptFragments[personaId] ?? skill.promptFragments["*"];
+    const fragment = skill.promptFragments[personaId] ?? skill.promptFragments["*"];
     if (fragment) {
       fragments.push(`### ${skill.name}\n${fragment}`);
     }
@@ -293,10 +292,7 @@ export function getSkillAgentDefinitions(
   return agents;
 }
 
-export function migrateYamlToSkillMd(
-  yamlPath: string,
-  outputDir: string,
-): void {
+export function migrateYamlToSkillMd(yamlPath: string, outputDir: string): void {
   const raw = fs.readFileSync(yamlPath, "utf-8");
   const parsed = YAML.parse(raw) as Record<string, unknown>;
   if (!parsed?.id || !parsed?.name) {
@@ -341,10 +337,6 @@ export function migrateYamlToSkillMd(
   // Write actions
   const actions = parsed.actions as unknown[] | undefined;
   if (actions && actions.length > 0) {
-    fs.writeFileSync(
-      path.join(outputDir, "actions.yaml"),
-      YAML.stringify(actions),
-      "utf-8",
-    );
+    fs.writeFileSync(path.join(outputDir, "actions.yaml"), YAML.stringify(actions), "utf-8");
   }
 }

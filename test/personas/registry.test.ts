@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  getPersona,
-  listPersonas,
-  resolvePersonaId,
-} from "../../src/personas/registry.js";
+import { getPersona, listPersonas, resolvePersonaId } from "../../src/personas/registry.js";
 
 describe("getPersona", () => {
   it("should find persona by full ID", () => {

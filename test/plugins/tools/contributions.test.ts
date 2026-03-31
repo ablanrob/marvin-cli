@@ -15,7 +15,18 @@ describe("Contribution Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "contributions", "tasks", "sprints"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "contributions",
+      "tasks",
+      "sprints",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, COMMON_REGISTRATIONS);

@@ -40,10 +40,7 @@ export class PersonaContextManager {
  * Build a guidance string for an MCP client describing the persona's role,
  * allowed document types, behavioral rules, and any plugin/skill-specific instructions.
  */
-export function buildMcpGuidance(
-  persona: PersonaDefinition,
-  marvinDir: string,
-): string {
+export function buildMcpGuidance(persona: PersonaDefinition, marvinDir: string): string {
   const parts: string[] = [];
 
   parts.push(`# Active Persona: ${persona.name} (${persona.shortName})`);
@@ -74,11 +71,7 @@ export function buildMcpGuidance(
 
     // Skill-specific rules
     const allSkills = loadAllSkills(marvinDir);
-    const skillIds = resolveSkillsForPersona(
-      persona.id,
-      config.skills,
-      allSkills,
-    );
+    const skillIds = resolveSkillsForPersona(persona.id, config.skills, allSkills);
     if (skillIds.length > 0) {
       const fragment = getSkillPromptFragment(skillIds, allSkills, persona.id);
       if (fragment) {

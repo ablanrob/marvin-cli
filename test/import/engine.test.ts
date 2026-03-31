@@ -4,11 +4,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import matter from "gray-matter";
 import { DocumentStore } from "../../src/storage/store.js";
-import {
-  buildImportPlan,
-  executeImportPlan,
-  formatPlanSummary,
-} from "../../src/import/engine.js";
+import { buildImportPlan, executeImportPlan, formatPlanSummary } from "../../src/import/engine.js";
 import type { ImportOptions } from "../../src/import/types.js";
 
 function defaultOptions(overrides?: Partial<ImportOptions>): ImportOptions {
@@ -54,14 +50,19 @@ describe("buildImportPlan", () => {
   it("should plan import of a single Marvin document", () => {
     const sourceDir = path.join(tmpDir, "source");
     fs.mkdirSync(sourceDir);
-    writeMarvinDoc(sourceDir, "D-001.md", {
-      id: "D-001",
-      title: "Use REST",
-      type: "decision",
-      status: "decided",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "We chose REST.");
+    writeMarvinDoc(
+      sourceDir,
+      "D-001.md",
+      {
+        id: "D-001",
+        title: "Use REST",
+        type: "decision",
+        status: "decided",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "We chose REST.",
+    );
 
     const plan = buildImportPlan(
       path.join(sourceDir, "D-001.md"),
@@ -80,22 +81,32 @@ describe("buildImportPlan", () => {
   it("should plan import from a docs directory", () => {
     const sourceDir = path.join(tmpDir, "docs");
     fs.mkdirSync(path.join(sourceDir, "decisions"), { recursive: true });
-    writeMarvinDoc(path.join(sourceDir, "decisions"), "D-001.md", {
-      id: "D-001",
-      title: "Decision 1",
-      type: "decision",
-      status: "open",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "Content 1");
-    writeMarvinDoc(path.join(sourceDir, "decisions"), "D-002.md", {
-      id: "D-002",
-      title: "Decision 2",
-      type: "decision",
-      status: "open",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "Content 2");
+    writeMarvinDoc(
+      path.join(sourceDir, "decisions"),
+      "D-001.md",
+      {
+        id: "D-001",
+        title: "Decision 1",
+        type: "decision",
+        status: "open",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "Content 1",
+    );
+    writeMarvinDoc(
+      path.join(sourceDir, "decisions"),
+      "D-002.md",
+      {
+        id: "D-002",
+        title: "Decision 2",
+        type: "decision",
+        status: "open",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "Content 2",
+    );
 
     const plan = buildImportPlan(sourceDir, store, marvinDir, defaultOptions());
 
@@ -108,21 +119,21 @@ describe("buildImportPlan", () => {
     const sourceMarvin = path.join(sourceProject, ".marvin");
     fs.mkdirSync(path.join(sourceMarvin, "docs", "decisions"), { recursive: true });
     fs.writeFileSync(path.join(sourceMarvin, "config.yaml"), "name: source\n");
-    writeMarvinDoc(path.join(sourceMarvin, "docs", "decisions"), "D-001.md", {
-      id: "D-001",
-      title: "Source Decision",
-      type: "decision",
-      status: "decided",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "From source project");
-
-    const plan = buildImportPlan(
-      sourceMarvin,
-      store,
-      marvinDir,
-      defaultOptions(),
+    writeMarvinDoc(
+      path.join(sourceMarvin, "docs", "decisions"),
+      "D-001.md",
+      {
+        id: "D-001",
+        title: "Source Decision",
+        type: "decision",
+        status: "decided",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "From source project",
     );
+
+    const plan = buildImportPlan(sourceMarvin, store, marvinDir, defaultOptions());
 
     expect(plan.classification.type).toBe("marvin-project");
     expect(plan.items).toHaveLength(1);
@@ -159,14 +170,19 @@ describe("buildImportPlan", () => {
 
     const sourceDir = path.join(tmpDir, "source");
     fs.mkdirSync(sourceDir);
-    writeMarvinDoc(sourceDir, "D-001.md", {
-      id: "D-001",
-      title: "Conflict",
-      type: "decision",
-      status: "open",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "This conflicts");
+    writeMarvinDoc(
+      sourceDir,
+      "D-001.md",
+      {
+        id: "D-001",
+        title: "Conflict",
+        type: "decision",
+        status: "open",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "This conflicts",
+    );
 
     const plan = buildImportPlan(
       path.join(sourceDir, "D-001.md"),
@@ -185,14 +201,19 @@ describe("buildImportPlan", () => {
 
     const sourceDir = path.join(tmpDir, "source");
     fs.mkdirSync(sourceDir);
-    writeMarvinDoc(sourceDir, "D-001.md", {
-      id: "D-001",
-      title: "Conflict",
-      type: "decision",
-      status: "open",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "This gets renumbered");
+    writeMarvinDoc(
+      sourceDir,
+      "D-001.md",
+      {
+        id: "D-001",
+        title: "Conflict",
+        type: "decision",
+        status: "open",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "This gets renumbered",
+    );
 
     const plan = buildImportPlan(
       path.join(sourceDir, "D-001.md"),
@@ -230,14 +251,19 @@ describe("executeImportPlan", () => {
   it("should execute document import plan", () => {
     const sourceDir = path.join(tmpDir, "source");
     fs.mkdirSync(sourceDir);
-    writeMarvinDoc(sourceDir, "D-001.md", {
-      id: "D-001",
-      title: "Imported Decision",
-      type: "decision",
-      status: "decided",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "Imported content");
+    writeMarvinDoc(
+      sourceDir,
+      "D-001.md",
+      {
+        id: "D-001",
+        title: "Imported Decision",
+        type: "decision",
+        status: "decided",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "Imported content",
+    );
 
     const plan = buildImportPlan(
       path.join(sourceDir, "D-001.md"),
@@ -265,30 +291,28 @@ describe("executeImportPlan", () => {
     const result = executeImportPlan(plan, store, marvinDir, defaultOptions());
 
     expect(result.copied).toBe(1);
-    expect(
-      fs.existsSync(path.join(marvinDir, "sources", "report.pdf")),
-    ).toBe(true);
+    expect(fs.existsSync(path.join(marvinDir, "sources", "report.pdf"))).toBe(true);
   });
 
   it("should tag imported documents when --tag is set", () => {
     const sourceDir = path.join(tmpDir, "source");
     fs.mkdirSync(sourceDir);
-    writeMarvinDoc(sourceDir, "A-001.md", {
-      id: "A-001",
-      title: "Tagged Action",
-      type: "action",
-      status: "open",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "Content");
+    writeMarvinDoc(
+      sourceDir,
+      "A-001.md",
+      {
+        id: "A-001",
+        title: "Tagged Action",
+        type: "action",
+        status: "open",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "Content",
+    );
 
     const opts = defaultOptions({ tag: "imported:proto" });
-    const plan = buildImportPlan(
-      path.join(sourceDir, "A-001.md"),
-      store,
-      marvinDir,
-      opts,
-    );
+    const plan = buildImportPlan(path.join(sourceDir, "A-001.md"), store, marvinDir, opts);
     const result = executeImportPlan(plan, store, marvinDir, opts);
 
     expect(result.imported).toBe(1);
@@ -301,22 +325,22 @@ describe("executeImportPlan", () => {
 
     const sourceDir = path.join(tmpDir, "source");
     fs.mkdirSync(sourceDir);
-    writeMarvinDoc(sourceDir, "D-001.md", {
-      id: "D-001",
-      title: "Replacement",
-      type: "decision",
-      status: "decided",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "Replacement content");
+    writeMarvinDoc(
+      sourceDir,
+      "D-001.md",
+      {
+        id: "D-001",
+        title: "Replacement",
+        type: "decision",
+        status: "decided",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "Replacement content",
+    );
 
     const opts = defaultOptions({ conflict: "overwrite" });
-    const plan = buildImportPlan(
-      path.join(sourceDir, "D-001.md"),
-      store,
-      marvinDir,
-      opts,
-    );
+    const plan = buildImportPlan(path.join(sourceDir, "D-001.md"), store, marvinDir, opts);
     const result = executeImportPlan(plan, store, marvinDir, opts);
 
     expect(result.imported).toBe(1);
@@ -347,14 +371,19 @@ describe("formatPlanSummary", () => {
   it("should format a plan with imports", () => {
     const sourceDir = path.join(tmpDir, "source");
     fs.mkdirSync(sourceDir);
-    writeMarvinDoc(sourceDir, "D-001.md", {
-      id: "D-001",
-      title: "Test",
-      type: "decision",
-      status: "open",
-      created: "2026-01-01",
-      updated: "2026-01-01",
-    }, "Content");
+    writeMarvinDoc(
+      sourceDir,
+      "D-001.md",
+      {
+        id: "D-001",
+        title: "Test",
+        type: "decision",
+        status: "open",
+        created: "2026-01-01",
+        updated: "2026-01-01",
+      },
+      "Content",
+    );
 
     const plan = buildImportPlan(
       path.join(sourceDir, "D-001.md"),

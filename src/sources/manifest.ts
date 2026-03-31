@@ -2,11 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import * as YAML from "yaml";
-import type {
-  SourceManifest,
-  SourceFileEntry,
-  SourceFileStatus,
-} from "./types.js";
+import type { SourceManifest, SourceFileEntry, SourceFileStatus } from "./types.js";
 
 const MANIFEST_FILE = ".manifest.yaml";
 const SOURCE_EXTENSIONS = [".pdf", ".md", ".txt"];
@@ -50,12 +46,10 @@ export class SourceManifestManager {
     }
 
     const onDisk = new Set(
-      fs
-        .readdirSync(this.sourcesDir)
-        .filter((f) => {
-          const ext = path.extname(f).toLowerCase();
-          return SOURCE_EXTENSIONS.includes(ext);
-        }),
+      fs.readdirSync(this.sourcesDir).filter((f) => {
+        const ext = path.extname(f).toLowerCase();
+        return SOURCE_EXTENSIONS.includes(ext);
+      }),
     );
 
     // Detect new and changed files
@@ -88,7 +82,7 @@ export class SourceManifestManager {
     for (const fileName of Object.keys(this.manifest.files)) {
       if (!onDisk.has(fileName)) {
         removed.push(fileName);
-        delete this.manifest.files[fileName];
+        Reflect.deleteProperty(this.manifest.files, fileName);
       }
     }
 

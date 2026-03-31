@@ -16,8 +16,15 @@ describe("Sprint Planning Tools", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
     for (const dir of [
-      "decisions", "actions", "questions", "meetings", "reports",
-      "features", "epics", "contributions", "sprints",
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "contributions",
+      "sprints",
     ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
@@ -47,7 +54,11 @@ describe("Sprint Planning Tools", () => {
 
   it("returns approved features sorted by priority", async () => {
     store.create("feature", { title: "Low Feature", status: "approved", priority: "low" });
-    store.create("feature", { title: "Critical Feature", status: "approved", priority: "critical" });
+    store.create("feature", {
+      title: "Critical Feature",
+      status: "approved",
+      priority: "critical",
+    });
     store.create("feature", { title: "High Feature", status: "approved", priority: "high" });
     store.create("feature", { title: "Draft Feature", status: "draft", priority: "critical" });
 
@@ -103,7 +114,11 @@ describe("Sprint Planning Tools", () => {
   it("focusFeature includes multi-linked epics", async () => {
     store.create("feature", { title: "Feature A", status: "approved", priority: "high" });
     store.create("feature", { title: "Feature B", status: "approved", priority: "medium" });
-    store.create("epic", { title: "Epic AB", status: "planned", linkedFeature: ["F-001", "F-002"] });
+    store.create("epic", {
+      title: "Epic AB",
+      status: "planned",
+      linkedFeature: ["F-001", "F-002"],
+    });
     store.create("epic", { title: "Epic B only", status: "planned", linkedFeature: "F-002" });
 
     const result = await gather({ focusFeature: "F-001" });
@@ -147,8 +162,18 @@ describe("Sprint Planning Tools", () => {
 
   it("velocity reference returns last 2 completed sprints by endDate", async () => {
     store.create("feature", { title: "Feature A", status: "approved" });
-    store.create("epic", { title: "E1", status: "done", linkedFeature: "F-001", estimatedEffort: "3 days" });
-    store.create("epic", { title: "E2", status: "done", linkedFeature: "F-001", estimatedEffort: "5 days" });
+    store.create("epic", {
+      title: "E1",
+      status: "done",
+      linkedFeature: "F-001",
+      estimatedEffort: "3 days",
+    });
+    store.create("epic", {
+      title: "E2",
+      status: "done",
+      linkedFeature: "F-001",
+      estimatedEffort: "5 days",
+    });
     store.create("epic", { title: "E3", status: "done", linkedFeature: "F-001" });
 
     // Oldest completed sprint

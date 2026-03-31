@@ -2,10 +2,7 @@ import chalk from "chalk";
 import { input, password } from "@inquirer/prompts";
 import { loadUserConfig, saveUserConfig } from "../../core/config.js";
 
-export async function configCommand(
-  key?: string,
-  value?: string,
-): Promise<void> {
+export async function configCommand(key?: string, value?: string): Promise<void> {
   if (key === "api-key") {
     return setApiKey();
   }

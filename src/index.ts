@@ -1,7 +1,12 @@
 // Core
 export { findProjectRoot, isMarvinProject, loadProject } from "./core/project.js";
 export { loadUserConfig, saveUserConfig, getConfig } from "./core/config.js";
-export type { MarvinUserConfig, MarvinProjectConfig, MergedConfig, JiraUserConfig } from "./core/config.js";
+export type {
+  MarvinUserConfig,
+  MarvinProjectConfig,
+  MergedConfig,
+  JiraUserConfig,
+} from "./core/config.js";
 export {
   MarvinError,
   ProjectNotFoundError,

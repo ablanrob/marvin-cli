@@ -11,7 +11,13 @@ export interface GarItemRef {
 export interface GarMetrics {
   scope: {
     atRiskItems: GarItemRef[];
-    epicSummaries: { id: string; title: string; tasksDone: number; tasksTotal: number; status: string }[];
+    epicSummaries: {
+      id: string;
+      title: string;
+      tasksDone: number;
+      tasksTotal: number;
+      status: string;
+    }[];
   };
   schedule: {
     blocked: number;

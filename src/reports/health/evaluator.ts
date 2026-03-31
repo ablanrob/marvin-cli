@@ -1,9 +1,4 @@
-import type {
-  HealthCategory,
-  HealthMetrics,
-  HealthReport,
-  HealthStatus,
-} from "./types.js";
+import type { HealthCategory, HealthMetrics, HealthReport, HealthStatus } from "./types.js";
 
 function worstStatus(statuses: HealthStatus[]): HealthStatus {
   if (statuses.includes("red")) return "red";
@@ -28,10 +23,7 @@ const TYPE_LABELS: Record<string, string> = {
   sprint: "Sprints",
 };
 
-export function evaluateHealth(
-  projectName: string,
-  metrics: HealthMetrics,
-): HealthReport {
+export function evaluateHealth(projectName: string, metrics: HealthMetrics): HealthReport {
   const completeness: HealthCategory[] = [];
 
   for (const [type, catMetrics] of Object.entries(metrics.completeness)) {
@@ -55,15 +47,11 @@ export function evaluateHealth(
 
   // Stale items
   const staleCount = metrics.process.stale.length;
-  const staleStatus: HealthStatus =
-    staleCount === 0 ? "green" : staleCount <= 3 ? "amber" : "red";
+  const staleStatus: HealthStatus = staleCount === 0 ? "green" : staleCount <= 3 ? "amber" : "red";
   process.push({
     name: "Stale Items",
     status: staleStatus,
-    summary:
-      staleCount === 0
-        ? "no stale items"
-        : `${staleCount} item(s) not updated in 14+ days`,
+    summary: staleCount === 0 ? "no stale items" : `${staleCount} item(s) not updated in 14+ days`,
     items: metrics.process.stale.map((s) => ({
       id: s.id,
       detail: `${s.days} days since last update`,
@@ -72,15 +60,11 @@ export function evaluateHealth(
 
   // Aging actions
   const agingCount = metrics.process.agingActions.length;
-  const agingStatus: HealthStatus =
-    agingCount === 0 ? "green" : agingCount <= 3 ? "amber" : "red";
+  const agingStatus: HealthStatus = agingCount === 0 ? "green" : agingCount <= 3 ? "amber" : "red";
   process.push({
     name: "Aging Actions",
     status: agingStatus,
-    summary:
-      agingCount === 0
-        ? "no aging actions"
-        : `${agingCount} action(s) open for 30+ days`,
+    summary: agingCount === 0 ? "no aging actions" : `${agingCount} action(s) open for 30+ days`,
     items: metrics.process.agingActions.map((a) => ({
       id: a.id,
       detail: `open for ${a.days} days`,
@@ -131,10 +115,7 @@ export function evaluateHealth(
     items: [],
   });
 
-  const allStatuses = [
-    ...completeness.map((c) => c.status),
-    ...process.map((p) => p.status),
-  ];
+  const allStatuses = [...completeness.map((c) => c.status), ...process.map((p) => p.status)];
   const overall = worstStatus(allStatuses);
 
   return {

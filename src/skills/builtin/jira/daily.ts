@@ -1,18 +1,18 @@
 import type { DocumentStore } from "../../../storage/store.js";
-import type {
-  JiraClient,
-  JiraChangelogEntry,
-  JiraComment,
-  JiraRemoteLink,
-} from "./client.js";
+import type { JiraClient, JiraChangelogEntry, JiraComment, JiraRemoteLink } from "./client.js";
 import type { LinkedIssueSummary, ResolvedStatusMap } from "./sync.js";
-import { mapJiraStatusForAction, mapJiraStatusForTask, isInActiveSprint, collectLinkedIssues } from "./sync.js";
+import {
+  mapJiraStatusForAction,
+  mapJiraStatusForTask,
+  isInActiveSprint,
+  collectLinkedIssues,
+} from "./sync.js";
 
 // --- Data structures ---
 
 export interface DateRange {
   from: string; // YYYY-MM-DD
-  to: string;   // YYYY-MM-DD
+  to: string; // YYYY-MM-DD
 }
 
 export interface IssueChange {
@@ -187,10 +187,45 @@ export function detectCommentSignals(text: string): CommentSignal[] {
 
 /** Stopwords to exclude from matching */
 const STOP_WORDS = new Set([
-  "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-  "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-  "this", "that", "it", "its", "as", "not", "no", "if", "do", "does",
-  "new", "via", "use", "using", "based", "into", "e.g", "etc",
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "but",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "with",
+  "by",
+  "from",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "this",
+  "that",
+  "it",
+  "its",
+  "as",
+  "not",
+  "no",
+  "if",
+  "do",
+  "does",
+  "new",
+  "via",
+  "use",
+  "using",
+  "based",
+  "into",
+  "e.g",
+  "etc",
 ]);
 
 export function tokenize(text: string): Set<string> {
@@ -242,10 +277,7 @@ export function findLinkSuggestions(
     // Skip docs that already have a jiraKey
     if (fm.jiraKey) continue;
 
-    const { score, sharedTerms } = computeTitleSimilarity(
-      jiraSummary,
-      fm.title as string,
-    );
+    const { score, sharedTerms } = computeTitleSimilarity(jiraSummary, fm.title as string);
 
     if (score >= LINK_SUGGESTION_THRESHOLD && sharedTerms.length >= 2) {
       suggestions.push({
@@ -259,9 +291,7 @@ export function findLinkSuggestions(
   }
 
   // Sort by score descending, take top N
-  return suggestions
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_LINK_SUGGESTIONS);
+  return suggestions.sort((a, b) => b.score - a.score).slice(0, MAX_LINK_SUGGESTIONS);
 }
 
 // --- Helpers ---
@@ -292,7 +322,7 @@ export function extractCommentText(body: unknown): string {
 
 function truncate(text: string, maxLen: number = 200): string {
   if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen) + "…";
+  return `${text.slice(0, maxLen)}…`;
 }
 
 function isWithinRange(timestamp: string, range: DateRange): boolean {
@@ -303,7 +333,6 @@ function isWithinRange(timestamp: string, range: DateRange): boolean {
 function isConfluenceUrl(url: string): boolean {
   return /atlassian\.net\/wiki\//i.test(url) || /\/confluence\//i.test(url);
 }
-
 
 // --- Core function ---
 
@@ -335,9 +364,7 @@ export async function fetchJiraDaily(
       100,
     );
   } catch (err) {
-    summary.errors.push(
-      `Search failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    summary.errors.push(`Search failed: ${err instanceof Error ? err.message : String(err)}`);
     return summary;
   }
 
@@ -406,13 +433,12 @@ async function processIssue(
   store?: DocumentStore,
 ): Promise<DailyIssueEntry> {
   // Fetch changelog, comments, remote links, and issue links in parallel
-  const [changelogResult, commentsResult, remoteLinksResult, issueWithLinks] =
-    await Promise.all([
-      client.getChangelog(issue.key).catch(() => [] as JiraChangelogEntry[]),
-      client.getComments(issue.key).catch(() => [] as JiraComment[]),
-      client.getRemoteLinks(issue.key).catch(() => [] as JiraRemoteLink[]),
-      client.getIssueWithLinks(issue.key).catch(() => null),
-    ]);
+  const [changelogResult, commentsResult, remoteLinksResult, issueWithLinks] = await Promise.all([
+    client.getChangelog(issue.key).catch(() => [] as JiraChangelogEntry[]),
+    client.getComments(issue.key).catch(() => [] as JiraComment[]),
+    client.getRemoteLinks(issue.key).catch(() => [] as JiraRemoteLink[]),
+    client.getIssueWithLinks(issue.key).catch(() => null),
+  ]);
 
   // Filter changelog entries to date range
   const changes: IssueChange[] = [];
@@ -472,9 +498,7 @@ async function processIssue(
     if (artifactType === "action" || artifactType === "task") {
       const jiraStatus = issue.fields.status?.name;
       if (jiraStatus) {
-        const inSprint = store
-          ? isInActiveSprint(store, fm.tags as string[] | undefined)
-          : false;
+        const inSprint = store ? isInActiveSprint(store, fm.tags as string[] | undefined) : false;
         const resolved = statusMap ?? {};
         proposedStatus =
           artifactType === "task"
@@ -495,9 +519,7 @@ async function processIssue(
 
   // Smart link suggestions (only for unlinked issues)
   const linkSuggestions: LinkSuggestion[] =
-    marvinArtifacts.length === 0
-      ? findLinkSuggestions(issue.fields.summary, allDocs)
-      : [];
+    marvinArtifacts.length === 0 ? findLinkSuggestions(issue.fields.summary, allDocs) : [];
 
   return {
     key: issue.key,
@@ -531,7 +553,10 @@ function generateProposedActions(issues: DailyIssueEntry[]): ProposedAction[] {
     }
 
     // Unlinked issues with activity
-    if (issue.marvinArtifacts.length === 0 && (issue.changes.length > 0 || issue.comments.length > 0)) {
+    if (
+      issue.marvinArtifacts.length === 0 &&
+      (issue.changes.length > 0 || issue.comments.length > 0)
+    ) {
       actions.push({
         type: "unlinked-issue",
         description: `${issue.key} ("${issue.summary}") has activity but no Marvin artifact — consider linking or creating one`,

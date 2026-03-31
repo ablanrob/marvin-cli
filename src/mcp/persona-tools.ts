@@ -1,10 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { PersonaContextManager } from "./persona-context.js";
-import {
-  buildMcpGuidance,
-  buildPersonaSummaries,
-} from "./persona-context.js";
+import { buildMcpGuidance, buildPersonaSummaries } from "./persona-context.js";
 import { getPersona } from "../personas/registry.js";
 
 /**
@@ -53,9 +50,7 @@ export function createPersonaTools(
         persona: z
           .string()
           .optional()
-          .describe(
-            'Optional persona ID or short name. Omit to list all personas.',
-          ),
+          .describe("Optional persona ID or short name. Omit to list all personas."),
       },
       async (args) => {
         if (!args.persona) {

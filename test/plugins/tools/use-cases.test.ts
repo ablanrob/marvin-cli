@@ -23,7 +23,18 @@ describe("Use Case Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "use-cases", "tech-assessments", "extension-designs"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "use-cases",
+      "tech-assessments",
+      "extension-designs",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, AEM_REGISTRATIONS);

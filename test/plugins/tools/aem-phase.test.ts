@@ -5,7 +5,6 @@ import * as os from "node:os";
 import * as YAML from "yaml";
 import { DocumentStore } from "../../../src/storage/store.js";
 import { createUseCaseTools } from "../../../src/plugins/builtin/tools/use-cases.js";
-import { createTechAssessmentTools } from "../../../src/plugins/builtin/tools/tech-assessments.js";
 import { createAemPhaseTools } from "../../../src/plugins/builtin/tools/aem-phase.js";
 import { COMMON_REGISTRATIONS } from "../../../src/plugins/common.js";
 import type { DocumentTypeRegistration } from "../../../src/storage/types.js";
@@ -27,7 +26,18 @@ describe("AEM Phase Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "use-cases", "tech-assessments", "extension-designs"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "use-cases",
+      "tech-assessments",
+      "extension-designs",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
 

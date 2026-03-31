@@ -3,11 +3,7 @@ import * as path from "node:path";
 import * as readline from "node:readline";
 import chalk from "chalk";
 import ora from "ora";
-import {
-  query,
-  type SDKMessage,
-  type SDKUserMessage,
-} from "@anthropic-ai/claude-agent-sdk";
+import { query, type SDKMessage, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { PersonaDefinition } from "../personas/types.js";
 import type { MergedConfig } from "../core/config.js";
 import { buildSystemPrompt } from "../personas/prompt-builder.js";
@@ -17,7 +13,14 @@ import { createMarvinMcpServer } from "./mcp-server.js";
 import { generateSessionName } from "./session-namer.js";
 import { SourceManifestManager } from "../sources/manifest.js";
 import { resolvePlugin, getPluginTools, getPluginPromptFragment } from "../plugins/registry.js";
-import { loadAllSkills, resolveSkillsForPersona, collectSkillRegistrations, getSkillTools, getSkillPromptFragment, getSkillAgentDefinitions } from "../skills/registry.js";
+import {
+  loadAllSkills,
+  resolveSkillsForPersona,
+  collectSkillRegistrations,
+  getSkillTools,
+  getSkillPromptFragment,
+  getSkillAgentDefinitions,
+} from "../skills/registry.js";
 import { buildNavGroups } from "../web/server.js";
 
 export interface SessionOptions {
@@ -72,7 +75,13 @@ export async function startSession(options: SessionOptions): Promise<void> {
     projectName: config.project.name,
     navGroups,
   });
-  const systemPrompt = buildSystemPrompt(persona, config.project, pluginPromptFragment, skillPromptFragment, marvinDir);
+  const systemPrompt = buildSystemPrompt(
+    persona,
+    config.project,
+    pluginPromptFragment,
+    skillPromptFragment,
+    marvinDir,
+  );
 
   // Resolve resume session
   let existingSession: SessionEntry | undefined;
@@ -85,21 +94,15 @@ export async function startSession(options: SessionOptions): Promise<void> {
     console.log(chalk.dim(`Resuming session "${existingSession.name}"...\n`));
   }
 
-  console.log(
-    chalk.bold(`\nMarvin — ${persona.name}\n`),
-  );
-  console.log(
-    chalk.dim(`Project: ${config.project.name} | Type "exit" to end\n`),
-  );
+  console.log(chalk.bold(`\nMarvin — ${persona.name}\n`));
+  console.log(chalk.dim(`Project: ${config.project.name} | Type "exit" to end\n`));
 
   // Track turns for session naming
   const turns: Array<{ role: string; content: string }> = [];
   let sessionId: string | undefined;
 
   // Create an async generator that yields user messages
-  async function* userMessages(
-    firstPrompt: string,
-  ): AsyncGenerator<SDKUserMessage, void> {
+  async function* userMessages(firstPrompt: string): AsyncGenerator<SDKUserMessage, void> {
     // Yield the first prompt
     yield {
       type: "user",
@@ -145,9 +148,7 @@ export async function startSession(options: SessionOptions): Promise<void> {
     options.initialPrompt ??
     `Hello! I'm ready to help with the "${config.project.name}" project. What would you like to work on?`;
 
-  const prompt = options.initialPrompt
-    ? firstPrompt
-    : userMessages(firstPrompt);
+  const prompt = options.initialPrompt ? firstPrompt : userMessages(firstPrompt);
 
   const spinner = ora({ text: "Thinking...", color: "cyan" });
 
@@ -266,7 +267,9 @@ function handleMessage(message: SDKMessage, spinner: ReturnType<typeof ora>): vo
         (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
       );
       if (textBlocks.length > 0) {
-        console.log(chalk.cyan("\nMarvin: ") + textBlocks.map((b: { text: string }) => b.text).join("\n"));
+        console.log(
+          chalk.cyan("\nMarvin: ") + textBlocks.map((b: { text: string }) => b.text).join("\n"),
+        );
       }
       break;
     }

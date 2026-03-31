@@ -14,7 +14,17 @@ describe("collectGarMetrics", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "sprints", "tasks"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "sprints",
+      "tasks",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, COMMON_REGISTRATIONS);
@@ -85,7 +95,11 @@ describe("collectGarMetrics", () => {
   });
 
   it("should NOT count done action with past dueDate as overdue", () => {
-    store.create("action", { title: "Completed task", status: "done", dueDate: "2020-01-01" } as any);
+    store.create("action", {
+      title: "Completed task",
+      status: "done",
+      dueDate: "2020-01-01",
+    } as any);
 
     const metrics = collectGarMetrics(store);
 
@@ -94,7 +108,12 @@ describe("collectGarMetrics", () => {
   });
 
   it("should deduplicate action with both overdue tag and past dueDate", () => {
-    store.create("action", { title: "Double overdue", status: "open", tags: ["overdue"], dueDate: "2020-01-01" } as any);
+    store.create("action", {
+      title: "Double overdue",
+      status: "open",
+      tags: ["overdue"],
+      dueDate: "2020-01-01",
+    } as any);
 
     const metrics = collectGarMetrics(store);
 
@@ -142,8 +161,18 @@ describe("collectGarMetrics", () => {
   });
 
   it("should compute weighted risk score by priority", () => {
-    store.create("action", { title: "Critical risk", status: "open", tags: ["risk"], priority: "critical" } as any);
-    store.create("action", { title: "Low risk", status: "open", tags: ["risk"], priority: "low" } as any);
+    store.create("action", {
+      title: "Critical risk",
+      status: "open",
+      tags: ["risk"],
+      priority: "critical",
+    } as any);
+    store.create("action", {
+      title: "Low risk",
+      status: "open",
+      tags: ["risk"],
+      priority: "low",
+    } as any);
 
     const metrics = collectGarMetrics(store);
 

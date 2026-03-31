@@ -3,14 +3,17 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
 
-export function createMeetingTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createMeetingTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_meetings",
       "List all meetings in the project, optionally filtered by status",
-      { status: z.string().optional().describe("Filter by status (e.g. 'scheduled', 'completed', 'cancelled')") },
+      {
+        status: z
+          .string()
+          .optional()
+          .describe("Filter by status (e.g. 'scheduled', 'completed', 'cancelled')"),
+      },
       async (args) => {
         const docs = store.list({ type: "meeting", status: args.status });
         const summary = docs.map((d) => ({
@@ -43,11 +46,7 @@ export function createMeetingTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -66,7 +65,11 @@ export function createMeetingTools(
         assignee: z.string().optional().describe("Person assigned to do the work"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
         attendees: z.array(z.string()).optional().describe("List of attendees"),
-        date: z.string().describe("Date the meeting took place (ISO format, e.g. '2025-01-15'). Extract from the meeting content. If not found, ask the user before calling this tool."),
+        date: z
+          .string()
+          .describe(
+            "Date the meeting took place (ISO format, e.g. '2025-01-15'). Extract from the meeting content. If not found, ask the user before calling this tool.",
+          ),
       },
       async (args) => {
         const frontmatter: Record<string, unknown> = {
@@ -79,11 +82,7 @@ export function createMeetingTools(
         if (args.attendees) frontmatter.attendees = args.attendees;
         frontmatter.date = args.date;
 
-        const doc = store.create(
-          "meeting",
-          frontmatter as any,
-          args.content,
-        );
+        const doc = store.create("meeting", frontmatter as any, args.content);
         return {
           content: [
             {
@@ -127,7 +126,10 @@ export function createMeetingTools(
       "Analyze a meeting to identify decisions, actions, and questions. Returns the meeting content with existing project context so you can extract and create artifacts using the create_decision, create_action, and create_question tools.",
       {
         id: z.string().describe("Meeting ID to analyze (e.g. 'M-001')"),
-        include_context: z.boolean().optional().describe("Include existing artifacts for dedup awareness (default: true)"),
+        include_context: z
+          .boolean()
+          .optional()
+          .describe("Include existing artifacts for dedup awareness (default: true)"),
       },
       async (args) => {
         const doc = store.get(args.id);
@@ -139,7 +141,12 @@ export function createMeetingTools(
         }
         if (doc.frontmatter.type !== "meeting") {
           return {
-            content: [{ type: "text" as const, text: `Document ${args.id} is not a meeting (type: ${doc.frontmatter.type})` }],
+            content: [
+              {
+                type: "text" as const,
+                text: `Document ${args.id} is not a meeting (type: ${doc.frontmatter.type})`,
+              },
+            ],
             isError: true,
           };
         }
@@ -167,27 +174,37 @@ export function createMeetingTools(
           if (decisions.length > 0) {
             sections.push("\n## Existing Decisions");
             for (const d of decisions) {
-              sections.push(`- ${d.frontmatter.id}: ${d.frontmatter.title} [${d.frontmatter.status}]`);
+              sections.push(
+                `- ${d.frontmatter.id}: ${d.frontmatter.title} [${d.frontmatter.status}]`,
+              );
             }
           }
           if (actions.length > 0) {
             sections.push("\n## Existing Actions");
             for (const a of actions) {
-              sections.push(`- ${a.frontmatter.id}: ${a.frontmatter.title} [${a.frontmatter.status}]`);
+              sections.push(
+                `- ${a.frontmatter.id}: ${a.frontmatter.title} [${a.frontmatter.status}]`,
+              );
             }
           }
           if (questions.length > 0) {
             sections.push("\n## Existing Questions");
             for (const q of questions) {
-              sections.push(`- ${q.frontmatter.id}: ${q.frontmatter.title} [${q.frontmatter.status}]`);
+              sections.push(
+                `- ${q.frontmatter.id}: ${q.frontmatter.title} [${q.frontmatter.status}]`,
+              );
             }
           }
         }
 
         sections.push("\n---\n# Instructions");
-        sections.push(`Analyze this meeting and create artifacts using create_decision, create_action, and create_question tools.`);
+        sections.push(
+          `Analyze this meeting and create artifacts using create_decision, create_action, and create_question tools.`,
+        );
         sections.push(`For each artifact, include the tag "source:${args.id}" for traceability.`);
-        sections.push(`After creating artifacts, update the meeting using update_meeting to append an Outcomes section listing the created artifact IDs.`);
+        sections.push(
+          `After creating artifacts, update the meeting using update_meeting to append an Outcomes section listing the created artifact IDs.`,
+        );
         sections.push(`Avoid creating duplicates of existing artifacts listed above.`);
 
         return {

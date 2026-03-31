@@ -10,23 +10,20 @@ import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
  * arrays as strings when calling MCP tools — z.preprocess handles that before
  * Zod validation runs, while the JSON Schema output stays `{ type: "array" }`.
  */
-const linkedFeatureArray = z.preprocess(
-  (val) => {
-    if (typeof val === "string") {
-      try {
-        const parsed = JSON.parse(val);
-        if (Array.isArray(parsed)) return parsed;
-      } catch { /* not JSON — treat as single ID */ }
-      return [val];
+const linkedFeatureArray = z.preprocess((val) => {
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      /* not JSON — treat as single ID */
     }
-    return val;
-  },
-  z.array(z.string()),
-);
+    return [val];
+  }
+  return val;
+}, z.array(z.string()));
 
-export function createEpicTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createEpicTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_epics",
@@ -36,10 +33,7 @@ export function createEpicTools(
           .enum(["planned", "in-progress", "done"])
           .optional()
           .describe("Filter by epic status"),
-        linkedFeature: z
-          .string()
-          .optional()
-          .describe("Filter by linked feature ID (e.g. 'F-001')"),
+        linkedFeature: z.string().optional().describe("Filter by linked feature ID (e.g. 'F-001')"),
       },
       async (args) => {
         let docs = store.list({ type: "epic", status: args.status });
@@ -81,11 +75,7 @@ export function createEpicTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -99,7 +89,9 @@ export function createEpicTools(
       {
         title: z.string().describe("Epic title"),
         content: z.string().describe("Epic description and scope"),
-        linkedFeature: linkedFeatureArray.describe("Feature ID(s) to link this epic to (e.g. ['F-001'] or ['F-001', 'F-002'])"),
+        linkedFeature: linkedFeatureArray.describe(
+          "Feature ID(s) to link this epic to (e.g. ['F-001'] or ['F-001', 'F-002'])",
+        ),
         status: z
           .enum(["planned", "in-progress", "done"])
           .optional()
@@ -107,7 +99,10 @@ export function createEpicTools(
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         targetDate: z.string().optional().describe("Target completion date (ISO format)"),
-        estimatedEffort: z.string().optional().describe("Estimated effort (e.g. '2 weeks', '5 story points')"),
+        estimatedEffort: z
+          .string()
+          .optional()
+          .describe("Estimated effort (e.g. '2 weeks', '5 story points')"),
         tags: z.array(z.string()).optional().describe("Additional tags"),
       },
       async (args) => {
@@ -180,20 +175,28 @@ export function createEpicTools(
       {
         id: z.string().describe("Epic ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z
-          .enum(["planned", "in-progress", "done"])
-          .optional()
-          .describe("New status"),
+        status: z.enum(["planned", "in-progress", "done"]).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         targetDate: z.string().optional().describe("New target date"),
         estimatedEffort: z.string().optional().describe("New estimated effort"),
         linkedFeature: linkedFeatureArray.optional().describe("New linked feature ID(s)"),
-        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
+        tags: z
+          .array(z.string())
+          .optional()
+          .describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
-        const { id, content, linkedFeature: rawLinkedFeature, tags: userTags, owner, assignee, ...updates } = args;
+        const {
+          id,
+          content,
+          linkedFeature: rawLinkedFeature,
+          tags: userTags,
+          owner,
+          assignee,
+          ...updates
+        } = args;
         if (owner !== undefined) (updates as any).owner = normalizeOwner(owner);
         if (assignee !== undefined) (updates as any).assignee = assignee;
 
@@ -204,16 +207,17 @@ export function createEpicTools(
             const feature = store.get(featureId);
             if (!feature) {
               return {
-                content: [
-                  { type: "text" as const, text: `Feature ${featureId} not found` },
-                ],
+                content: [{ type: "text" as const, text: `Feature ${featureId} not found` }],
                 isError: true,
               };
             }
             if (feature.frontmatter.type !== "feature") {
               return {
                 content: [
-                  { type: "text" as const, text: `${featureId} is a ${feature.frontmatter.type}, not a feature` },
+                  {
+                    type: "text" as const,
+                    text: `${featureId} is a ${feature.frontmatter.type}, not a feature`,
+                  },
                 ],
                 isError: true,
               };
@@ -221,7 +225,10 @@ export function createEpicTools(
             if (feature.frontmatter.status !== "approved") {
               return {
                 content: [
-                  { type: "text" as const, text: `Feature ${featureId} has status '${feature.frontmatter.status}'. Only approved features can have epics. Ask the Product Owner to approve it first.` },
+                  {
+                    type: "text" as const,
+                    text: `Feature ${featureId} has status '${feature.frontmatter.status}'. Only approved features can have epics. Ask the Product Owner to approve it first.`,
+                  },
                 ],
                 isError: true,
               };
@@ -235,7 +242,10 @@ export function createEpicTools(
           const existingTags: string[] = existingDoc?.frontmatter.tags ?? [];
           const nonFeatureTags = existingTags.filter((t) => !t.startsWith("feature:"));
           const baseTags = userTags ?? nonFeatureTags;
-          (updates as Record<string, unknown>).tags = [...generateFeatureTags(linkedFeatures), ...baseTags];
+          (updates as Record<string, unknown>).tags = [
+            ...generateFeatureTags(linkedFeatures),
+            ...baseTags,
+          ];
         } else if (userTags !== undefined) {
           (updates as Record<string, unknown>).tags = userTags;
         }

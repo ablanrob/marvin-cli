@@ -3,15 +3,16 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../personas/owner.js";
 
-export function createQuestionTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createQuestionTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_questions",
       "List all questions in the project, optionally filtered by status",
       {
-        status: z.string().optional().describe("Filter by status (e.g. 'open', 'answered', 'deferred')"),
+        status: z
+          .string()
+          .optional()
+          .describe("Filter by status (e.g. 'open', 'answered', 'deferred')"),
       },
       async (args) => {
         const docs = store.list({ type: "question", status: args.status });
@@ -45,11 +46,7 @@ export function createQuestionTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -101,7 +98,10 @@ export function createQuestionTools(
         content: z.string().optional().describe("Updated content / answer"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
-        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
+        tags: z
+          .array(z.string())
+          .optional()
+          .describe("Replace tags (e.g. remove 'risk', add 'risk-mitigated')"),
       },
       async (args) => {
         const { id, content, owner, assignee, ...updates } = args;

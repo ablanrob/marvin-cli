@@ -53,10 +53,7 @@ describe("MarvinGit", () => {
       expect(fs.existsSync(path.join(marvinDir, ".git"))).toBe(true);
       expect(fs.existsSync(path.join(marvinDir, ".gitignore"))).toBe(true);
 
-      const gitignore = fs.readFileSync(
-        path.join(marvinDir, ".gitignore"),
-        "utf-8",
-      );
+      const gitignore = fs.readFileSync(path.join(marvinDir, ".gitignore"), "utf-8");
       expect(gitignore).toContain("node_modules/");
       expect(gitignore).toContain(".DS_Store");
     });
@@ -225,12 +222,12 @@ describe("MarvinGit", () => {
   describe("clone", () => {
     it("should throw if .marvin/ already exists at target", async () => {
       // marvinDir already exists from beforeEach
-      await expect(
-        MarvinGit.clone("https://example.com/repo.git", tmpDir),
-      ).rejects.toThrow(GitSyncError);
-      await expect(
-        MarvinGit.clone("https://example.com/repo.git", tmpDir),
-      ).rejects.toThrow(".marvin/ already exists");
+      await expect(MarvinGit.clone("https://example.com/repo.git", tmpDir)).rejects.toThrow(
+        GitSyncError,
+      );
+      await expect(MarvinGit.clone("https://example.com/repo.git", tmpDir)).rejects.toThrow(
+        ".marvin/ already exists",
+      );
     });
   });
 });

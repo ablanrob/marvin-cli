@@ -82,7 +82,7 @@ export function collectGarMetrics(store: DocumentStore): GarMetrics {
     const overdueDays = daysBetween(dueDate, today);
     const isOverdue = urgency === "overdue";
     const isDueSoonCritical =
-      (urgency === "due-3d") && (priority === "critical" || priority === "high");
+      urgency === "due-3d" && (priority === "critical" || priority === "high");
 
     if ((isOverdue || isDueSoonCritical) && !seenAtRisk.has(action.frontmatter.id)) {
       seenAtRisk.add(action.frontmatter.id);
@@ -130,15 +130,11 @@ export function collectGarMetrics(store: DocumentStore): GarMetrics {
   );
 
   const scheduleItems: GarItemRef[] = [...blockedItems, ...overdueItems]
-    .filter(
-      (d, i, arr) => arr.findIndex((x) => x.frontmatter.id === d.frontmatter.id) === i,
-    )
+    .filter((d, i, arr) => arr.findIndex((x) => x.frontmatter.id === d.frontmatter.id) === i)
     .map((d) => {
       const dueDate = d.frontmatter.dueDate;
       const overdue =
-        typeof dueDate === "string" && dueDate < today
-          ? daysBetween(dueDate, today)
-          : undefined;
+        typeof dueDate === "string" && dueDate < today ? daysBetween(dueDate, today) : undefined;
       return {
         id: d.frontmatter.id,
         title: d.frontmatter.title,
@@ -154,9 +150,7 @@ export function collectGarMetrics(store: DocumentStore): GarMetrics {
 
   const openQuestions = store.list({ type: "question", status: "open" });
   const riskItems = allDocs.filter(
-    (d) =>
-      d.frontmatter.tags?.includes("risk") &&
-      !DONE_STATUSES.has(d.frontmatter.status),
+    (d) => d.frontmatter.tags?.includes("risk") && !DONE_STATUSES.has(d.frontmatter.status),
   );
 
   // Score risks by priority
@@ -173,14 +167,10 @@ export function collectGarMetrics(store: DocumentStore): GarMetrics {
   }).length;
 
   // Total open items for relative threshold
-  const totalOpenItems = allDocs.filter(
-    (d) => !DONE_STATUSES.has(d.frontmatter.status),
-  ).length;
+  const totalOpenItems = allDocs.filter((d) => !DONE_STATUSES.has(d.frontmatter.status)).length;
 
   const qualityItems: GarItemRef[] = [...riskItems, ...openQuestions]
-    .filter(
-      (d, i, arr) => arr.findIndex((x) => x.frontmatter.id === d.frontmatter.id) === i,
-    )
+    .filter((d, i, arr) => arr.findIndex((x) => x.frontmatter.id === d.frontmatter.id) === i)
     .map((d) => ({
       id: d.frontmatter.id,
       title: d.frontmatter.title,

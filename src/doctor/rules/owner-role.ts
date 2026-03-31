@@ -7,8 +7,7 @@ const RULE_NAME = "Owner Role";
 export const ownerRoleRule: DoctorRule = {
   id: RULE_ID,
   name: RULE_NAME,
-  description:
-    `Detects owner values that are not valid persona roles (${OWNER_SHORT.join(", ")})`,
+  description: `Detects owner values that are not valid persona roles (${OWNER_SHORT.join(", ")})`,
 
   scan(ctx: DoctorContext): DoctorIssue[] {
     const issues: DoctorIssue[] = [];

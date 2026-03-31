@@ -9,9 +9,7 @@ import { evaluateHealth } from "../../../reports/health/evaluator.js";
 import { collectSprintSummaryData } from "../../../reports/sprint-summary/collector.js";
 import { generateSprintSummary } from "../../../reports/sprint-summary/generator.js";
 
-export function createReportTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createReportTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "generate_status_report",
@@ -127,7 +125,10 @@ export function createReportTools(
       "generate_epic_progress",
       "Generate progress report grouped by epic documents (E-xxx) and legacy epic tags",
       {
-        epic: z.string().optional().describe("Specific epic ID (e.g. 'E-001') or legacy epic name to filter by"),
+        epic: z
+          .string()
+          .optional()
+          .describe("Specific epic ID (e.g. 'E-001') or legacy epic name to filter by"),
       },
       async (args) => {
         const allDocs = store.list();
@@ -140,8 +141,7 @@ export function createReportTools(
             const epicId = epicDoc.frontmatter.id;
             const workItems = allDocs.filter(
               (d) =>
-                d.frontmatter.type !== "epic" &&
-                d.frontmatter.tags?.includes(`epic:${epicId}`),
+                d.frontmatter.type !== "epic" && d.frontmatter.tags?.includes(`epic:${epicId}`),
             );
             const byStatus: Record<string, number> = {};
             const byType: Record<string, number> = {};
@@ -174,9 +174,7 @@ export function createReportTools(
         const epicIds = new Set(epicDocs.map((e) => e.frontmatter.id));
         const legacyMap = new Map<string, typeof allDocs>();
         for (const doc of allDocs) {
-          const epicTags = (doc.frontmatter.tags ?? []).filter((t) =>
-            t.startsWith("epic:"),
-          );
+          const epicTags = (doc.frontmatter.tags ?? []).filter((t) => t.startsWith("epic:"));
           for (const tag of epicTags) {
             const epicName = tag.slice(5);
             if (epicIds.has(epicName)) continue; // skip E-xxx references
@@ -223,7 +221,10 @@ export function createReportTools(
       "generate_sprint_progress",
       "Generate progress report for a sprint or all sprints, showing linked epics and tagged work items",
       {
-        sprint: z.string().optional().describe("Specific sprint ID (e.g. 'SP-001') or omit for all"),
+        sprint: z
+          .string()
+          .optional()
+          .describe("Specific sprint ID (e.g. 'SP-001') or omit for all"),
       },
       async (args) => {
         const allDocs = store.list();
@@ -257,9 +258,7 @@ export function createReportTools(
             }
 
             const doneCount =
-              (byStatus["done"] ?? 0) +
-              (byStatus["resolved"] ?? 0) +
-              (byStatus["closed"] ?? 0);
+              (byStatus["done"] ?? 0) + (byStatus["resolved"] ?? 0) + (byStatus["closed"] ?? 0);
             const total = workItems.length;
             const completionPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
@@ -298,7 +297,10 @@ export function createReportTools(
       "generate_feature_progress",
       "Generate progress report for features and their linked epics",
       {
-        feature: z.string().optional().describe("Specific feature ID (e.g. 'F-001') or omit for all"),
+        feature: z
+          .string()
+          .optional()
+          .describe("Specific feature ID (e.g. 'F-001') or omit for all"),
       },
       async (args) => {
         const featureDocs = store.list({ type: "feature" });
@@ -358,14 +360,15 @@ export function createReportTools(
       "generate_sprint_summary",
       "Generate an AI-powered narrative summary of a sprint's progress, health, achievements, risks, and projected outcome",
       {
-        sprint: z.string().optional().describe("Sprint ID (e.g. 'SP-001'). Omit for the active sprint."),
+        sprint: z
+          .string()
+          .optional()
+          .describe("Sprint ID (e.g. 'SP-001'). Omit for the active sprint."),
       },
       async (args) => {
         const data = collectSprintSummaryData(store, args.sprint);
         if (!data) {
-          const msg = args.sprint
-            ? `Sprint ${args.sprint} not found.`
-            : "No active sprint found.";
+          const msg = args.sprint ? `Sprint ${args.sprint} not found.` : "No active sprint found.";
           return { content: [{ type: "text" as const, text: msg }], isError: true };
         }
 
@@ -384,15 +387,20 @@ export function createReportTools(
         title: z.string().describe("Report title"),
         content: z.string().describe("Full report content in markdown"),
         reportType: z
-          .enum(["status", "risk-register", "gar", "epic-progress", "feature-progress", "sprint-progress", "custom"])
+          .enum([
+            "status",
+            "risk-register",
+            "gar",
+            "epic-progress",
+            "feature-progress",
+            "sprint-progress",
+            "custom",
+          ])
           .describe("Type of report"),
         tags: z.array(z.string()).optional().describe("Additional tags"),
       },
       async (args) => {
-        const tags = [
-          `report-type:${args.reportType}`,
-          ...(args.tags ?? []),
-        ];
+        const tags = [`report-type:${args.reportType}`, ...(args.tags ?? [])];
         const doc = store.create(
           "report",
           {

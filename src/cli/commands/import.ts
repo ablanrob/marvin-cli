@@ -60,23 +60,17 @@ export async function importCommand(
 
   if (result.imported > 0) {
     console.log(
-      chalk.green(
-        `Imported ${result.imported} document${result.imported === 1 ? "" : "s"}`,
-      ),
+      chalk.green(`Imported ${result.imported} document${result.imported === 1 ? "" : "s"}`),
     );
   }
   if (result.copied > 0) {
     console.log(
-      chalk.green(
-        `Copied ${result.copied} file${result.copied === 1 ? "" : "s"} to sources/`,
-      ),
+      chalk.green(`Copied ${result.copied} file${result.copied === 1 ? "" : "s"} to sources/`),
     );
   }
   if (result.skipped > 0) {
     console.log(
-      chalk.yellow(
-        `Skipped ${result.skipped} item${result.skipped === 1 ? "" : "s"} (conflicts)`,
-      ),
+      chalk.yellow(`Skipped ${result.skipped} item${result.skipped === 1 ? "" : "s"} (conflicts)`),
     );
   }
 

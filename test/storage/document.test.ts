@@ -266,9 +266,7 @@ describe("DocumentStore", () => {
 
   it("should throw when updating non-existent document", () => {
     const store = new DocumentStore(marvinDir);
-    expect(() => store.update("D-999", { status: "done" })).toThrow(
-      "Document D-999 not found",
-    );
+    expect(() => store.update("D-999", { status: "done" })).toThrow("Document D-999 not found");
   });
 
   it("should generate next ID correctly with existing documents", () => {
@@ -323,7 +321,11 @@ describe("DocumentStore", () => {
 
     expect(store.registeredTypes).toContain("use-case");
 
-    const doc = store.create("use-case", { title: "Test UC", status: "draft" }, "Use case content.");
+    const doc = store.create(
+      "use-case",
+      { title: "Test UC", status: "draft" },
+      "Use case content.",
+    );
     expect(doc.frontmatter.id).toBe("UC-001");
     expect(doc.frontmatter.type).toBe("use-case");
 

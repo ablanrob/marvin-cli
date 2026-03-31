@@ -29,7 +29,18 @@ describe("AEM Report Tools", () => {
   beforeEach(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics", "use-cases", "tech-assessments", "extension-designs"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+      "use-cases",
+      "tech-assessments",
+      "extension-designs",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, AEM_REGISTRATIONS);
@@ -44,22 +55,38 @@ describe("AEM Report Tools", () => {
     for (const t of createAemReportTools(store)) reportTools[t.name] = (t as any).handler;
 
     // Seed data
-    await ucTools.create_use_case({ title: "UC A", content: "A", status: "assessed", extensionType: "in-app" });
-    await ucTools.create_use_case({ title: "UC B", content: "B", status: "approved", extensionType: "side-by-side" });
+    await ucTools.create_use_case({
+      title: "UC A",
+      content: "A",
+      status: "assessed",
+      extensionType: "in-app",
+    });
+    await ucTools.create_use_case({
+      title: "UC B",
+      content: "B",
+      status: "approved",
+      extensionType: "side-by-side",
+    });
     await ucTools.create_use_case({ title: "UC C", content: "C", status: "draft" });
 
     await taTools.create_tech_assessment({
-      title: "TA 1", content: "T1", linkedUseCase: "UC-001",
+      title: "TA 1",
+      content: "T1",
+      linkedUseCase: "UC-001",
       btpServices: ["SAP Event Mesh", "SAP Integration Suite"],
       status: "recommended",
     });
     await taTools.create_tech_assessment({
-      title: "TA 2", content: "T2", linkedUseCase: "UC-002",
+      title: "TA 2",
+      content: "T2",
+      linkedUseCase: "UC-002",
       btpServices: ["SAP Build Work Zone"],
     });
 
     await xdTools.create_extension_design({
-      title: "XD 1", content: "D1", linkedTechAssessment: "TA-001",
+      title: "XD 1",
+      content: "D1",
+      linkedTechAssessment: "TA-001",
       architecture: "event-driven",
     });
   });

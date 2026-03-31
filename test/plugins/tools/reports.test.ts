@@ -15,16 +15,40 @@ describe("Report Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, COMMON_REGISTRATIONS);
 
     // Populate test data
-    store.create("action", { title: "Build API", status: "open", owner: "alice", priority: "high", tags: ["epic:backend", "risk"] });
+    store.create("action", {
+      title: "Build API",
+      status: "open",
+      owner: "alice",
+      priority: "high",
+      tags: ["epic:backend", "risk"],
+    });
     store.create("action", { title: "Write tests", status: "open", tags: ["epic:backend"] });
-    store.create("action", { title: "Design UI", status: "done", owner: "bob", tags: ["epic:frontend"] });
-    store.create("action", { title: "Deploy", status: "open", priority: "high", tags: ["blocked", "epic:infra"] });
+    store.create("action", {
+      title: "Design UI",
+      status: "done",
+      owner: "bob",
+      tags: ["epic:frontend"],
+    });
+    store.create("action", {
+      title: "Deploy",
+      status: "open",
+      priority: "high",
+      tags: ["blocked", "epic:infra"],
+    });
     store.create("decision", { title: "Use REST", status: "open", tags: ["epic:backend"] });
     store.create("decision", { title: "Use React", status: "decided", tags: ["epic:frontend"] });
     store.create("question", { title: "Which DB?", status: "open", tags: ["risk"] });

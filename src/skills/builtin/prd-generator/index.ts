@@ -7,9 +7,7 @@ export const prdGeneratorSkill: SkillDefinition = {
   description: "Generate PRDs from governance artifacts for TaskMaster or Claude Code",
   version: "1.0.0",
   format: "builtin-ts",
-  documentTypeRegistrations: [
-    { type: "prd", dirName: "prds", idPrefix: "PRD" },
-  ],
+  documentTypeRegistrations: [{ type: "prd", dirName: "prds", idPrefix: "PRD" }],
   tools: (store) => createPrdTools(store),
   promptFragments: {
     "tech-lead": `You have the **PRD Generator** skill. You can generate Product Requirements Documents from governance artifacts.

@@ -13,7 +13,9 @@ export function tlDecisionsPage(ctx: PersonaPageContext): string {
     const tags = (d.frontmatter.tags as string[]) ?? [];
     return tags.some((t) => {
       const lower = t.toLowerCase();
-      return lower.includes("technical") || lower.includes("architecture") || lower.includes("design");
+      return (
+        lower.includes("technical") || lower.includes("architecture") || lower.includes("design")
+      );
     });
   });
 
@@ -21,15 +23,21 @@ export function tlDecisionsPage(ctx: PersonaPageContext): string {
   const displayDecisions = technicalDecisions.length > 0 ? technicalDecisions : decisions;
   const isFiltered = technicalDecisions.length > 0;
 
-  const openDecisions = displayDecisions.filter((d) => !RESOLVED_STATUSES.has(d.frontmatter.status));
-  const resolvedDecisions = displayDecisions.filter((d) => RESOLVED_STATUSES.has(d.frontmatter.status));
+  const openDecisions = displayDecisions.filter(
+    (d) => !RESOLVED_STATUSES.has(d.frontmatter.status),
+  );
+  const resolvedDecisions = displayDecisions.filter((d) =>
+    RESOLVED_STATUSES.has(d.frontmatter.status),
+  );
 
   // Technical questions
   const technicalQuestions = questions.filter((d) => {
     const tags = (d.frontmatter.tags as string[]) ?? [];
     return tags.some((t) => {
       const lower = t.toLowerCase();
-      return lower.includes("technical") || lower.includes("architecture") || lower.includes("design");
+      return (
+        lower.includes("technical") || lower.includes("architecture") || lower.includes("design")
+      );
     });
   });
   const displayQuestions = technicalQuestions.length > 0 ? technicalQuestions : questions;
@@ -62,9 +70,10 @@ export function tlDecisionsPage(ctx: PersonaPageContext): string {
           <tr><th>ID</th><th>Title</th><th>Status</th><th>Owner</th><th>Tags</th><th>Created</th></tr>
         </thead>
         <tbody>
-          ${docs.map((d) => {
-            const tags = (d.frontmatter.tags as string[]) ?? [];
-            return `
+          ${docs
+            .map((d) => {
+              const tags = (d.frontmatter.tags as string[]) ?? [];
+              return `
           <tr>
             <td><a href="/docs/decision/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
             <td>${escapeHtml(d.frontmatter.title)}</td>
@@ -73,7 +82,8 @@ export function tlDecisionsPage(ctx: PersonaPageContext): string {
             <td>${tags.length > 0 ? tags.map((t) => `<span class="signal-tag">${escapeHtml(t)}</span>`).join(" ") : '<span class="text-dim">—</span>'}</td>
             <td>${formatDate(d.frontmatter.created)}</td>
           </tr>`;
-          }).join("")}
+            })
+            .join("")}
         </tbody>
       </table>
     </div>`;
@@ -93,29 +103,34 @@ export function tlDecisionsPage(ctx: PersonaPageContext): string {
     { titleTag: "h3", defaultCollapsed: true },
   );
 
-  const questionsSection = openQuestions.length > 0
-    ? collapsibleSection(
-        "tl-decisions-questions",
-        `Open Questions (${openQuestions.length})`,
-        `<div class="table-wrap">
+  const questionsSection =
+    openQuestions.length > 0
+      ? collapsibleSection(
+          "tl-decisions-questions",
+          `Open Questions (${openQuestions.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Owner</th><th>Created</th></tr>
             </thead>
             <tbody>
-              ${openQuestions.map((d) => `
+              ${openQuestions
+                .map(
+                  (d) => `
               <tr>
                 <td><a href="/docs/question/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   return `
     <div class="page-header">

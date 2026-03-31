@@ -10,23 +10,20 @@ import { propagateProgressFromTask } from "../../../storage/progress.js";
  * arrays as strings when calling MCP tools — z.preprocess handles that before
  * Zod validation runs, while the JSON Schema output stays `{ type: "array" }`.
  */
-const linkedEpicArray = z.preprocess(
-  (val) => {
-    if (typeof val === "string") {
-      try {
-        const parsed = JSON.parse(val);
-        if (Array.isArray(parsed)) return parsed;
-      } catch { /* not JSON — treat as single ID */ }
-      return [val];
+const linkedEpicArray = z.preprocess((val) => {
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      /* not JSON — treat as single ID */
     }
-    return val;
-  },
-  z.array(z.string()),
-);
+    return [val];
+  }
+  return val;
+}, z.array(z.string()));
 
-export function createTaskTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createTaskTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_tasks",
@@ -36,10 +33,7 @@ export function createTaskTools(
           .enum(["backlog", "ready", "in-progress", "review", "done"])
           .optional()
           .describe("Filter by task status"),
-        linkedEpic: z
-          .string()
-          .optional()
-          .describe("Filter by linked epic ID (e.g. 'E-001')"),
+        linkedEpic: z.string().optional().describe("Filter by linked epic ID (e.g. 'E-001')"),
         priority: z
           .enum(["critical", "high", "medium", "low"])
           .optional()
@@ -88,11 +82,7 @@ export function createTaskTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -106,8 +96,13 @@ export function createTaskTools(
       {
         title: z.string().describe("Task title"),
         content: z.string().describe("Task description and implementation details"),
-        linkedEpic: linkedEpicArray.describe("Epic ID(s) to link this task to (e.g. ['E-001'] or ['E-001', 'E-002'])"),
-        aboutArtifact: z.string().optional().describe("Parent artifact this task derives from (e.g. 'A-001')"),
+        linkedEpic: linkedEpicArray.describe(
+          "Epic ID(s) to link this task to (e.g. ['E-001'] or ['E-001', 'E-002'])",
+        ),
+        aboutArtifact: z
+          .string()
+          .optional()
+          .describe("Parent artifact this task derives from (e.g. 'A-001')"),
         status: z
           .enum(["backlog", "ready", "in-progress", "review", "done"])
           .optional()
@@ -124,7 +119,10 @@ export function createTaskTools(
           .optional()
           .describe("Task priority"),
         tags: z.array(z.string()).optional().describe("Additional tags"),
-        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Adds a focus:<value> tag."),
+        workFocus: z
+          .string()
+          .optional()
+          .describe("Work focus name (e.g. 'Budget UX'). Adds a focus:<value> tag."),
       },
       async (args) => {
         const linkedEpics = normalizeLinkedEpics(args.linkedEpic);
@@ -176,7 +174,10 @@ export function createTaskTools(
       {
         id: z.string().describe("Task ID to update"),
         title: z.string().optional().describe("New title"),
-        aboutArtifact: z.string().optional().describe("Parent artifact this task derives from (e.g. 'A-001')"),
+        aboutArtifact: z
+          .string()
+          .optional()
+          .describe("Parent artifact this task derives from (e.g. 'A-001')"),
         status: z
           .enum(["backlog", "ready", "in-progress", "review", "done"])
           .optional()
@@ -190,17 +191,40 @@ export function createTaskTools(
           .enum(["trivial", "simple", "moderate", "complex", "very-complex"])
           .optional()
           .describe("New complexity"),
-        priority: z
-          .enum(["critical", "high", "medium", "low"])
+        priority: z.enum(["critical", "high", "medium", "low"]).optional().describe("New priority"),
+        tags: z
+          .array(z.string())
           .optional()
-          .describe("New priority"),
-        tags: z.array(z.string()).optional().describe("Replace tags (e.g. remove old tags, add new ones)"),
-        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
-        progress: z.number().nullable().optional().describe("Explicit progress percentage (0-100). Overrides auto-calculation from child contributions. Pass null to clear the override and revert to auto-calculation."),
-        progressOverride: z.boolean().optional().describe("Control auto-calculation lock. true = lock progress to explicit value, false = allow auto-calculation from children. When omitted: setting progress implies true, null progress implies false."),
+          .describe("Replace tags (e.g. remove old tags, add new ones)"),
+        workFocus: z
+          .string()
+          .optional()
+          .describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
+        progress: z
+          .number()
+          .nullable()
+          .optional()
+          .describe(
+            "Explicit progress percentage (0-100). Overrides auto-calculation from child contributions. Pass null to clear the override and revert to auto-calculation.",
+          ),
+        progressOverride: z
+          .boolean()
+          .optional()
+          .describe(
+            "Control auto-calculation lock. true = lock progress to explicit value, false = allow auto-calculation from children. When omitted: setting progress implies true, null progress implies false.",
+          ),
       },
       async (args) => {
-        const { id, content, linkedEpic: rawLinkedEpic, tags: userTags, workFocus, progress, progressOverride, ...updates } = args;
+        const {
+          id,
+          content,
+          linkedEpic: rawLinkedEpic,
+          tags: userTags,
+          workFocus,
+          progress,
+          progressOverride,
+          ...updates
+        } = args;
         const warnings: string[] = [];
 
         // If linkedEpic is being changed, soft-validate
@@ -223,15 +247,20 @@ export function createTaskTools(
           const existingTags: string[] = existingDoc?.frontmatter.tags ?? [];
           const nonEpicTags = existingTags.filter((t) => !t.startsWith("epic:"));
           const baseTags = userTags ?? nonEpicTags;
-          (updates as Record<string, unknown>).tags = [...generateEpicTags(linkedEpics), ...baseTags];
+          (updates as Record<string, unknown>).tags = [
+            ...generateEpicTags(linkedEpics),
+            ...baseTags,
+          ];
         } else if (userTags !== undefined) {
           (updates as Record<string, unknown>).tags = userTags;
         }
 
         // Handle workFocus: replace existing focus:* tag
         if (workFocus !== undefined) {
-          const currentTags: string[] = (updates as Record<string, unknown>).tags as string[]
-            ?? store.get(id)?.frontmatter.tags ?? [];
+          const currentTags: string[] =
+            ((updates as Record<string, unknown>).tags as string[]) ??
+            store.get(id)?.frontmatter.tags ??
+            [];
           const filtered = currentTags.filter((t) => !t.startsWith("focus:"));
           filtered.push(`focus:${workFocus}`);
           (updates as Record<string, unknown>).tags = filtered;
@@ -239,7 +268,10 @@ export function createTaskTools(
 
         // Include progress in frontmatter updates
         if (typeof progress === "number") {
-          (updates as Record<string, unknown>).progress = Math.max(0, Math.min(100, Math.round(progress)));
+          (updates as Record<string, unknown>).progress = Math.max(
+            0,
+            Math.min(100, Math.round(progress)),
+          );
           // Explicit progressOverride param takes precedence; default to true
           (updates as Record<string, unknown>).progressOverride = progressOverride ?? true;
         } else if (progress === null) {

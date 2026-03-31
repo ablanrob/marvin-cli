@@ -3,10 +3,7 @@ import { exec } from "node:child_process";
 import { loadProject } from "../core/project.js";
 import { resolvePlugin } from "../plugins/registry.js";
 import { COMMON_REGISTRATIONS } from "../plugins/common.js";
-import {
-  loadAllSkills,
-  collectSkillRegistrations,
-} from "../skills/registry.js";
+import { loadAllSkills, collectSkillRegistrations } from "../skills/registry.js";
 import { DocumentStore } from "../storage/store.js";
 import { handleRequest } from "./router.js";
 import type { NavGroup } from "./templates/layout.js";
@@ -26,9 +23,7 @@ const CORE_TYPES = ["decision", "action", "question"];
 
 export function buildNavGroups(input: BuildNavGroupsInput): NavGroup[] {
   const commonTypes = new Set(COMMON_REGISTRATIONS.map((r) => r.type));
-  const pluginOnlyTypes = input.pluginRegs
-    .map((r) => r.type)
-    .filter((t) => !commonTypes.has(t));
+  const pluginOnlyTypes = input.pluginRegs.map((r) => r.type).filter((t) => !commonTypes.has(t));
   const skillTypes = input.skillRegs.map((r) => r.type);
 
   const navGroups: NavGroup[] = [
@@ -57,10 +52,7 @@ export async function startWebServer(opts: WebServerOptions): Promise<void> {
   const allSkillIds = [...allSkills.keys()];
   const skillRegs = collectSkillRegistrations(allSkillIds, allSkills);
 
-  const store = new DocumentStore(project.marvinDir, [
-    ...pluginRegs,
-    ...skillRegs,
-  ]);
+  const store = new DocumentStore(project.marvinDir, [...pluginRegs, ...skillRegs]);
   const projectName = project.config.name;
 
   const navGroups = buildNavGroups({

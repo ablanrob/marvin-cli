@@ -1,5 +1,11 @@
 import type { SprintWorkItem } from "../../../reports/sprint-summary/types.js";
-import { collapsibleSection, escapeHtml, statusBadge, jiraIcon, confluenceIcon } from "../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  statusBadge,
+  jiraIcon,
+  confluenceIcon,
+} from "../layout.js";
 
 const FOCUS_BORDER_PALETTE = [
   "hsl(220, 60%, 55%)",
@@ -23,7 +29,12 @@ function hashString(s: string): number {
 const DONE_STATUS_SET = new Set(["done", "closed", "resolved", "decided"]);
 const DEFAULT_WEIGHT = 3;
 
-function countFocusStats(items: SprintWorkItem[]): { total: number; done: number; inProgress: number; weightedProgress: number } {
+function countFocusStats(items: SprintWorkItem[]): {
+  total: number;
+  done: number;
+  inProgress: number;
+  weightedProgress: number;
+} {
   let total = 0;
   let done = 0;
   let inProgress = 0;
@@ -51,7 +62,12 @@ function countFocusStats(items: SprintWorkItem[]): { total: number; done: number
     totalWeight += weight;
     weightedSum += weight * progress;
   }
-  return { total, done, inProgress, weightedProgress: totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0 };
+  return {
+    total,
+    done,
+    inProgress,
+    weightedProgress: totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0,
+  };
 }
 
 const KNOWN_OWNERS = new Set(["po", "tl", "dm"]);
@@ -62,7 +78,12 @@ function ownerBadge(owner?: string): string {
   return `<span class="owner-badge ${cls}">${escapeHtml(owner.toUpperCase())}</span>`;
 }
 
-function renderItemRows(items: SprintWorkItem[], borderColor: string, showOwner: boolean, depth = 0): string[] {
+function renderItemRows(
+  items: SprintWorkItem[],
+  borderColor: string,
+  showOwner: boolean,
+  depth = 0,
+): string[] {
   return items.flatMap((w) => {
     const isChild = depth > 0;
     const isContribution = w.type === "contribution";
@@ -70,9 +91,10 @@ function renderItemRows(items: SprintWorkItem[], borderColor: string, showOwner:
     if (isContribution) classes.push("contribution-row");
     else if (isChild) classes.push("child-row");
     const indent = depth > 0 ? ` style="padding-left: ${0.75 + depth * 1}rem"` : "";
-    const progressCell = !isContribution && w.progress !== undefined
-      ? `<div class="mini-progress-bar"><div class="mini-progress-fill" style="width:${w.progress}%"></div><span class="mini-progress-label">${w.progress}%</span></div>`
-      : "";
+    const progressCell =
+      !isContribution && w.progress !== undefined
+        ? `<div class="mini-progress-bar"><div class="mini-progress-fill" style="width:${w.progress}%"></div><span class="mini-progress-label">${w.progress}%</span></div>`
+        : "";
     const ownerCell = showOwner ? `<td>${ownerBadge(w.owner)}</td>` : "";
     const row = `
               <tr class="${classes.join(" ")}" style="--focus-color: ${borderColor}">
@@ -82,7 +104,9 @@ function renderItemRows(items: SprintWorkItem[], borderColor: string, showOwner:
                 <td>${statusBadge(w.status)}</td>
                 <td>${progressCell}</td>
               </tr>`;
-    const childRows = w.children ? renderItemRows(w.children, borderColor, showOwner, depth + 1) : [];
+    const childRows = w.children
+      ? renderItemRows(w.children, borderColor, showOwner, depth + 1)
+      : [];
     return [row, ...childRows];
   });
 }

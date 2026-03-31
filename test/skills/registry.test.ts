@@ -93,7 +93,9 @@ describe("loadAllSkills", () => {
     );
     fs.writeFileSync(
       path.join(skillDir, "actions.yaml"),
-      YAML.stringify([{ id: "run", name: "Run", description: "Run it", systemPrompt: "Do it.", maxTurns: 3 }]),
+      YAML.stringify([
+        { id: "run", name: "Run", description: "Run it", systemPrompt: "Do it.", maxTurns: 3 },
+      ]),
       "utf-8",
     );
 
@@ -195,11 +197,7 @@ describe("loadAllSkills", () => {
   });
 
   it("should ignore non-YAML files", () => {
-    fs.writeFileSync(
-      path.join(marvinDir, "skills", "readme.md"),
-      "# Not a skill",
-      "utf-8",
-    );
+    fs.writeFileSync(path.join(marvinDir, "skills", "readme.md"), "# Not a skill", "utf-8");
 
     const skills = loadAllSkills(marvinDir);
     // Should not load the readme.md as a skill
@@ -260,8 +258,8 @@ describe("loadSkillFromDirectory", () => {
     const skill = loadSkillFromDirectory(skillDir);
     expect(skill!.promptFragments).toEqual({
       "*": "Wildcard.",
-      "dm": "DM prompt.",
-      "po": "PO prompt.",
+      dm: "DM prompt.",
+      po: "PO prompt.",
     });
   });
 
@@ -276,8 +274,20 @@ describe("loadSkillFromDirectory", () => {
     );
 
     const actions = [
-      { id: "analyze", name: "Analyze", description: "Analyze stuff", systemPrompt: "Analyze.", maxTurns: 3 },
-      { id: "report", name: "Report", description: "Generate report", systemPrompt: "Report.", maxTurns: 5 },
+      {
+        id: "analyze",
+        name: "Analyze",
+        description: "Analyze stuff",
+        systemPrompt: "Analyze.",
+        maxTurns: 3,
+      },
+      {
+        id: "report",
+        name: "Report",
+        description: "Generate report",
+        systemPrompt: "Report.",
+        maxTurns: 5,
+      },
     ];
     fs.writeFileSync(path.join(skillDir, "actions.yaml"), YAML.stringify(actions), "utf-8");
 
@@ -373,7 +383,12 @@ describe("getSkillTools", () => {
   });
 
   it("should return tools from code skills", () => {
-    const mockTool = { name: "test_tool", description: "test", inputSchema: {}, handler: async () => ({ content: [] }) };
+    const mockTool = {
+      name: "test_tool",
+      description: "test",
+      inputSchema: {},
+      handler: async () => ({ content: [] }),
+    };
     const skills = new Map<string, SkillDefinition>();
     skills.set("code-skill", {
       id: "code-skill",
@@ -391,7 +406,12 @@ describe("getSkillTools", () => {
 
   it("should pass projectConfig through to skill tools factory", () => {
     let receivedConfig: unknown;
-    const mockTool = { name: "test_tool", description: "test", inputSchema: {}, handler: async () => ({ content: [] }) };
+    const mockTool = {
+      name: "test_tool",
+      description: "test",
+      inputSchema: {},
+      handler: async () => ({ content: [] }),
+    };
     const skills = new Map<string, SkillDefinition>();
     skills.set("config-skill", {
       id: "config-skill",
@@ -421,11 +441,7 @@ describe("getSkillPromptFragment", () => {
   it("should return persona-specific fragment", () => {
     const skills = loadAllSkills();
 
-    const fragment = getSkillPromptFragment(
-      ["governance-review"],
-      skills,
-      "delivery-manager",
-    );
+    const fragment = getSkillPromptFragment(["governance-review"], skills, "delivery-manager");
     expect(fragment).toBeDefined();
     expect(fragment).toContain("Governance Review");
     expect(fragment).toContain("governance-review__summarize");
@@ -442,11 +458,7 @@ describe("getSkillPromptFragment", () => {
       promptFragments: { "*": "Available to all personas." },
     });
 
-    const fragment = getSkillPromptFragment(
-      ["wildcard-skill"],
-      skills,
-      "any-persona",
-    );
+    const fragment = getSkillPromptFragment(["wildcard-skill"], skills, "any-persona");
     expect(fragment).toContain("Available to all personas");
     expect(fragment).toContain("Wildcard Skill");
   });
@@ -465,11 +477,7 @@ describe("getSkillPromptFragment", () => {
       },
     });
 
-    const fragment = getSkillPromptFragment(
-      ["both-skill"],
-      skills,
-      "product-owner",
-    );
+    const fragment = getSkillPromptFragment(["both-skill"], skills, "product-owner");
     expect(fragment).toContain("PO-specific fragment");
     expect(fragment).not.toContain("Generic fragment");
   });
@@ -477,11 +485,7 @@ describe("getSkillPromptFragment", () => {
   it("should return undefined when no matching fragments", () => {
     const skills = loadAllSkills();
 
-    const fragment = getSkillPromptFragment(
-      ["governance-review"],
-      skills,
-      "tech-lead",
-    );
+    const fragment = getSkillPromptFragment(["governance-review"], skills, "tech-lead");
     expect(fragment).toBeUndefined();
   });
 
@@ -504,11 +508,7 @@ describe("getSkillPromptFragment", () => {
       promptFragments: { "*": "Fragment B" },
     });
 
-    const fragment = getSkillPromptFragment(
-      ["skill-a", "skill-b"],
-      skills,
-      "any-persona",
-    );
+    const fragment = getSkillPromptFragment(["skill-a", "skill-b"], skills, "any-persona");
     expect(fragment).toContain("Fragment A");
     expect(fragment).toContain("Fragment B");
     expect(fragment).toContain("### Skill A");
@@ -584,9 +584,7 @@ describe("getSkillAgentDefinitions", () => {
       description: "Test",
       version: "1.0.0",
       format: "yaml",
-      actions: [
-        { id: "act", name: "Act", description: "Do", systemPrompt: "Go." },
-      ],
+      actions: [{ id: "act", name: "Act", description: "Do", systemPrompt: "Go." }],
     });
 
     const agents = getSkillAgentDefinitions(["default-turns"], skills);
@@ -602,7 +600,13 @@ describe("getSkillAgentDefinitions", () => {
       version: "1.0.0",
       format: "yaml",
       actions: [
-        { id: "act", name: "Act", description: "Do", systemPrompt: "Go.", allowGovernanceTools: false },
+        {
+          id: "act",
+          name: "Act",
+          description: "Do",
+          systemPrompt: "Go.",
+          allowGovernanceTools: false,
+        },
       ],
     });
 
@@ -626,9 +630,7 @@ describe("collectSkillRegistrations", () => {
       description: "Jira integration",
       version: "1.0.0",
       format: "builtin-ts",
-      documentTypeRegistrations: [
-        { type: "jira-issue", dirName: "jira-issues", idPrefix: "JI" },
-      ],
+      documentTypeRegistrations: [{ type: "jira-issue", dirName: "jira-issues", idPrefix: "JI" }],
     });
 
     const regs = collectSkillRegistrations(["jira"], skills);
@@ -660,9 +662,7 @@ describe("collectSkillRegistrations", () => {
       description: "A",
       version: "1.0.0",
       format: "builtin-ts",
-      documentTypeRegistrations: [
-        { type: "type-a", dirName: "dir-a", idPrefix: "A" },
-      ],
+      documentTypeRegistrations: [{ type: "type-a", dirName: "dir-a", idPrefix: "A" }],
     });
     skills.set("skill-b", {
       id: "skill-b",
@@ -670,9 +670,7 @@ describe("collectSkillRegistrations", () => {
       description: "B",
       version: "1.0.0",
       format: "builtin-ts",
-      documentTypeRegistrations: [
-        { type: "type-b", dirName: "dir-b", idPrefix: "B" },
-      ],
+      documentTypeRegistrations: [{ type: "type-b", dirName: "dir-b", idPrefix: "B" }],
     });
 
     const regs = collectSkillRegistrations(["skill-a", "skill-b"], skills);

@@ -219,17 +219,12 @@ export function createProgram(): Command {
       await skillsMigrateCommand();
     });
 
-  const reportCmd = program
-    .command("report")
-    .description("Generate project reports");
+  const reportCmd = program.command("report").description("Generate project reports");
 
   reportCmd
     .command("gar")
     .description("Generate a Green/Amber/Red status report")
-    .option(
-      "--format <format>",
-      "Output format: ascii or confluence (default: ascii)",
-    )
+    .option("--format <format>", "Output format: ascii or confluence (default: ascii)")
     .action(async (options) => {
       await garReportCommand(options);
     });
@@ -237,10 +232,7 @@ export function createProgram(): Command {
   reportCmd
     .command("health")
     .description("Generate a governance health check report")
-    .option(
-      "--format <format>",
-      "Output format: ascii or confluence (default: ascii)",
-    )
+    .option("--format <format>", "Output format: ascii or confluence (default: ascii)")
     .action(async (options) => {
       await healthReportCommand(options);
     });
@@ -272,9 +264,7 @@ export function createProgram(): Command {
       await doctorCommand(options);
     });
 
-  const generateCmd = program
-    .command("generate")
-    .description("Generate project files");
+  const generateCmd = program.command("generate").description("Generate project files");
 
   generateCmd
     .command("claude-md")
@@ -284,9 +274,7 @@ export function createProgram(): Command {
       await generateClaudeMdCommand(options);
     });
 
-  const jiraCmd = program
-    .command("jira")
-    .description("Jira integration commands");
+  const jiraCmd = program.command("jira").description("Jira integration commands");
 
   jiraCmd
     .command("sync [artifactId]")

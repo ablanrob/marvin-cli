@@ -96,7 +96,11 @@ export async function ingestFile(options: IngestOptions): Promise<IngestResult> 
       console.log(chalk.dim(`\nDraft proposal complete. No artifacts were created.`));
       console.log(chalk.dim(`Use "marvin ingest ${fileName} --no-draft" to create artifacts.`));
     } else {
-      console.log(chalk.green(`\nCreated ${createdArtifacts.length} artifact${createdArtifacts.length === 1 ? "" : "s"} from ${fileName}`));
+      console.log(
+        chalk.green(
+          `\nCreated ${createdArtifacts.length} artifact${createdArtifacts.length === 1 ? "" : "s"} from ${fileName}`,
+        ),
+      );
       if (createdArtifacts.length > 0) {
         console.log(chalk.dim(`  ${createdArtifacts.join(", ")}`));
       }
@@ -111,21 +115,16 @@ export async function ingestFile(options: IngestOptions): Promise<IngestResult> 
   }
 }
 
-function handleIngestMessage(
-  message: SDKMessage,
-  spinner: ReturnType<typeof ora>,
-): void {
+function handleIngestMessage(message: SDKMessage, spinner: ReturnType<typeof ora>): void {
   switch (message.type) {
     case "assistant": {
       spinner.stop();
       const textBlocks = message.message.content.filter(
-        (b: { type: string }): b is { type: "text"; text: string } =>
-          b.type === "text",
+        (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
       );
       if (textBlocks.length > 0) {
         console.log(
-          chalk.cyan("\nMarvin: ") +
-            textBlocks.map((b: { text: string }) => b.text).join("\n"),
+          chalk.cyan("\nMarvin: ") + textBlocks.map((b: { text: string }) => b.text).join("\n"),
         );
       }
       break;
@@ -139,9 +138,7 @@ function handleIngestMessage(
     case "result": {
       spinner.stop();
       if (message.subtype !== "success") {
-        console.log(
-          chalk.red(`\nIngest ended with error: ${message.subtype}`),
-        );
+        console.log(chalk.red(`\nIngest ended with error: ${message.subtype}`));
       }
       break;
     }

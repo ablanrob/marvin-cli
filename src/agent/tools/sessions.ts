@@ -2,9 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { SessionStore } from "../../storage/session-store.js";
 
-export function createSessionTools(
-  store: SessionStore,
-): SdkMcpToolDefinition<any>[] {
+export function createSessionTools(store: SessionStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_sessions",

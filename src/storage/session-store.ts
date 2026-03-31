@@ -20,9 +20,7 @@ export class SessionStore {
 
   list(): SessionEntry[] {
     const entries = this.load();
-    return entries.sort(
-      (a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime(),
-    );
+    return entries.sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime());
   }
 
   get(name: string): SessionEntry | undefined {

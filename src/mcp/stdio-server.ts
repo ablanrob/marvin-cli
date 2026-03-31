@@ -92,10 +92,7 @@ function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
  * Register SdkMcpToolDefinition objects onto an McpServer instance.
  * The adapter is nearly 1:1 since both use Zod raw shapes and CallToolResult.
  */
-export function registerSdkTools(
-  server: McpServer,
-  tools: SdkMcpToolDefinition<any>[],
-): void {
+export function registerSdkTools(server: McpServer, tools: SdkMcpToolDefinition<any>[]): void {
   for (const sdkTool of tools) {
     const hasInputSchema = Object.keys(sdkTool.inputSchema).length > 0;
     if (hasInputSchema) {
@@ -103,15 +100,10 @@ export function registerSdkTools(
         sdkTool.name,
         sdkTool.description,
         sdkTool.inputSchema,
-        async (args: Record<string, unknown>) =>
-          sdkTool.handler(stripUndefined(args) as any, {}),
+        async (args: Record<string, unknown>) => sdkTool.handler(stripUndefined(args) as any, {}),
       );
     } else {
-      server.tool(
-        sdkTool.name,
-        sdkTool.description,
-        async () => sdkTool.handler({}, {}),
-      );
+      server.tool(sdkTool.name, sdkTool.description, async () => sdkTool.handler({}, {}));
     }
   }
 }

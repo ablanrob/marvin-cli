@@ -18,9 +18,7 @@ export async function chatCommand(options: ChatOptions): Promise<void> {
 
   if (!config.apiKey) {
     console.log(
-      chalk.red(
-        'No API key found. Set ANTHROPIC_API_KEY or run "marvin config api-key".',
-      ),
+      chalk.red('No API key found. Set ANTHROPIC_API_KEY or run "marvin config api-key".'),
     );
     process.exit(1);
   }

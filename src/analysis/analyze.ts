@@ -26,7 +26,9 @@ export async function analyzeMeeting(options: AnalyzeOptions): Promise<AnalyzeRe
     throw new Error(`Meeting ${meetingId} not found`);
   }
   if (meetingDoc.frontmatter.type !== "meeting") {
-    throw new Error(`Document ${meetingId} is not a meeting (type: ${meetingDoc.frontmatter.type})`);
+    throw new Error(
+      `Document ${meetingId} is not a meeting (type: ${meetingDoc.frontmatter.type})`,
+    );
   }
 
   // Track artifacts created in direct mode
@@ -86,7 +88,13 @@ export async function analyzeMeeting(options: AnalyzeOptions): Promise<AnalyzeRe
 
     // In direct mode, update the meeting with an Outcomes section
     if (!draft && createdArtifacts.length > 0) {
-      appendOutcomesToMeeting(store, meetingDoc.frontmatter.id, meetingDoc.content, createdArtifacts, store);
+      appendOutcomesToMeeting(
+        store,
+        meetingDoc.frontmatter.id,
+        meetingDoc.content,
+        createdArtifacts,
+        store,
+      );
     }
 
     spinner.stop();
@@ -95,7 +103,11 @@ export async function analyzeMeeting(options: AnalyzeOptions): Promise<AnalyzeRe
       console.log(chalk.dim(`\nDraft proposal complete. No artifacts were created.`));
       console.log(chalk.dim(`Use "marvin analyze ${meetingId} --no-draft" to create artifacts.`));
     } else {
-      console.log(chalk.green(`\nCreated ${createdArtifacts.length} artifact${createdArtifacts.length === 1 ? "" : "s"} from meeting ${meetingId}`));
+      console.log(
+        chalk.green(
+          `\nCreated ${createdArtifacts.length} artifact${createdArtifacts.length === 1 ? "" : "s"} from meeting ${meetingId}`,
+        ),
+      );
       if (createdArtifacts.length > 0) {
         console.log(chalk.dim(`  ${createdArtifacts.join(", ")}`));
       }
@@ -128,21 +140,16 @@ function appendOutcomesToMeeting(
   store.update(meetingId, {}, updatedContent);
 }
 
-function handleAnalyzeMessage(
-  message: SDKMessage,
-  spinner: ReturnType<typeof ora>,
-): void {
+function handleAnalyzeMessage(message: SDKMessage, spinner: ReturnType<typeof ora>): void {
   switch (message.type) {
     case "assistant": {
       spinner.stop();
       const textBlocks = message.message.content.filter(
-        (b: { type: string }): b is { type: "text"; text: string } =>
-          b.type === "text",
+        (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
       );
       if (textBlocks.length > 0) {
         console.log(
-          chalk.cyan("\nMarvin: ") +
-            textBlocks.map((b: { text: string }) => b.text).join("\n"),
+          chalk.cyan("\nMarvin: ") + textBlocks.map((b: { text: string }) => b.text).join("\n"),
         );
       }
       break;
@@ -156,9 +163,7 @@ function handleAnalyzeMessage(
     case "result": {
       spinner.stop();
       if (message.subtype !== "success") {
-        console.log(
-          chalk.red(`\nAnalysis ended with error: ${message.subtype}`),
-        );
+        console.log(chalk.red(`\nAnalysis ended with error: ${message.subtype}`));
       }
       break;
     }

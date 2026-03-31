@@ -2,7 +2,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
 import type { SprintSummaryData } from "./types.js";
 
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+const _DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
 const SYSTEM_PROMPT = `You are a delivery management assistant generating a data-driven risk assessment.
 
@@ -52,8 +52,7 @@ export async function generateRiskAssessment(
   for await (const msg of result) {
     if (msg.type === "assistant") {
       const text = msg.message.content.find(
-        (b: { type: string }): b is { type: "text"; text: string } =>
-          b.type === "text",
+        (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
       );
       if (text) return text.text;
     }
@@ -142,7 +141,7 @@ function buildSingleRiskPrompt(
     // Emit related documents (cap at 20 to keep prompt manageable)
     const relatedDocs = [...relatedIds]
       .map((id) => store.get(id))
-      .filter((d) => d != null)
+      .filter((d): d is NonNullable<typeof d> => d !== undefined)
       .slice(0, 20);
 
     if (relatedDocs.length > 0) {
@@ -153,8 +152,11 @@ function buildSingleRiskPrompt(
         sections.push(
           `- ${rd.frontmatter.id} (${rd.frontmatter.type}) [${rd.frontmatter.status}] — ${rd.frontmatter.title}`,
         );
-        sections.push(`  Owner: ${owner}${rd.frontmatter.dueDate ? `, Due: ${rd.frontmatter.dueDate}` : ""}`);
-        if (summary) sections.push(`  Summary: ${summary}${rd.content.trim().length > 300 ? "..." : ""}`);
+        sections.push(
+          `  Owner: ${owner}${rd.frontmatter.dueDate ? `, Due: ${rd.frontmatter.dueDate}` : ""}`,
+        );
+        if (summary)
+          sections.push(`  Summary: ${summary}${rd.content.trim().length > 300 ? "..." : ""}`);
       }
     }
   }

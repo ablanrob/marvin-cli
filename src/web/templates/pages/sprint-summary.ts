@@ -1,5 +1,5 @@
 import type { SprintSummaryData } from "../../../reports/sprint-summary/types.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel, renderMarkdown } from "../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
 import { renderWorkItemsTable } from "../components/work-items-table.js";
 
 function progressBar(pct: number): string {
@@ -14,7 +14,10 @@ export interface CachedSummaryInfo {
   generatedAt: string;
 }
 
-export function sprintSummaryPage(data: SprintSummaryData | null, cached?: CachedSummaryInfo): string {
+export function sprintSummaryPage(
+  data: SprintSummaryData | null,
+  cached?: CachedSummaryInfo,
+): string {
   if (!data) {
     return `
       <div class="page-header">
@@ -57,29 +60,34 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
     </div>`;
 
   // Linked epics table
-  const epicsTable = data.linkedEpics.length > 0
-    ? collapsibleSection(
-        "ss-epics",
-        "Linked Epics",
-        `<div class="table-wrap">
+  const epicsTable =
+    data.linkedEpics.length > 0
+      ? collapsibleSection(
+          "ss-epics",
+          "Linked Epics",
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Status</th><th>Tasks</th></tr>
             </thead>
             <tbody>
-              ${data.linkedEpics.map((e) => `
+              ${data.linkedEpics
+                .map(
+                  (e) => `
               <tr>
                 <td><a href="/docs/epic/${escapeHtml(e.id)}">${escapeHtml(e.id)}</a></td>
                 <td>${escapeHtml(e.title)}</td>
                 <td>${statusBadge(e.status)}</td>
                 <td>${e.tasksDone} / ${e.tasksTotal}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   const workItemsSection = renderWorkItemsTable(data.workItems.items, {
     sectionId: "ss-work-items",
@@ -88,62 +96,74 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
   });
 
   // Recent activity
-  const activitySection = data.artifacts.length > 0
-    ? collapsibleSection(
-        "ss-activity",
-        "Recent Activity",
-        `<div class="table-wrap">
+  const activitySection =
+    data.artifacts.length > 0
+      ? collapsibleSection(
+          "ss-activity",
+          "Recent Activity",
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>Date</th><th>ID</th><th>Title</th><th>Type</th><th>Action</th></tr>
             </thead>
             <tbody>
-              ${data.artifacts.slice(0, 15).map((a) => `
+              ${data.artifacts
+                .slice(0, 15)
+                .map(
+                  (a) => `
               <tr>
                 <td>${formatDate(a.date)}</td>
                 <td><a href="/docs/${escapeHtml(a.type)}/${escapeHtml(a.id)}">${escapeHtml(a.id)}</a></td>
                 <td>${escapeHtml(a.title)}</td>
                 <td>${escapeHtml(typeLabel(a.type))}</td>
                 <td>${escapeHtml(a.action)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3", defaultCollapsed: true },
-      )
-    : "";
+          { titleTag: "h3", defaultCollapsed: true },
+        )
+      : "";
 
   // Meetings
-  const meetingsSection = data.meetings.length > 0
-    ? collapsibleSection(
-        "ss-meetings",
-        `Meetings (${data.meetings.length})`,
-        `<div class="table-wrap">
+  const meetingsSection =
+    data.meetings.length > 0
+      ? collapsibleSection(
+          "ss-meetings",
+          `Meetings (${data.meetings.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>Date</th><th>ID</th><th>Title</th></tr>
             </thead>
             <tbody>
-              ${data.meetings.map((m) => `
+              ${data.meetings
+                .map(
+                  (m) => `
               <tr>
                 <td>${formatDate(m.date)}</td>
                 <td><a href="/docs/meeting/${escapeHtml(m.id)}">${escapeHtml(m.id)}</a></td>
                 <td>${escapeHtml(m.title)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3", defaultCollapsed: true },
-      )
-    : "";
+          { titleTag: "h3", defaultCollapsed: true },
+        )
+      : "";
 
   const goalHtml = data.sprint.goal
     ? `<div class="sprint-goal"><strong>Goal:</strong> ${escapeHtml(data.sprint.goal)}</div>`
     : "";
 
-  const dateRange = data.sprint.startDate && data.sprint.endDate
-    ? `<span class="text-dim">${formatDate(data.sprint.startDate)} — ${formatDate(data.sprint.endDate)}</span>`
-    : "";
+  const dateRange =
+    data.sprint.startDate && data.sprint.endDate
+      ? `<span class="text-dim">${formatDate(data.sprint.startDate)} — ${formatDate(data.sprint.endDate)}</span>`
+      : "";
 
   return `
     <div class="page-header">
@@ -160,9 +180,11 @@ export function sprintSummaryPage(data: SprintSummaryData | null, cached?: Cache
 
     <div class="sprint-ai-section">
       <h3>AI Summary</h3>
-      ${cached
-        ? `<p class="text-dim">Generated ${formatDate(cached.generatedAt)} at ${cached.generatedAt.slice(11, 16)} UTC</p>`
-        : `<p class="text-dim">Generate a narrative summary of this sprint's progress, risks, and projections.</p>`}
+      ${
+        cached
+          ? `<p class="text-dim">Generated ${formatDate(cached.generatedAt)} at ${cached.generatedAt.slice(11, 16)} UTC</p>`
+          : `<p class="text-dim">Generate a narrative summary of this sprint's progress, risks, and projections.</p>`
+      }
       <button class="sprint-generate-btn" onclick="generateSummary()" id="generate-btn">${cached ? "Regenerate" : "Generate AI Summary"}</button>
       <div id="summary-loading" class="sprint-loading" style="display:none">
         <div class="sprint-spinner"></div>

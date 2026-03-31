@@ -11,9 +11,7 @@ export async function initCommand(): Promise<void> {
   const cwd = process.cwd();
 
   if (isMarvinProject(cwd)) {
-    console.log(
-      chalk.yellow("A .marvin/ project already exists in this directory tree."),
-    );
+    console.log(chalk.yellow("A .marvin/ project already exists in this directory tree."));
     return;
   }
 
@@ -70,11 +68,7 @@ export async function initCommand(): Promise<void> {
     config.aem = { currentPhase: "assess-use-case" };
   }
 
-  fs.writeFileSync(
-    path.join(marvinDir, "config.yaml"),
-    YAML.stringify(config),
-    "utf-8",
-  );
+  fs.writeFileSync(path.join(marvinDir, "config.yaml"), YAML.stringify(config), "utf-8");
 
   fs.writeFileSync(
     path.join(marvinDir, "CLAUDE.md"),
@@ -125,7 +119,11 @@ export async function initCommand(): Promise<void> {
       }
 
       if (copied > 0) {
-        console.log(chalk.green(`\nCopied ${copied} source document${copied === 1 ? "" : "s"} to .marvin/sources/`));
+        console.log(
+          chalk.green(
+            `\nCopied ${copied} source document${copied === 1 ? "" : "s"} to .marvin/sources/`,
+          ),
+        );
         console.log(chalk.dim('Run "marvin ingest --all" to process them.'));
       } else {
         console.log(chalk.yellow("\nNo supported files found (.pdf, .md, .txt)."));
@@ -135,7 +133,5 @@ export async function initCommand(): Promise<void> {
     }
   }
 
-  console.log(
-    chalk.dim('\nRun "marvin chat --as po" to start talking to your Product Owner.'),
-  );
+  console.log(chalk.dim('\nRun "marvin chat --as po" to start talking to your Product Owner.'));
 }

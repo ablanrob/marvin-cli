@@ -1,22 +1,16 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DocumentStore } from "../storage/store.js";
-import {
-  getDocumentListData,
-  getDocumentDetail,
-  getSprintSummaryData,
-} from "./data.js";
+import { getDocumentListData, getDocumentDetail, getSprintSummaryData } from "./data.js";
 import { layout, escapeHtml, typeLabel, type NavGroup } from "./templates/layout.js";
 import { renderStyles } from "./templates/styles.js";
 import { documentsPage } from "./templates/pages/documents.js";
 import { documentDetailPage } from "./templates/pages/document-detail.js";
-import { sprintSummaryPage } from "./templates/pages/sprint-summary.js";
 import { personaPickerPage } from "./templates/pages/persona-picker.js";
 import { generateSprintSummary } from "../reports/sprint-summary/generator.js";
 import { generateRiskAssessment } from "../reports/sprint-summary/risk-assessment.js";
 import { getPersona } from "../personas/registry.js";
 import { renderMarkdown } from "./templates/layout.js";
 import {
-  parsePersonaFromPath,
   resolvePersona,
   getPersonaView,
   getPersonaPageRenderer,
@@ -51,9 +45,7 @@ function buildPersonaLayoutOpts(
   }
 
   const isActive = (href: string) =>
-    activePath === href || (href !== "/" && activePath.startsWith(href))
-      ? " active"
-      : "";
+    activePath === href || (href !== "/" && activePath.startsWith(href)) ? " active" : "";
 
   // Primary: persona's own nav items
   const personaLinks = view.navItems
@@ -67,12 +59,10 @@ function buildPersonaLayoutOpts(
   const chevronSvg = `<svg class="nav-group-chevron" viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M4.94 5.72a.75.75 0 0 1 1.06-.02L8 7.56l1.97-1.84a.75.75 0 1 1 1.02 1.1l-2.5 2.34a.75.75 0 0 1-1.02 0l-2.5-2.34a.75.75 0 0 1-.03-1.06z"/></svg>`;
 
   // Project group: shared pages
-  const sharedLinks = SHARED_NAV_ITEMS
-    .map((item) => {
-      const href = `/${persona}/${item.pageId}`;
-      return `<a href="${href}" class="${isActive(href)}">${escapeHtml(item.label)}</a>`;
-    })
-    .join("\n            ");
+  const sharedLinks = SHARED_NAV_ITEMS.map((item) => {
+    const href = `/${persona}/${item.pageId}`;
+    return `<a href="${href}" class="${isActive(href)}">${escapeHtml(item.label)}</a>`;
+  }).join("\n            ");
 
   const projectGroupActive = SHARED_NAV_ITEMS.some(
     (item) => isActive(`/${persona}/${item.pageId}`) !== "",
@@ -87,9 +77,7 @@ function buildPersonaLayoutOpts(
           return `<a href="${href}" class="${isActive(`/docs/${type}`)}">${typeLabel(type)}s</a>`;
         })
         .join("\n            ");
-      const groupActive = group.types.some(
-        (type) => isActive(`/docs/${type}`) !== "",
-      );
+      const groupActive = group.types.some((type) => isActive(`/docs/${type}`) !== "");
       const collapsed = groupActive ? "" : " nav-collapsed";
       const groupKey = `art-${group.label.toLowerCase().replace(/\s+/g, "-")}`;
       return `
@@ -180,12 +168,18 @@ export function handleRequest(
 
     if (pathname === "/") {
       const body = personaPickerPage();
-      respond(res, layout({
-        title: "Choose View",
-        activePath: "/",
-        projectName,
-        navGroups,
-      }, body));
+      respond(
+        res,
+        layout(
+          {
+            title: "Choose View",
+            activePath: "/",
+            projectName,
+            navGroups,
+          },
+          body,
+        ),
+      );
       return;
     }
 
@@ -266,7 +260,9 @@ export function handleRequest(
     // POST /api/sprint-summary
     if (pathname === "/api/sprint-summary" && req.method === "POST") {
       let bodyStr = "";
-      req.on("data", (chunk) => { bodyStr += chunk; });
+      req.on("data", (chunk) => {
+        bodyStr += chunk;
+      });
       req.on("end", async () => {
         try {
           const { sprintId, persona: personaKey } = JSON.parse(bodyStr || "{}");
@@ -295,7 +291,9 @@ export function handleRequest(
     // POST /api/risk-assessment
     if (pathname === "/api/risk-assessment" && req.method === "POST") {
       let bodyStr = "";
-      req.on("data", (chunk) => { bodyStr += chunk; });
+      req.on("data", (chunk) => {
+        bodyStr += chunk;
+      });
       req.on("end", async () => {
         try {
           const { sprintId, riskId } = JSON.parse(bodyStr || "{}");
@@ -336,7 +334,20 @@ export function handleRequest(
         return;
       }
       const body = documentDetailPage(doc, store);
-      respond(res, layout({ title: `${id} — ${doc.frontmatter.title}`, activePath: `/docs/${type}`, projectName, navGroups, persona, ...pOpts }, body));
+      respond(
+        res,
+        layout(
+          {
+            title: `${id} — ${doc.frontmatter.title}`,
+            activePath: `/docs/${type}`,
+            projectName,
+            navGroups,
+            persona,
+            ...pOpts,
+          },
+          body,
+        ),
+      );
       return;
     }
 
@@ -355,7 +366,20 @@ export function handleRequest(
         return;
       }
       const body = documentsPage(data);
-      respond(res, layout({ title: `${type}`, activePath: `/docs/${type}`, projectName, navGroups, persona, ...pOpts }, body));
+      respond(
+        res,
+        layout(
+          {
+            title: `${type}`,
+            activePath: `/docs/${type}`,
+            projectName,
+            navGroups,
+            persona,
+            ...pOpts,
+          },
+          body,
+        ),
+      );
       return;
     }
 
@@ -383,5 +407,7 @@ function notFound(
   const homeLink = persona ? `/${persona}/dashboard` : "/";
   const body = `<div class="empty"><h2>404</h2><p>Page not found.</p><p><a href="${homeLink}">Go to dashboard</a></p></div>`;
   res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
-  res.end(layout({ title: "Not Found", activePath, projectName, navGroups, persona, ...pOpts }, body));
+  res.end(
+    layout({ title: "Not Found", activePath, projectName, navGroups, persona, ...pOpts }, body),
+  );
 }

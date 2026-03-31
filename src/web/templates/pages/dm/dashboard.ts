@@ -64,47 +64,58 @@ export function dmDashboardPage(ctx: PersonaPageContext): string {
   // Risk indicators
   const riskItems: string[] = [];
   if (overdueActions.length > 0) riskItems.push(`${overdueActions.length} overdue action(s)`);
-  if ((sprintData?.blockers.length ?? 0) > 0) riskItems.push(`${sprintData!.blockers.length} blocker(s)`);
-  if (sprintData && sprintData.timeline.daysRemaining <= 3 && sprintData.workItems.completionPct < 80) {
+  if ((sprintData?.blockers.length ?? 0) > 0)
+    riskItems.push(`${sprintData!.blockers.length} blocker(s)`);
+  if (
+    sprintData &&
+    sprintData.timeline.daysRemaining <= 3 &&
+    sprintData.workItems.completionPct < 80
+  ) {
     riskItems.push("Sprint deadline approaching with low completion");
   }
 
-  const riskSection = riskItems.length > 0
-    ? `<div class="sprint-goal" style="border-left: 3px solid var(--red);">
+  const riskSection =
+    riskItems.length > 0
+      ? `<div class="sprint-goal" style="border-left: 3px solid var(--red);">
         <strong>Risk Indicators</strong>
         <ul style="margin: 0.5rem 0 0 1.25rem; font-size: 0.875rem; color: var(--text-dim);">
           ${riskItems.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}
         </ul>
       </div>`
-    : "";
+      : "";
 
   // Due soon actions preview
   const dueSoonPreview = upcoming.dueSoonActions.slice(0, 5);
-  const actionsPreview = dueSoonPreview.length > 0
-    ? collapsibleSection(
-        "dm-dash-actions",
-        "Due Soon Actions",
-        `<div class="table-wrap">
+  const actionsPreview =
+    dueSoonPreview.length > 0
+      ? collapsibleSection(
+          "dm-dash-actions",
+          "Due Soon Actions",
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Owner</th><th>Due</th><th>Status</th></tr>
             </thead>
             <tbody>
-              ${dueSoonPreview.map((a) => `
+              ${dueSoonPreview
+                .map(
+                  (a) => `
               <tr>
                 <td><a href="/docs/action/${escapeHtml(a.id)}">${escapeHtml(a.id)}</a></td>
                 <td>${escapeHtml(a.title)}</td>
                 <td>${a.owner ? escapeHtml(a.owner) : '<span class="text-dim">—</span>'}</td>
                 <td>${formatDate(a.dueDate)}</td>
                 <td>${statusBadge(a.status)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>
         <p style="margin-top: 0.5rem; font-size: 0.85rem;"><a href="/dm/actions">View all actions &rarr;</a></p>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   return `
     <div class="page-header">

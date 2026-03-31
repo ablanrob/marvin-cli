@@ -21,8 +21,7 @@ export async function generateSessionName(
     for await (const msg of result) {
       if (msg.type === "assistant") {
         const text = msg.message.content.find(
-          (b: { type: string }): b is { type: "text"; text: string } =>
-            b.type === "text",
+          (b: { type: string }): b is { type: "text"; text: string } => b.type === "text",
         );
         if (text) return slugify(text.text);
       }

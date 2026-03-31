@@ -19,23 +19,19 @@ export async function listSessionsCommand(): Promise<void> {
 
   console.log(
     chalk.dim(
-      "  " +
-        "Name".padEnd(nameWidth) +
-        "Persona".padEnd(personaWidth) +
-        "Last Used".padEnd(22) +
-        "Turns",
+      `  ${"Name".padEnd(nameWidth)}${"Persona".padEnd(personaWidth)}${"Last Used".padEnd(
+        22,
+      )}Turns`,
     ),
   );
-  console.log(chalk.dim("  " + "-".repeat(nameWidth + personaWidth + 22 + 6)));
+  console.log(chalk.dim(`  ${"-".repeat(nameWidth + personaWidth + 22 + 6)}`));
 
   for (const s of sessions) {
     const ago = timeAgo(s.lastUsed);
     console.log(
-      "  " +
-        chalk.cyan(s.name.padEnd(nameWidth)) +
-        s.persona.padEnd(personaWidth) +
-        chalk.dim(ago.padEnd(22)) +
-        String(s.turnCount),
+      `  ${chalk.cyan(s.name.padEnd(nameWidth))}${s.persona.padEnd(personaWidth)}${chalk.dim(
+        ago.padEnd(22),
+      )}${String(s.turnCount)}`,
     );
   }
 

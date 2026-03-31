@@ -2,9 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 
-export function createTechAssessmentTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createTechAssessmentTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_tech_assessments",
@@ -22,9 +20,7 @@ export function createTechAssessmentTools(
       async (args) => {
         let docs = store.list({ type: "tech-assessment", status: args.status });
         if (args.linkedUseCase) {
-          docs = docs.filter(
-            (d) => d.frontmatter.linkedUseCase === args.linkedUseCase,
-          );
+          docs = docs.filter((d) => d.frontmatter.linkedUseCase === args.linkedUseCase);
         }
         const summary = docs.map((d) => ({
           id: d.frontmatter.id,
@@ -60,11 +56,7 @@ export function createTechAssessmentTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -77,8 +69,14 @@ export function createTechAssessmentTools(
       "Create a new technology assessment linked to an assessed/approved use case (Phase 2: Assess Extension Technology)",
       {
         title: z.string().describe("Assessment title"),
-        content: z.string().describe("Technology evaluation — BTP services analysis, extension point mapping, feasibility"),
-        linkedUseCase: z.string().describe("Use case ID to link this assessment to (e.g. 'UC-001')"),
+        content: z
+          .string()
+          .describe(
+            "Technology evaluation — BTP services analysis, extension point mapping, feasibility",
+          ),
+        linkedUseCase: z
+          .string()
+          .describe("Use case ID to link this assessment to (e.g. 'UC-001')"),
         status: z
           .enum(["draft", "evaluated", "recommended", "rejected"])
           .optional()
@@ -87,14 +85,8 @@ export function createTechAssessmentTools(
           .array(z.string())
           .optional()
           .describe("BTP services evaluated (e.g. ['SAP Build Work Zone', 'SAP Event Mesh'])"),
-        extensionPoint: z
-          .string()
-          .optional()
-          .describe("SAP extension point being evaluated"),
-        recommendation: z
-          .string()
-          .optional()
-          .describe("Technology recommendation summary"),
+        extensionPoint: z.string().optional().describe("SAP extension point being evaluated"),
+        recommendation: z.string().optional().describe("Technology recommendation summary"),
         owner: z.string().optional().describe("Assessment owner"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
       },
@@ -170,10 +162,7 @@ export function createTechAssessmentTools(
           .optional()
           .describe("New status"),
         content: z.string().optional().describe("New content"),
-        btpServices: z
-          .array(z.string())
-          .optional()
-          .describe("Updated BTP services list"),
+        btpServices: z.array(z.string()).optional().describe("Updated BTP services list"),
         extensionPoint: z.string().optional().describe("Updated extension point"),
         recommendation: z.string().optional().describe("Updated recommendation"),
         owner: z.string().optional().describe("New owner"),

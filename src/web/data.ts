@@ -104,10 +104,7 @@ export function getGarData(store: DocumentStore, projectName: string): GarReport
   return evaluateGar(projectName, metrics);
 }
 
-export function getBoardData(
-  store: DocumentStore,
-  type?: string,
-): BoardData {
+export function getBoardData(store: DocumentStore, type?: string): BoardData {
   const docs = type ? store.list({ type }) : store.list();
   const types = store.registeredTypes;
 
@@ -150,7 +147,14 @@ export function getHealthData(store: DocumentStore, projectName: string): Health
 }
 
 export interface DiagramDataResult {
-  sprints: { id: string; title: string; status: string; startDate?: string; endDate?: string; linkedEpics: string[] }[];
+  sprints: {
+    id: string;
+    title: string;
+    status: string;
+    startDate?: string;
+    endDate?: string;
+    linkedEpics: string[];
+  }[];
   epics: { id: string; title: string; status: string; linkedFeature: string[] }[];
   features: { id: string; title: string; status: string }[];
   statusCounts: Record<string, number>;
@@ -275,7 +279,7 @@ export function getUpcomingData(store: DocumentStore): UpcomingData {
 
   // Build sprint→epic→task chain for related task counts
   const sprints = allDocs.filter((d) => d.frontmatter.type === "sprint");
-  const epics = allDocs.filter((d) => d.frontmatter.type === "epic");
+  const _epics = allDocs.filter((d) => d.frontmatter.type === "epic");
   const tasks = allDocs.filter((d) => d.frontmatter.type === "task");
 
   // Map epic → tasks (via tags like epic:E-001)
@@ -392,10 +396,7 @@ export function getUpcomingData(store: DocumentStore): UpcomingData {
     for (const item of openItems) {
       if (doc.frontmatter.id === item.frontmatter.id) continue;
       if (content.includes(item.frontmatter.id)) {
-        crossRefCounts.set(
-          item.frontmatter.id,
-          (crossRefCounts.get(item.frontmatter.id) ?? 0) + 1,
-        );
+        crossRefCounts.set(item.frontmatter.id, (crossRefCounts.get(item.frontmatter.id) ?? 0) + 1);
       }
     }
   }
@@ -450,8 +451,8 @@ export function getUpcomingData(store: DocumentStore): UpcomingData {
       }
 
       // Meeting mentions: max 15 pts
-      const mentionCount = recentMeetings.filter(
-        (m) => (m.content ?? "").includes(doc.frontmatter.id),
+      const mentionCount = recentMeetings.filter((m) =>
+        (m.content ?? "").includes(doc.frontmatter.id),
       ).length;
       if (mentionCount > 0) {
         const meetingPts = Math.min(15, mentionCount * 5);
@@ -549,7 +550,7 @@ export function getArtifactRelationships(
 
   const fm = doc.frontmatter;
   const allDocs = store.list();
-  const docIndex = new Map(allDocs.map(d => [d.frontmatter.id, d]));
+  const docIndex = new Map(allDocs.map((d) => [d.frontmatter.id, d]));
 
   const origins: RelatedArtifact[] = [];
   const parents: RelatedArtifact[] = [];
@@ -558,11 +559,7 @@ export function getArtifactRelationships(
   const edges: { from: string; to: string }[] = [];
   const seen = new Set<string>([docId]);
 
-  const addIfExists = (
-    id: string,
-    relationship: string,
-    bucket: RelatedArtifact[],
-  ): boolean => {
+  const addIfExists = (id: string, relationship: string, bucket: RelatedArtifact[]): boolean => {
     if (seen.has(id)) return false;
     const target = docIndex.get(id);
     if (!target) return false;
@@ -711,10 +708,7 @@ export function getArtifactRelationships(
   };
 }
 
-export function getArtifactLineageEvents(
-  store: DocumentStore,
-  docId: string,
-): LineageEvent[] {
+export function getArtifactLineageEvents(store: DocumentStore, docId: string): LineageEvent[] {
   const doc = store.get(docId);
   if (!doc) return [];
 

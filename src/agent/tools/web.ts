@@ -26,7 +26,10 @@ export function createWebTools(
       "Start the Marvin web dashboard on a local port. Returns the base URL. If already running, returns the existing URL.",
       {
         port: z.number().optional().describe("Port to listen on (default: 3000)"),
-        open: z.boolean().optional().describe("Open the dashboard in the default browser (default: true)"),
+        open: z
+          .boolean()
+          .optional()
+          .describe("Open the dashboard in the default browser (default: true)"),
       },
       async (args) => {
         const port = args.port ?? 3000;
@@ -60,28 +63,23 @@ export function createWebTools(
       },
     ),
 
-    tool(
-      "stop_web_dashboard",
-      "Stop the running Marvin web dashboard.",
-      {},
-      async () => {
-        if (!runningServer) {
-          return {
-            content: [{ type: "text" as const, text: "No dashboard is currently running." }],
-            isError: true,
-          };
-        }
-
-        await new Promise<void>((resolve) => {
-          runningServer!.server.close(() => resolve());
-        });
-        runningServer = null;
-
+    tool("stop_web_dashboard", "Stop the running Marvin web dashboard.", {}, async () => {
+      if (!runningServer) {
         return {
-          content: [{ type: "text" as const, text: "Dashboard stopped." }],
+          content: [{ type: "text" as const, text: "No dashboard is currently running." }],
+          isError: true,
         };
-      },
-    ),
+      }
+
+      await new Promise<void>((resolve) => {
+        runningServer!.server.close(() => resolve());
+      });
+      runningServer = null;
+
+      return {
+        content: [{ type: "text" as const, text: "Dashboard stopped." }],
+      };
+    }),
 
     tool(
       "get_web_dashboard_urls",
@@ -90,7 +88,12 @@ export function createWebTools(
       async () => {
         if (!runningServer) {
           return {
-            content: [{ type: "text" as const, text: "Dashboard is not running. Use start_web_dashboard first." }],
+            content: [
+              {
+                type: "text" as const,
+                text: "Dashboard is not running. Use start_web_dashboard first.",
+              },
+            ],
             isError: true,
           };
         }
@@ -153,7 +156,10 @@ export function createWebTools(
       "get_dashboard_board",
       "Get board data showing documents grouped by status. Optionally filter by document type. Works without the web server running.",
       {
-        type: z.string().optional().describe("Document type to filter by (e.g. 'decision', 'action')"),
+        type: z
+          .string()
+          .optional()
+          .describe("Document type to filter by (e.g. 'decision', 'action')"),
       },
       async (args) => {
         const data = getBoardData(store, args.type);
@@ -195,14 +201,15 @@ export function createWebTools(
       "get_dashboard_sprint_summary",
       "Get sprint summary data for the active sprint or a specific sprint. Returns structured data about progress, epics, work items, meetings, and blockers. Works without the web server running.",
       {
-        sprint: z.string().optional().describe("Sprint ID (e.g. 'SP-001'). Omit for the active sprint."),
+        sprint: z
+          .string()
+          .optional()
+          .describe("Sprint ID (e.g. 'SP-001'). Omit for the active sprint."),
       },
       async (args) => {
         const data = getSprintSummaryData(store, args.sprint);
         if (!data) {
-          const msg = args.sprint
-            ? `Sprint ${args.sprint} not found.`
-            : "No active sprint found.";
+          const msg = args.sprint ? `Sprint ${args.sprint} not found.` : "No active sprint found.";
           return { content: [{ type: "text" as const, text: msg }], isError: true };
         }
         return {

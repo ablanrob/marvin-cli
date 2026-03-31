@@ -23,7 +23,15 @@ export async function statusCommand(): Promise<void> {
   console.log(`  Meetings:   ${counts.meeting ?? 0} total`);
 
   // Show plugin-registered types beyond the common ones
-  const coreAndCommon = new Set(["decision", "action", "question", "meeting", "report", "feature", "epic"]);
+  const coreAndCommon = new Set([
+    "decision",
+    "action",
+    "question",
+    "meeting",
+    "report",
+    "feature",
+    "epic",
+  ]);
   for (const type of store.registeredTypes) {
     if (coreAndCommon.has(type)) continue;
     const label = type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -33,9 +41,7 @@ export async function statusCommand(): Promise<void> {
   if (openActions.length > 0) {
     console.log(chalk.underline("\nOpen Actions:"));
     for (const doc of openActions) {
-      const owner = doc.frontmatter.owner
-        ? chalk.dim(` (${doc.frontmatter.owner})`)
-        : "";
+      const owner = doc.frontmatter.owner ? chalk.dim(` (${doc.frontmatter.owner})`) : "";
       const priority = doc.frontmatter.priority
         ? chalk.yellow(` [${doc.frontmatter.priority}]`)
         : "";
@@ -48,21 +54,15 @@ export async function statusCommand(): Promise<void> {
   if (openQuestions.length > 0) {
     console.log(chalk.underline("\nOpen Questions:"));
     for (const doc of openQuestions) {
-      const owner = doc.frontmatter.owner
-        ? chalk.dim(` (${doc.frontmatter.owner})`)
-        : "";
-      console.log(
-        `  ${chalk.cyan(doc.frontmatter.id)} ${doc.frontmatter.title}${owner}`,
-      );
+      const owner = doc.frontmatter.owner ? chalk.dim(` (${doc.frontmatter.owner})`) : "";
+      console.log(`  ${chalk.cyan(doc.frontmatter.id)} ${doc.frontmatter.title}${owner}`);
     }
   }
 
   if (openDecisions.length > 0) {
     console.log(chalk.underline("\nOpen Decisions:"));
     for (const doc of openDecisions) {
-      console.log(
-        `  ${chalk.cyan(doc.frontmatter.id)} ${doc.frontmatter.title}`,
-      );
+      console.log(`  ${chalk.cyan(doc.frontmatter.id)} ${doc.frontmatter.title}`);
     }
   }
 

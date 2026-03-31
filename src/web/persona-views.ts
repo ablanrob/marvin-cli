@@ -1,3 +1,5 @@
+import type { DocumentStore } from "../storage/store.js";
+
 export type DashboardPersona = "po" | "dm" | "tl" | null; // null = no persona selected
 
 export interface PersonaNavItem {
@@ -16,7 +18,7 @@ export interface PersonaViewConfig {
 export type PersonaPageRenderer = (ctx: PersonaPageContext) => string;
 
 export interface PersonaPageContext {
-  store: import("../storage/store.js").DocumentStore;
+  store: DocumentStore;
   projectName: string;
   searchParams?: URLSearchParams;
   subPath?: string;
@@ -68,10 +70,7 @@ export function parsePersonaFromPath(pathname: string): DashboardPersona {
 }
 
 /** Resolve persona from path first, then query params, defaulting to null. */
-export function resolvePersona(
-  pathname: string,
-  params: URLSearchParams,
-): DashboardPersona {
+export function resolvePersona(pathname: string, params: URLSearchParams): DashboardPersona {
   return parsePersonaFromPath(pathname) ?? parsePersonaFromUrl(params);
 }
 

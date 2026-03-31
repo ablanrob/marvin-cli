@@ -9,12 +9,20 @@ import { createAemPhaseTools } from "./tools/aem-phase.js";
 export const sapAemPlugin: MarvinPlugin = {
   id: "sap-aem",
   name: "SAP Application Extension Methodology",
-  description: "3-phase methodology for building extensions on SAP BTP: Assess Use Case, Assess Technology, Define Solution.",
+  description:
+    "3-phase methodology for building extensions on SAP BTP: Assess Use Case, Assess Technology, Define Solution.",
   version: "0.1.0",
   documentTypes: [
-    "decision", "action", "question",
-    "meeting", "report", "feature", "epic",
-    "use-case", "tech-assessment", "extension-design",
+    "decision",
+    "action",
+    "question",
+    "meeting",
+    "report",
+    "feature",
+    "epic",
+    "use-case",
+    "tech-assessment",
+    "extension-design",
   ],
   documentTypeRegistrations: [
     ...COMMON_REGISTRATIONS,

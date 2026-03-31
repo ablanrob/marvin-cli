@@ -2,18 +2,20 @@ import { describe, it, expect } from "vitest";
 import { evaluateGar } from "../../../src/reports/gar/evaluator.js";
 import type { GarMetrics } from "../../../src/reports/gar/types.js";
 
-function makeMetrics(overrides: Partial<{
-  atRiskItems: GarMetrics["scope"]["atRiskItems"];
-  epicSummaries: GarMetrics["scope"]["epicSummaries"];
-  blocked: number;
-  overdue: number;
-  badlyOverdueCount: number;
-  riskScore: number;
-  riskCount: number;
-  openQuestions: number;
-  staleQuestionCount: number;
-  totalOpenItems: number;
-}>): GarMetrics {
+function makeMetrics(
+  overrides: Partial<{
+    atRiskItems: GarMetrics["scope"]["atRiskItems"];
+    epicSummaries: GarMetrics["scope"]["epicSummaries"];
+    blocked: number;
+    overdue: number;
+    badlyOverdueCount: number;
+    riskScore: number;
+    riskCount: number;
+    openQuestions: number;
+    staleQuestionCount: number;
+    totalOpenItems: number;
+  }>,
+): GarMetrics {
   const o = {
     atRiskItems: [],
     epicSummaries: [],
@@ -29,8 +31,20 @@ function makeMetrics(overrides: Partial<{
   };
   return {
     scope: { atRiskItems: o.atRiskItems, epicSummaries: o.epicSummaries },
-    schedule: { blocked: o.blocked, overdue: o.overdue, badlyOverdueCount: o.badlyOverdueCount, items: [] },
-    quality: { riskScore: o.riskScore, riskCount: o.riskCount, openQuestions: o.openQuestions, staleQuestionCount: o.staleQuestionCount, items: [], totalOpenItems: o.totalOpenItems },
+    schedule: {
+      blocked: o.blocked,
+      overdue: o.overdue,
+      badlyOverdueCount: o.badlyOverdueCount,
+      items: [],
+    },
+    quality: {
+      riskScore: o.riskScore,
+      riskCount: o.riskCount,
+      openQuestions: o.openQuestions,
+      staleQuestionCount: o.staleQuestionCount,
+      items: [],
+      totalOpenItems: o.totalOpenItems,
+    },
   };
 }
 
@@ -42,23 +56,32 @@ describe("evaluateGar", () => {
     });
 
     it("should be amber when there are at-risk items (not critical/high)", () => {
-      const report = evaluateGar("proj", makeMetrics({
-        atRiskItems: [{ id: "A-001", title: "Test", priority: "medium", urgency: "overdue" }],
-      }));
+      const report = evaluateGar(
+        "proj",
+        makeMetrics({
+          atRiskItems: [{ id: "A-001", title: "Test", priority: "medium", urgency: "overdue" }],
+        }),
+      );
       expect(report.areas.find((a) => a.name === "Scope")!.status).toBe("amber");
     });
 
     it("should be red when there are critical/high at-risk items", () => {
-      const report = evaluateGar("proj", makeMetrics({
-        atRiskItems: [{ id: "A-001", title: "Test", priority: "critical", urgency: "overdue" }],
-      }));
+      const report = evaluateGar(
+        "proj",
+        makeMetrics({
+          atRiskItems: [{ id: "A-001", title: "Test", priority: "critical", urgency: "overdue" }],
+        }),
+      );
       expect(report.areas.find((a) => a.name === "Scope")!.status).toBe("red");
     });
 
     it("should be red when there are high priority at-risk items", () => {
-      const report = evaluateGar("proj", makeMetrics({
-        atRiskItems: [{ id: "A-001", title: "Test", priority: "high", urgency: "due-3d" }],
-      }));
+      const report = evaluateGar(
+        "proj",
+        makeMetrics({
+          atRiskItems: [{ id: "A-001", title: "Test", priority: "high", urgency: "due-3d" }],
+        }),
+      );
       expect(report.areas.find((a) => a.name === "Scope")!.status).toBe("red");
     });
   });
@@ -93,25 +116,34 @@ describe("evaluateGar", () => {
 
     it("should be red when score > threshold (10% of totalOpenItems, min 5)", () => {
       // threshold = max(5, 100*0.1) = 10, score = 12 > 10
-      const report = evaluateGar("proj", makeMetrics({ riskScore: 10, staleQuestionCount: 2, riskCount: 3, totalOpenItems: 100 }));
+      const report = evaluateGar(
+        "proj",
+        makeMetrics({ riskScore: 10, staleQuestionCount: 2, riskCount: 3, totalOpenItems: 100 }),
+      );
       expect(report.areas.find((a) => a.name === "Quality")!.status).toBe("red");
     });
 
     it("should use minimum threshold of 5 for small projects", () => {
       // threshold = max(5, 10*0.1) = 5, score = 6 > 5
-      const report = evaluateGar("proj", makeMetrics({ riskScore: 4, staleQuestionCount: 2, riskCount: 1, totalOpenItems: 10 }));
+      const report = evaluateGar(
+        "proj",
+        makeMetrics({ riskScore: 4, staleQuestionCount: 2, riskCount: 1, totalOpenItems: 10 }),
+      );
       expect(report.areas.find((a) => a.name === "Quality")!.status).toBe("red");
     });
   });
 
   describe("insights", () => {
     it("should generate scope insights for at-risk items", () => {
-      const report = evaluateGar("proj", makeMetrics({
-        atRiskItems: [
-          { id: "A-001", title: "Test", priority: "high", urgency: "overdue" },
-          { id: "A-002", title: "Test2", priority: "low", urgency: "due-3d" },
-        ],
-      }));
+      const report = evaluateGar(
+        "proj",
+        makeMetrics({
+          atRiskItems: [
+            { id: "A-001", title: "Test", priority: "high", urgency: "overdue" },
+            { id: "A-002", title: "Test2", priority: "low", urgency: "due-3d" },
+          ],
+        }),
+      );
       const scope = report.areas.find((a) => a.name === "Scope")!;
       expect(scope.insights).toContain("1 high-priority item(s) at risk");
       expect(scope.insights).toContain("1 additional item(s) approaching deadlines");
@@ -150,9 +182,12 @@ describe("evaluateGar", () => {
     });
 
     it("should be red when any area is red", () => {
-      const report = evaluateGar("proj", makeMetrics({
-        atRiskItems: [{ id: "A-001", title: "Test", priority: "critical", urgency: "overdue" }],
-      }));
+      const report = evaluateGar(
+        "proj",
+        makeMetrics({
+          atRiskItems: [{ id: "A-001", title: "Test", priority: "critical", urgency: "overdue" }],
+        }),
+      );
       expect(report.overall).toBe("red");
     });
   });

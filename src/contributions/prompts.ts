@@ -166,9 +166,12 @@ The contributor is providing a delivery status assessment.
 - Create decisions for any process changes needed`,
   };
 
-  return instructions[contributionType] ?? `
+  return (
+    instructions[contributionType] ??
+    `
 ### Type-Specific Guidance
-Analyze the contribution and determine appropriate governance effects based on the content.`;
+Analyze the contribution and determine appropriate governance effects based on the content.`
+  );
 }
 
 export function buildContributeUserPrompt(
@@ -179,9 +182,7 @@ export function buildContributeUserPrompt(
   isDraft: boolean,
 ): string {
   const mode = isDraft ? "propose" : "execute";
-  const aboutLine = aboutArtifact
-    ? `\n**Related Artifact:** ${aboutArtifact}`
-    : "";
+  const aboutLine = aboutArtifact ? `\n**Related Artifact:** ${aboutArtifact}` : "";
 
   return `Please analyze the following contribution and ${mode} governance effects.
 

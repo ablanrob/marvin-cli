@@ -43,20 +43,10 @@ export async function jiraSyncCommand(
 
   if (options.dryRun) {
     // Preview only — no writes
-    const fetchResult = await fetchJiraStatus(
-      store,
-      jira.client,
-      jira.host,
-      artifactId,
-      statusMap,
-    );
+    const fetchResult = await fetchJiraStatus(store, jira.client, jira.host, artifactId, statusMap);
 
-    const withChanges = fetchResult.artifacts.filter(
-      (a) => a.statusChanged || a.progressChanged,
-    );
-    const noChanges = fetchResult.artifacts.filter(
-      (a) => !a.statusChanged && !a.progressChanged,
-    );
+    const withChanges = fetchResult.artifacts.filter((a) => a.statusChanged || a.progressChanged);
+    const noChanges = fetchResult.artifacts.filter((a) => !a.statusChanged && !a.progressChanged);
 
     if (withChanges.length > 0) {
       console.log(chalk.yellow(`\nProposed changes for ${withChanges.length} artifact(s):`));
@@ -69,7 +59,7 @@ export async function jiraSyncCommand(
         }
         if (a.progressChanged) {
           console.log(
-            `    progress: ${chalk.yellow(String(a.currentProgress ?? 0) + "%")} → ${chalk.green(String(a.proposedProgress) + "%")}`,
+            `    progress: ${chalk.yellow(`${String(a.currentProgress ?? 0)}%`)} → ${chalk.green(`${String(a.proposedProgress)}%`)}`,
           );
         }
         if (a.linkedIssues.length > 0) {
@@ -99,13 +89,7 @@ export async function jiraSyncCommand(
   }
 
   // Apply mode
-  const result = await syncJiraProgress(
-    store,
-    jira.client,
-    jira.host,
-    artifactId,
-    statusMap,
-  );
+  const result = await syncJiraProgress(store, jira.client, jira.host, artifactId, statusMap);
 
   if (result.updated.length > 0) {
     console.log(chalk.green(`\nUpdated ${result.updated.length} artifact(s):`));
@@ -118,14 +102,10 @@ export async function jiraSyncCommand(
 
       if (entry.linkedIssues.length > 0) {
         const done = entry.linkedIssues.filter((l) => l.isDone).length;
-        console.log(
-          chalk.dim(`    ${done}/${entry.linkedIssues.length} linked issues done`),
-        );
+        console.log(chalk.dim(`    ${done}/${entry.linkedIssues.length} linked issues done`));
         for (const li of entry.linkedIssues) {
           const icon = li.isDone ? chalk.green("✓") : chalk.dim("○");
-          console.log(
-            chalk.dim(`      ${icon} ${li.key} ${li.summary} [${li.relationship}]`),
-          );
+          console.log(chalk.dim(`      ${icon} ${li.key} ${li.summary} [${li.relationship}]`));
         }
       }
     }
@@ -177,7 +157,7 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
   // Fetch via v3 API
   const email = jiraUserConfig?.email ?? process.env.JIRA_EMAIL!;
   const apiToken = jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN!;
-  const auth = "Basic " + Buffer.from(`${email}:${apiToken}`).toString("base64");
+  const auth = `Basic ${Buffer.from(`${email}:${apiToken}`).toString("base64")}`;
 
   const params = new URLSearchParams({
     jql: `project = ${resolvedProjectKey}`,
@@ -261,7 +241,9 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
   }
 
   if (hasUnmapped) {
-    console.log(chalk.yellow("\nSome statuses are unmapped. Add jira.statusMap to .marvin/config.yaml:"));
+    console.log(
+      chalk.yellow("\nSome statuses are unmapped. Add jira.statusMap to .marvin/config.yaml:"),
+    );
     console.log(chalk.dim("  jira:"));
     console.log(chalk.dim("    statusMap:"));
     console.log(chalk.dim('      "<Jira Status>": <marvin-status>'));
@@ -316,8 +298,7 @@ export async function jiraDailyCommand(options: {
   const toDate = options.to ?? fromDate;
   const statusMap = normalizeStatusMap(proj.config.jira?.statusMap);
 
-  const rangeLabel =
-    fromDate === toDate ? fromDate : `${fromDate} to ${toDate}`;
+  const rangeLabel = fromDate === toDate ? fromDate : `${fromDate} to ${toDate}`;
   console.log(
     chalk.dim(`Fetching Jira daily summary for ${resolvedProjectKey} — ${rangeLabel}...`),
   );
@@ -331,9 +312,7 @@ export async function jiraDailyCommand(options: {
     statusMap,
   );
 
-  console.log(
-    `\n${chalk.bold(`Jira Daily — ${resolvedProjectKey} — ${rangeLabel}`)}`,
-  );
+  console.log(`\n${chalk.bold(`Jira Daily — ${resolvedProjectKey} — ${rangeLabel}`)}`);
   console.log(`${daily.issues.length} issue(s) updated.\n`);
 
   const linked = daily.issues.filter((i) => i.marvinArtifacts.length > 0);
@@ -357,14 +336,21 @@ export async function jiraDailyCommand(options: {
     console.log(chalk.underline("Proposed Actions:\n"));
     for (const action of daily.proposedActions) {
       const icon =
-        action.type === "status-update" ? chalk.yellow("↻") :
-        action.type === "unlinked-issue" ? chalk.blue("+") :
-        action.type === "link-suggestion" ? chalk.cyan("🔗") :
-        action.type === "question-candidate" ? chalk.magenta("?") :
-        action.type === "decision-candidate" ? chalk.yellow("⚖") :
-        action.type === "blocker-detected" ? chalk.red("🚫") :
-        action.type === "resolution-detected" ? chalk.green("✓") :
-        chalk.cyan("📄");
+        action.type === "status-update"
+          ? chalk.yellow("↻")
+          : action.type === "unlinked-issue"
+            ? chalk.blue("+")
+            : action.type === "link-suggestion"
+              ? chalk.cyan("🔗")
+              : action.type === "question-candidate"
+                ? chalk.magenta("?")
+                : action.type === "decision-candidate"
+                  ? chalk.yellow("⚖")
+                  : action.type === "blocker-detected"
+                    ? chalk.red("🚫")
+                    : action.type === "resolution-detected"
+                      ? chalk.green("✓")
+                      : chalk.cyan("📄");
       console.log(`  ${icon} ${action.description}`);
     }
     console.log();
@@ -396,7 +382,9 @@ function printIssueEntry(issue: DailyIssueEntry): void {
   for (const a of issue.marvinArtifacts) {
     if (a.statusDrift) {
       console.log(
-        chalk.yellow(`  ⚠ ${a.id} status drift: Marvin="${a.currentStatus}" vs proposed="${a.proposedStatus}"`),
+        chalk.yellow(
+          `  ⚠ ${a.id} status drift: Marvin="${a.currentStatus}" vs proposed="${a.proposedStatus}"`,
+        ),
       );
     }
   }
@@ -405,7 +393,9 @@ function printIssueEntry(issue: DailyIssueEntry): void {
     console.log(chalk.dim("  Changes:"));
     for (const c of issue.changes) {
       console.log(
-        chalk.dim(`    ${c.field}: ${c.from ?? "∅"} → ${c.to ?? "∅"} (${c.author}, ${c.timestamp.slice(0, 16)})`),
+        chalk.dim(
+          `    ${c.field}: ${c.from ?? "∅"} → ${c.to ?? "∅"} (${c.author}, ${c.timestamp.slice(0, 16)})`,
+        ),
       );
     }
   }
@@ -416,14 +406,19 @@ function printIssueEntry(issue: DailyIssueEntry): void {
       let signalLabel = "";
       if (c.signals.length > 0) {
         const labels = c.signals.map((s) =>
-          s.type === "blocker" ? chalk.red("🚫blocker") :
-          s.type === "decision" ? chalk.yellow("⚖decision") :
-          s.type === "question" ? chalk.magenta("?question") :
-          chalk.green("✓resolution")
+          s.type === "blocker"
+            ? chalk.red("🚫blocker")
+            : s.type === "decision"
+              ? chalk.yellow("⚖decision")
+              : s.type === "question"
+                ? chalk.magenta("?question")
+                : chalk.green("✓resolution"),
         );
         signalLabel = ` ${labels.join(" ")}`;
       }
-      console.log(chalk.dim(`    ${c.author} (${c.created.slice(0, 16)})${signalLabel}: ${c.bodyPreview}`));
+      console.log(
+        chalk.dim(`    ${c.author} (${c.created.slice(0, 16)})${signalLabel}: ${c.bodyPreview}`),
+      );
     }
   }
 
@@ -431,7 +426,9 @@ function printIssueEntry(issue: DailyIssueEntry): void {
     console.log(chalk.cyan("  Possible Marvin matches:"));
     for (const s of issue.linkSuggestions) {
       console.log(
-        chalk.cyan(`    🔗 ${s.artifactId} ("${s.artifactTitle}") — ${Math.round(s.score * 100)}% match [${s.sharedTerms.join(", ")}]`),
+        chalk.cyan(
+          `    🔗 ${s.artifactId} ("${s.artifactTitle}") — ${Math.round(s.score * 100)}% match [${s.sharedTerms.join(", ")}]`,
+        ),
       );
     }
   }
@@ -440,7 +437,9 @@ function printIssueEntry(issue: DailyIssueEntry): void {
     console.log(chalk.dim("  Linked issues:"));
     for (const li of issue.linkedIssues) {
       const icon = li.isDone ? chalk.green("✓") : chalk.dim("○");
-      console.log(chalk.dim(`    ${icon} ${li.key} ${li.summary} [${li.relationship}] — ${li.status}`));
+      console.log(
+        chalk.dim(`    ${icon} ${li.key} ${li.summary} [${li.relationship}] — ${li.status}`),
+      );
     }
   }
 

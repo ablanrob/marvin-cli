@@ -1,21 +1,22 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
-import {
-  propagateProgressFromTask,
-  propagateProgressToAction,
-} from "../../../storage/progress.js";
+import { propagateProgressFromTask, propagateProgressToAction } from "../../../storage/progress.js";
 
-export function createContributionTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createContributionTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_contributions",
       "List all contributions in the project, optionally filtered by persona, contribution type, or status",
       {
-        persona: z.string().optional().describe("Filter by persona (e.g. 'tech-lead', 'product-owner')"),
-        contributionType: z.string().optional().describe("Filter by contribution type (e.g. 'action-result', 'risk-finding')"),
+        persona: z
+          .string()
+          .optional()
+          .describe("Filter by persona (e.g. 'tech-lead', 'product-owner')"),
+        contributionType: z
+          .string()
+          .optional()
+          .describe("Filter by contribution type (e.g. 'action-result', 'risk-finding')"),
         status: z.string().optional().describe("Filter by status"),
       },
       async (args) => {
@@ -59,11 +60,7 @@ export function createContributionTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -78,12 +75,24 @@ export function createContributionTools(
         title: z.string().describe("Title of the contribution"),
         content: z.string().describe("Contribution content — the input from the persona"),
         persona: z.string().describe("Persona making the contribution (e.g. 'tech-lead')"),
-        contributionType: z.string().describe("Type of contribution (e.g. 'action-result', 'risk-finding')"),
-        aboutArtifact: z.string().describe("Artifact ID this contribution relates to (e.g. 'A-001', 'T-003')"),
+        contributionType: z
+          .string()
+          .describe("Type of contribution (e.g. 'action-result', 'risk-finding')"),
+        aboutArtifact: z
+          .string()
+          .describe("Artifact ID this contribution relates to (e.g. 'A-001', 'T-003')"),
         status: z.string().optional().describe("Status (default: 'done')"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
-        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Adds a focus:<value> tag."),
-        parentProgress: z.number().optional().describe("Set progress (0-100) on the parent artifact (e.g. task or action). Propagates up the hierarchy."),
+        workFocus: z
+          .string()
+          .optional()
+          .describe("Work focus name (e.g. 'Budget UX'). Adds a focus:<value> tag."),
+        parentProgress: z
+          .number()
+          .optional()
+          .describe(
+            "Set progress (0-100) on the parent artifact (e.g. task or action). Propagates up the hierarchy.",
+          ),
       },
       async (args) => {
         const frontmatter: Record<string, unknown> = {
@@ -107,7 +116,10 @@ export function createContributionTools(
             if (typeof args.parentProgress === "number") {
               // Explicit progress: set on parent, skip auto-calc, propagate upward only
               const clamped = Math.max(0, Math.min(100, Math.round(args.parentProgress)));
-              store.update(args.aboutArtifact, { progress: clamped, progressOverride: true } as any);
+              store.update(args.aboutArtifact, {
+                progress: clamped,
+                progressOverride: true,
+              } as any);
               progressParts.push(`${args.aboutArtifact} → ${clamped}%`);
 
               // Propagate to grandparent action if parent is a task
@@ -159,7 +171,10 @@ export function createContributionTools(
         title: z.string().optional().describe("New title"),
         status: z.string().optional().describe("New status"),
         content: z.string().optional().describe("New content"),
-        workFocus: z.string().optional().describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
+        workFocus: z
+          .string()
+          .optional()
+          .describe("Work focus name (e.g. 'Budget UX'). Replaces existing focus:<value> tag."),
       },
       async (args) => {
         const { id, content, workFocus, ...updates } = args;

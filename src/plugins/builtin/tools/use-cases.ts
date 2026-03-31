@@ -2,9 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 
-export function createUseCaseTools(
-  store: DocumentStore,
-): SdkMcpToolDefinition<any>[] {
+export function createUseCaseTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     tool(
       "list_use_cases",
@@ -22,9 +20,7 @@ export function createUseCaseTools(
       async (args) => {
         let docs = store.list({ type: "use-case", status: args.status });
         if (args.extensionType) {
-          docs = docs.filter(
-            (d) => d.frontmatter.extensionType === args.extensionType,
-          );
+          docs = docs.filter((d) => d.frontmatter.extensionType === args.extensionType);
         }
         const summary = docs.map((d) => ({
           id: d.frontmatter.id,
@@ -59,11 +55,7 @@ export function createUseCaseTools(
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { ...doc.frontmatter, content: doc.content },
-                null,
-                2,
-              ),
+              text: JSON.stringify({ ...doc.frontmatter, content: doc.content }, null, 2),
             },
           ],
         };
@@ -76,7 +68,11 @@ export function createUseCaseTools(
       "Create a new extension use case definition (Phase 1: Assess Extension Use Case)",
       {
         title: z.string().describe("Use case title"),
-        content: z.string().describe("Use case description — business scenario, justification, and expected outcome"),
+        content: z
+          .string()
+          .describe(
+            "Use case description — business scenario, justification, and expected outcome",
+          ),
         status: z
           .enum(["draft", "assessed", "approved", "deferred"])
           .optional()
@@ -135,10 +131,7 @@ export function createUseCaseTools(
           .enum(["in-app", "side-by-side", "hybrid"])
           .optional()
           .describe("New extension type"),
-        priority: z
-          .enum(["critical", "high", "medium", "low"])
-          .optional()
-          .describe("New priority"),
+        priority: z.enum(["critical", "high", "medium", "low"]).optional().describe("New priority"),
         owner: z.string().optional().describe("New owner"),
       },
       async (args) => {

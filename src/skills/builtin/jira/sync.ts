@@ -3,13 +3,9 @@ import type { JiraClient, JiraIssue } from "./client.js";
 import type {
   FlatJiraStatusMap,
   LegacyJiraStatusMap,
-  ConditionalJiraStatusMapping,
   JiraProjectConfig,
 } from "../../../core/config.js";
-import {
-  propagateProgressFromTask,
-  propagateProgressToAction,
-} from "../../../storage/progress.js";
+import { propagateProgressFromTask, propagateProgressToAction } from "../../../storage/progress.js";
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "obsolete", "wont do"]);
 
@@ -49,7 +45,7 @@ function isLegacyFormat(
   const keys = Object.keys(statusMap);
   // Legacy format: only has "action" and/or "task" keys, and their values
   // are objects whose values are string arrays
-  if (!keys.every(k => k === "action" || k === "task")) return false;
+  if (!keys.every((k) => k === "action" || k === "task")) return false;
   for (const key of keys) {
     const val = (statusMap as Record<string, unknown>)[key];
     if (typeof val !== "object" || val === null) return false;
@@ -87,7 +83,7 @@ function buildFlatLookup(flatMap: FlatJiraStatusMap, inSprint: boolean): Map<str
       lookup.set(jiraStatus.toLowerCase(), value);
     } else {
       // Conditional mapping
-      const resolved = (inSprint && value.inSprint) ? value.inSprint : value.default;
+      const resolved = inSprint && value.inSprint ? value.inSprint : value.default;
       lookup.set(jiraStatus.toLowerCase(), resolved);
     }
   }
@@ -102,9 +98,7 @@ export interface ResolvedStatusMap {
 /**
  * Normalize the raw statusMap from config into a resolved form.
  */
-export function normalizeStatusMap(
-  statusMap: JiraProjectConfig["statusMap"],
-): ResolvedStatusMap {
+export function normalizeStatusMap(statusMap: JiraProjectConfig["statusMap"]): ResolvedStatusMap {
   if (!statusMap) return {};
   if (isLegacyFormat(statusMap)) {
     return { legacy: statusMap };
@@ -150,7 +144,7 @@ export function mapJiraStatusForTask(
  */
 export function isInActiveSprint(store: DocumentStore, tags: string[] | undefined): boolean {
   if (!tags) return false;
-  const sprintTags = tags.filter(t => t.startsWith("sprint:"));
+  const sprintTags = tags.filter((t) => t.startsWith("sprint:"));
   if (sprintTags.length === 0) return false;
 
   for (const tag of sprintTags) {
@@ -173,7 +167,7 @@ export { DEFAULT_ACTION_STATUS_MAP, DEFAULT_TASK_STATUS_MAP };
  */
 export function extractJiraKeyFromTags(tags: string[] | undefined): string | undefined {
   if (!tags) return undefined;
-  const tag = tags.find(t => /^jira:[A-Z]+-\d+$/i.test(t));
+  const tag = tags.find((t) => /^jira:[A-Z]+-\d+$/i.test(t));
   return tag ? tag.slice(5) : undefined;
 }
 
@@ -212,9 +206,7 @@ export function collectLinkedIssues(issue: JiraIssue): LinkedIssueSummary[] {
           summary: link.outwardIssue.fields.summary,
           status: link.outwardIssue.fields.status.name,
           relationship: link.type.outward,
-          isDone: DONE_STATUSES.has(
-            link.outwardIssue.fields.status.name.toLowerCase(),
-          ),
+          isDone: DONE_STATUSES.has(link.outwardIssue.fields.status.name.toLowerCase()),
         });
       }
       if (link.inwardIssue) {
@@ -223,9 +215,7 @@ export function collectLinkedIssues(issue: JiraIssue): LinkedIssueSummary[] {
           summary: link.inwardIssue.fields.summary,
           status: link.inwardIssue.fields.status.name,
           relationship: link.type.inward,
-          isDone: DONE_STATUSES.has(
-            link.inwardIssue.fields.status.name.toLowerCase(),
-          ),
+          isDone: DONE_STATUSES.has(link.inwardIssue.fields.status.name.toLowerCase()),
         });
       }
     }
@@ -273,9 +263,7 @@ export function computeSubtaskProgress(
   subtasks: { fields: { status: { name: string } } }[],
 ): number {
   if (subtasks.length === 0) return 0;
-  const done = subtasks.filter((s) =>
-    DONE_STATUSES.has(s.fields.status.name.toLowerCase()),
-  ).length;
+  const done = subtasks.filter((s) => DONE_STATUSES.has(s.fields.status.name.toLowerCase())).length;
   return Math.round((done / subtasks.length) * 100);
 }
 
@@ -294,9 +282,7 @@ export async function fetchJiraStatus(
 
   const actions = store.list({ type: "action" });
   const tasks = store.list({ type: "task" });
-  let candidates = [...actions, ...tasks].filter(
-    (d) => d.frontmatter.jiraKey,
-  );
+  let candidates = [...actions, ...tasks].filter((d) => d.frontmatter.jiraKey);
 
   if (artifactId) {
     candidates = candidates.filter((d) => d.frontmatter.id === artifactId);
@@ -314,9 +300,7 @@ export async function fetchJiraStatus(
   }
 
   // Skip already-done artifacts
-  candidates = candidates.filter(
-    (d) => !DONE_STATUSES.has(d.frontmatter.status),
-  );
+  candidates = candidates.filter((d) => !DONE_STATUSES.has(d.frontmatter.status));
 
   for (const doc of candidates) {
     const jiraKey = doc.frontmatter.jiraKey as string;
@@ -357,8 +341,7 @@ export async function fetchJiraStatus(
         statusChanged: currentStatus !== proposedStatus,
         currentProgress,
         proposedProgress,
-        progressChanged:
-          proposedProgress !== undefined && proposedProgress !== currentProgress,
+        progressChanged: proposedProgress !== undefined && proposedProgress !== currentProgress,
         linkedIssues,
       });
     } catch (err) {
@@ -391,9 +374,7 @@ export async function syncJiraProgress(
 
   for (const artifact of fetchResult.artifacts) {
     const hasChanges =
-      artifact.statusChanged ||
-      artifact.progressChanged ||
-      artifact.linkedIssues.length > 0;
+      artifact.statusChanged || artifact.progressChanged || artifact.linkedIssues.length > 0;
 
     if (hasChanges) {
       const updates: Record<string, unknown> = {

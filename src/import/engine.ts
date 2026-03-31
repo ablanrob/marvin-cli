@@ -27,29 +27,19 @@ export function buildImportPlan(
 
   switch (classification.type) {
     case "marvin-project":
-      items.push(
-        ...planFromMarvinProject(classification, store, marvinDir, options),
-      );
+      items.push(...planFromMarvinProject(classification, store, marvinDir, options));
       break;
     case "docs-directory":
-      items.push(
-        ...planFromDocsDirectory(classification, store, marvinDir, options),
-      );
+      items.push(...planFromDocsDirectory(classification, store, marvinDir, options));
       break;
     case "marvin-document":
-      items.push(
-        ...planFromSingleDocument(classification, store, marvinDir, options),
-      );
+      items.push(...planFromSingleDocument(classification, store, marvinDir, options));
       break;
     case "raw-source-dir":
-      items.push(
-        ...planFromRawSourceDir(classification, marvinDir),
-      );
+      items.push(...planFromRawSourceDir(classification, marvinDir));
       break;
     case "raw-source-file":
-      items.push(
-        ...planFromRawSourceFile(classification, marvinDir),
-      );
+      items.push(...planFromRawSourceFile(classification, marvinDir));
       break;
   }
 
@@ -120,7 +110,7 @@ export function formatPlanSummary(plan: ImportPlan): string {
       const idInfo =
         item.originalId !== item.newId
           ? `${item.originalId} → ${item.newId}`
-          : item.newId ?? item.originalId ?? "";
+          : (item.newId ?? item.originalId ?? "");
       lines.push(`  ${idInfo}  ${path.basename(item.sourcePath)}`);
     }
   }
@@ -216,11 +206,7 @@ function planDocImports(
     content: d.content,
   }));
 
-  const { resolved, skipped, idMapping } = resolveConflicts(
-    incoming,
-    store,
-    options.conflict,
-  );
+  const { resolved, skipped, idMapping } = resolveConflicts(incoming, store, options.conflict);
 
   const items: ImportPlanItem[] = [];
 
@@ -282,11 +268,12 @@ function planFromMarvinProject(
   }
 
   const knownTypes = store.registeredTypes;
-  const allDocs: Array<{ frontmatter: DocumentFrontmatter; content: string; sourcePath: string }> = [];
+  const allDocs: Array<{ frontmatter: DocumentFrontmatter; content: string; sourcePath: string }> =
+    [];
 
-  const subdirs = fs.readdirSync(docsDir).filter((d) =>
-    fs.statSync(path.join(docsDir, d)).isDirectory(),
-  );
+  const subdirs = fs
+    .readdirSync(docsDir)
+    .filter((d) => fs.statSync(path.join(docsDir, d)).isDirectory());
 
   for (const subdir of subdirs) {
     const docs = collectMarvinDocs(path.join(docsDir, subdir), knownTypes);
@@ -304,7 +291,8 @@ function planFromDocsDirectory(
 ): ImportPlanItem[] {
   const dir = classification.inputPath;
   const knownTypes = store.registeredTypes;
-  const allDocs: Array<{ frontmatter: DocumentFrontmatter; content: string; sourcePath: string }> = [];
+  const allDocs: Array<{ frontmatter: DocumentFrontmatter; content: string; sourcePath: string }> =
+    [];
 
   // Collect from top level
   allDocs.push(...collectMarvinDocs(dir, knownTypes));

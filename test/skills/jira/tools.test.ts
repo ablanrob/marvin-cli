@@ -27,7 +27,7 @@ describe("Jira tools", () => {
     // Save and clear Jira env vars so no test hits a real Jira instance
     for (const key of ["JIRA_HOST", "JIRA_EMAIL", "JIRA_API_TOKEN"]) {
       savedJiraEnv[key] = process.env[key];
-      delete process.env[key];
+      Reflect.deleteProperty(process.env, key);
     }
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-jira-tools-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
@@ -40,7 +40,7 @@ describe("Jira tools", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
     // Restore Jira env vars
     for (const [key, value] of Object.entries(savedJiraEnv)) {
-      if (value === undefined) delete process.env[key];
+      if (value === undefined) Reflect.deleteProperty(process.env, key);
       else process.env[key] = value;
     }
   });
@@ -83,15 +83,19 @@ describe("Jira tools", () => {
     });
 
     it("should list created JI documents", async () => {
-      store.create("jira-issue", {
-        title: "Test issue",
-        status: "open",
-        jiraKey: "PROJ-1",
-        issueType: "Story",
-        priority: "High",
-        assignee: "Jane",
-        linkedArtifacts: [],
-      } as any, "");
+      store.create(
+        "jira-issue",
+        {
+          title: "Test issue",
+          status: "open",
+          jiraKey: "PROJ-1",
+          issueType: "Story",
+          priority: "High",
+          assignee: "Jane",
+          linkedArtifacts: [],
+        } as any,
+        "",
+      );
 
       const result = await callTool("list_jira_issues", {});
       const data = JSON.parse(result.content[0].text);
@@ -101,16 +105,24 @@ describe("Jira tools", () => {
     });
 
     it("should filter by status", async () => {
-      store.create("jira-issue", {
-        title: "Open issue",
-        status: "open",
-        jiraKey: "PROJ-1",
-      } as any, "");
-      store.create("jira-issue", {
-        title: "Done issue",
-        status: "done",
-        jiraKey: "PROJ-2",
-      } as any, "");
+      store.create(
+        "jira-issue",
+        {
+          title: "Open issue",
+          status: "open",
+          jiraKey: "PROJ-1",
+        } as any,
+        "",
+      );
+      store.create(
+        "jira-issue",
+        {
+          title: "Done issue",
+          status: "done",
+          jiraKey: "PROJ-2",
+        } as any,
+        "",
+      );
 
       const result = await callTool("list_jira_issues", { status: "open" });
       const data = JSON.parse(result.content[0].text);
@@ -119,16 +131,24 @@ describe("Jira tools", () => {
     });
 
     it("should filter by jiraKey", async () => {
-      store.create("jira-issue", {
-        title: "Issue A",
-        status: "open",
-        jiraKey: "PROJ-1",
-      } as any, "");
-      store.create("jira-issue", {
-        title: "Issue B",
-        status: "open",
-        jiraKey: "PROJ-2",
-      } as any, "");
+      store.create(
+        "jira-issue",
+        {
+          title: "Issue A",
+          status: "open",
+          jiraKey: "PROJ-1",
+        } as any,
+        "",
+      );
+      store.create(
+        "jira-issue",
+        {
+          title: "Issue B",
+          status: "open",
+          jiraKey: "PROJ-2",
+        } as any,
+        "",
+      );
 
       const result = await callTool("list_jira_issues", { jiraKey: "PROJ-2" });
       const data = JSON.parse(result.content[0].text);
@@ -139,11 +159,15 @@ describe("Jira tools", () => {
 
   describe("get_jira_issue", () => {
     it("should get by local ID", async () => {
-      store.create("jira-issue", {
-        title: "Test issue",
-        status: "open",
-        jiraKey: "PROJ-1",
-      } as any, "Issue description");
+      store.create(
+        "jira-issue",
+        {
+          title: "Test issue",
+          status: "open",
+          jiraKey: "PROJ-1",
+        } as any,
+        "Issue description",
+      );
 
       const result = await callTool("get_jira_issue", { id: "JI-001" });
       expect(result.isError).toBeUndefined();
@@ -153,11 +177,15 @@ describe("Jira tools", () => {
     });
 
     it("should get by Jira key", async () => {
-      store.create("jira-issue", {
-        title: "Test issue",
-        status: "open",
-        jiraKey: "PROJ-42",
-      } as any, "");
+      store.create(
+        "jira-issue",
+        {
+          title: "Test issue",
+          status: "open",
+          jiraKey: "PROJ-42",
+        } as any,
+        "",
+      );
 
       const result = await callTool("get_jira_issue", { id: "PROJ-42" });
       expect(result.isError).toBeUndefined();
@@ -174,12 +202,16 @@ describe("Jira tools", () => {
 
   describe("link_artifact_to_jira", () => {
     it("should add artifact to linkedArtifacts", async () => {
-      store.create("jira-issue", {
-        title: "Issue",
-        status: "open",
-        jiraKey: "PROJ-1",
-        linkedArtifacts: [],
-      } as any, "");
+      store.create(
+        "jira-issue",
+        {
+          title: "Issue",
+          status: "open",
+          jiraKey: "PROJ-1",
+          linkedArtifacts: [],
+        } as any,
+        "",
+      );
 
       // Create a decision to link
       store.create("decision", { title: "Use React", status: "open" }, "");
@@ -197,12 +229,16 @@ describe("Jira tools", () => {
     });
 
     it("should not duplicate existing links", async () => {
-      store.create("jira-issue", {
-        title: "Issue",
-        status: "open",
-        jiraKey: "PROJ-1",
-        linkedArtifacts: ["D-001"],
-      } as any, "");
+      store.create(
+        "jira-issue",
+        {
+          title: "Issue",
+          status: "open",
+          jiraKey: "PROJ-1",
+          linkedArtifacts: ["D-001"],
+        } as any,
+        "",
+      );
       store.create("decision", { title: "Use React", status: "open" }, "");
 
       const result = await callTool("link_artifact_to_jira", {
@@ -221,12 +257,16 @@ describe("Jira tools", () => {
     });
 
     it("should return error for non-existent artifact", async () => {
-      store.create("jira-issue", {
-        title: "Issue",
-        status: "open",
-        jiraKey: "PROJ-1",
-        linkedArtifacts: [],
-      } as any, "");
+      store.create(
+        "jira-issue",
+        {
+          title: "Issue",
+          status: "open",
+          jiraKey: "PROJ-1",
+          linkedArtifacts: [],
+        } as any,
+        "",
+      );
 
       const result = await callTool("link_artifact_to_jira", {
         jiraIssueId: "JI-001",
@@ -391,11 +431,15 @@ describe("Jira tools", () => {
     });
 
     it("sync_jira_issue returns isError when Jira not configured", async () => {
-      store.create("jira-issue", {
-        title: "Issue",
-        status: "open",
-        jiraKey: "PROJ-1",
-      } as any, "");
+      store.create(
+        "jira-issue",
+        {
+          title: "Issue",
+          status: "open",
+          jiraKey: "PROJ-1",
+        } as any,
+        "",
+      );
 
       const result = await callTool("sync_jira_issue", { id: "JI-001" });
       expect(result.isError).toBe(true);

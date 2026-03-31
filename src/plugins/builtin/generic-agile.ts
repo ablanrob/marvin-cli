@@ -7,7 +7,18 @@ export const genericAgilePlugin: MarvinPlugin = {
   description:
     "Default methodology plugin providing standard agile governance patterns for decisions, actions, and questions.",
   version: "0.1.0",
-  documentTypes: ["decision", "action", "question", "meeting", "report", "feature", "epic", "contribution", "sprint", "task"],
+  documentTypes: [
+    "decision",
+    "action",
+    "question",
+    "meeting",
+    "report",
+    "feature",
+    "epic",
+    "contribution",
+    "sprint",
+    "task",
+  ],
   documentTypeRegistrations: [...COMMON_REGISTRATIONS],
   tools: (store) => [...createCommonTools(store)],
   promptFragments: {

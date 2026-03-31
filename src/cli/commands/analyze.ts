@@ -31,7 +31,9 @@ export async function analyzeCommand(
   }
 
   if (meetingDoc.frontmatter.type !== "meeting") {
-    console.log(chalk.red(`Document ${meetingId} is not a meeting (type: ${meetingDoc.frontmatter.type}).`));
+    console.log(
+      chalk.red(`Document ${meetingId} is not a meeting (type: ${meetingDoc.frontmatter.type}).`),
+    );
     return;
   }
 

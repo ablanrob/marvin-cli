@@ -17,7 +17,15 @@ describe("Epic Tools", () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "marvin-test-"));
     marvinDir = path.join(tmpDir, ".marvin");
-    for (const dir of ["decisions", "actions", "questions", "meetings", "reports", "features", "epics"]) {
+    for (const dir of [
+      "decisions",
+      "actions",
+      "questions",
+      "meetings",
+      "reports",
+      "features",
+      "epics",
+    ]) {
       fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
     }
     store = new DocumentStore(marvinDir, COMMON_REGISTRATIONS);
@@ -362,12 +370,16 @@ describe("Epic Tools", () => {
   describe("legacy single-string normalization", () => {
     it("should normalize legacy single-string linkedFeature on list", async () => {
       // Directly create an epic with a single-string linkedFeature (legacy format)
-      store.create("epic", {
-        title: "Legacy Epic",
-        status: "planned",
-        linkedFeature: "F-001",
-        tags: ["feature:F-001"],
-      }, "Legacy content");
+      store.create(
+        "epic",
+        {
+          title: "Legacy Epic",
+          status: "planned",
+          linkedFeature: "F-001",
+          tags: ["feature:F-001"],
+        },
+        "Legacy content",
+      );
 
       const result = await epicTools.list_epics({});
       const list = JSON.parse(result.content[0].text);

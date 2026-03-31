@@ -1,6 +1,6 @@
 import type { SprintSummaryData } from "../../../reports/sprint-summary/types.js";
 import type { DocumentStore } from "../../../storage/store.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel, renderMarkdown } from "../layout.js";
+import { escapeHtml, formatDate, statusBadge, typeLabel, renderMarkdown } from "../layout.js";
 
 export function sprintBlockersPage(data: SprintSummaryData | null, store: DocumentStore): string {
   if (!data) {
@@ -29,13 +29,14 @@ export function sprintBlockersPage(data: SprintSummaryData | null, store: Docume
       </div>
     </div>`;
 
-  const itemCards = blockerDocs.map((b) => {
-    const doc = b.doc;
-    const owner = doc?.frontmatter.owner;
-    const assignee = doc?.frontmatter.assignee;
-    const content = doc?.content?.trim();
+  const itemCards = blockerDocs
+    .map((b) => {
+      const doc = b.doc;
+      const owner = doc?.frontmatter.owner;
+      const assignee = doc?.frontmatter.assignee;
+      const content = doc?.content?.trim();
 
-    return `
+      return `
       <div class="blocker-card">
         <div class="blocker-card-header">
           <a href="/docs/${escapeHtml(b.type)}/${escapeHtml(b.id)}">${escapeHtml(b.id)}</a>
@@ -50,11 +51,13 @@ export function sprintBlockersPage(data: SprintSummaryData | null, store: Docume
         </div>
         ${content ? `<div class="blocker-card-content detail-content">${renderMarkdown(content)}</div>` : ""}
       </div>`;
-  }).join("");
+    })
+    .join("");
 
-  const emptyMessage = blockerDocs.length === 0
-    ? `<div class="empty"><h3>No Blockers</h3><p>No blocked items in this sprint.</p></div>`
-    : "";
+  const emptyMessage =
+    blockerDocs.length === 0
+      ? `<div class="empty"><h3>No Blockers</h3><p>No blocked items in this sprint.</p></div>`
+      : "";
 
   return `
     <div class="page-header">

@@ -1,6 +1,6 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getBoardData } from "../../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
 
 const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
@@ -31,7 +31,15 @@ export function tlBacklogPage(ctx: PersonaPageContext): string {
   }
 
   // Sort epics: open/in-progress first
-  const statusOrder: Record<string, number> = { "in-progress": 0, open: 1, draft: 2, blocked: 3, done: 4, closed: 5, resolved: 6 };
+  const statusOrder: Record<string, number> = {
+    "in-progress": 0,
+    open: 1,
+    draft: 2,
+    blocked: 3,
+    done: 4,
+    closed: 5,
+    resolved: 6,
+  };
   const sortedEpics = [...epics].sort((a, b) => {
     const sa = statusOrder[a.frontmatter.status] ?? 3;
     const sb = statusOrder[b.frontmatter.status] ?? 3;
@@ -39,21 +47,23 @@ export function tlBacklogPage(ctx: PersonaPageContext): string {
     return a.frontmatter.id.localeCompare(b.frontmatter.id);
   });
 
-  const epicsTable = sortedEpics.length > 0
-    ? `<div class="table-wrap">
+  const epicsTable =
+    sortedEpics.length > 0
+      ? `<div class="table-wrap">
         <table>
           <thead>
             <tr><th>ID</th><th>Title</th><th>Status</th><th>Tasks</th><th>Linked Feature</th></tr>
           </thead>
           <tbody>
-            ${sortedEpics.map((e) => {
-              const eTasks = epicToTasks.get(e.frontmatter.id) ?? [];
-              const done = eTasks.filter((t) => DONE_STATUSES.has(t.frontmatter.status)).length;
-              const featureIds = epicFeatureMap.get(e.frontmatter.id) ?? [];
-              const featureLinks = featureIds
-                .map((fid) => `<a href="/docs/feature/${escapeHtml(fid)}">${escapeHtml(fid)}</a>`)
-                .join(", ");
-              return `
+            ${sortedEpics
+              .map((e) => {
+                const eTasks = epicToTasks.get(e.frontmatter.id) ?? [];
+                const done = eTasks.filter((t) => DONE_STATUSES.has(t.frontmatter.status)).length;
+                const featureIds = epicFeatureMap.get(e.frontmatter.id) ?? [];
+                const featureLinks = featureIds
+                  .map((fid) => `<a href="/docs/feature/${escapeHtml(fid)}">${escapeHtml(fid)}</a>`)
+                  .join(", ");
+                return `
             <tr>
               <td><a href="/docs/epic/${escapeHtml(e.frontmatter.id)}">${escapeHtml(e.frontmatter.id)}</a></td>
               <td>${escapeHtml(e.frontmatter.title)}</td>
@@ -61,11 +71,12 @@ export function tlBacklogPage(ctx: PersonaPageContext): string {
               <td>${done}/${eTasks.length}</td>
               <td>${featureLinks || '<span class="text-dim">—</span>'}</td>
             </tr>`;
-            }).join("")}
+              })
+              .join("")}
           </tbody>
         </table>
       </div>`
-    : '<div class="empty"><p>No epics found.</p></div>';
+      : '<div class="empty"><p>No epics found.</p></div>';
 
   // Unassigned tasks (not tagged to any epic)
   const assignedTaskIds = new Set<string>();
@@ -76,55 +87,72 @@ export function tlBacklogPage(ctx: PersonaPageContext): string {
     (t) => !assignedTaskIds.has(t.frontmatter.id) && !DONE_STATUSES.has(t.frontmatter.status),
   );
 
-  const unassignedSection = unassignedTasks.length > 0
-    ? collapsibleSection(
-        "tl-backlog-unassigned",
-        `Unassigned Tasks (${unassignedTasks.length})`,
-        `<div class="table-wrap">
+  const unassignedSection =
+    unassignedTasks.length > 0
+      ? collapsibleSection(
+          "tl-backlog-unassigned",
+          `Unassigned Tasks (${unassignedTasks.length})`,
+          `<div class="table-wrap">
           <table>
             <thead>
               <tr><th>ID</th><th>Title</th><th>Status</th><th>Owner</th><th>Created</th></tr>
             </thead>
             <tbody>
-              ${unassignedTasks.map((t) => `
+              ${unassignedTasks
+                .map(
+                  (t) => `
               <tr>
                 <td><a href="/docs/task/${escapeHtml(t.frontmatter.id)}">${escapeHtml(t.frontmatter.id)}</a></td>
                 <td>${escapeHtml(t.frontmatter.title)}</td>
                 <td>${statusBadge(t.frontmatter.status)}</td>
                 <td>${t.frontmatter.owner ? escapeHtml(t.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
                 <td>${formatDate(t.frontmatter.created)}</td>
-              </tr>`).join("")}
+              </tr>`,
+                )
+                .join("")}
             </tbody>
           </table>
         </div>`,
-        { titleTag: "h3" },
-      )
-    : "";
+          { titleTag: "h3" },
+        )
+      : "";
 
   // Task board view
   const taskBoard = getBoardData(ctx.store, "task");
-  const boardHtml = taskBoard.columns.length > 0
-    ? `<div class="board">
-        ${taskBoard.columns.map((col) => `
+  const boardHtml =
+    taskBoard.columns.length > 0
+      ? `<div class="board">
+        ${taskBoard.columns
+          .map(
+            (col) => `
         <div class="board-column">
           <div class="board-column-header">
             <span>${escapeHtml(col.status)}</span>
             <span class="count">${col.docs.length}</span>
           </div>
-          ${col.docs.map((d) => `
+          ${col.docs
+            .map(
+              (d) => `
           <div class="board-card">
             <a href="/docs/task/${escapeHtml(d.frontmatter.id)}">
               <div class="bc-id">${escapeHtml(d.frontmatter.id)}</div>
               <div class="bc-title">${escapeHtml(d.frontmatter.title)}</div>
               ${d.frontmatter.owner ? `<div class="bc-owner">${escapeHtml(d.frontmatter.owner)}</div>` : ""}
             </a>
-          </div>`).join("")}
-        </div>`).join("")}
+          </div>`,
+            )
+            .join("")}
+        </div>`,
+          )
+          .join("")}
       </div>`
-    : "";
+      : "";
 
   const boardSection = boardHtml
-    ? collapsibleSection("tl-backlog-board", "Task Board", boardHtml, { titleTag: "h3", defaultCollapsed: true })
+    ? collapsibleSection("tl-backlog-board", "Task Board", boardHtml, {
+        titleTag: "h3",
+        defaultCollapsed: true,
+      })
     : "";
 
   return `

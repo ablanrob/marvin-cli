@@ -54,10 +54,12 @@ export interface LegacyJiraStatusMap {
 
 export interface JiraProjectConfig {
   projectKey?: string;
-  statusMap?: FlatJiraStatusMap | {
-    action?: LegacyJiraStatusMap;
-    task?: LegacyJiraStatusMap;
-  };
+  statusMap?:
+    | FlatJiraStatusMap
+    | {
+        action?: LegacyJiraStatusMap;
+        task?: LegacyJiraStatusMap;
+      };
 }
 
 export interface MarvinProjectConfig {
@@ -99,9 +101,7 @@ export function loadUserConfig(): MarvinUserConfig {
     const raw = fs.readFileSync(configPath, "utf-8");
     return (YAML.parse(raw) as MarvinUserConfig) ?? {};
   } catch (err) {
-    throw new ConfigError(
-      `Failed to parse user config at ${configPath}: ${err}`,
-    );
+    throw new ConfigError(`Failed to parse user config at ${configPath}: ${err}`);
   }
 }
 
@@ -114,9 +114,7 @@ export function saveUserConfig(config: MarvinUserConfig): void {
 export function loadProjectConfig(marvinDir: string): MarvinProjectConfig {
   const configPath = path.join(marvinDir, "config.yaml");
   if (!fs.existsSync(configPath)) {
-    throw new ConfigError(
-      `Project config not found at ${configPath}. Run "marvin init".`,
-    );
+    throw new ConfigError(`Project config not found at ${configPath}. Run "marvin init".`);
   }
   try {
     const raw = fs.readFileSync(configPath, "utf-8");
@@ -127,16 +125,11 @@ export function loadProjectConfig(marvinDir: string): MarvinProjectConfig {
     return parsed;
   } catch (err) {
     if (err instanceof ConfigError) throw err;
-    throw new ConfigError(
-      `Failed to parse project config at ${configPath}: ${err}`,
-    );
+    throw new ConfigError(`Failed to parse project config at ${configPath}: ${err}`);
   }
 }
 
-export function saveProjectConfig(
-  marvinDir: string,
-  config: MarvinProjectConfig,
-): void {
+export function saveProjectConfig(marvinDir: string, config: MarvinProjectConfig): void {
   const configPath = path.join(marvinDir, "config.yaml");
   fs.writeFileSync(configPath, YAML.stringify(config), "utf-8");
 }
@@ -145,8 +138,7 @@ export function mergeConfig(
   userConfig: MarvinUserConfig,
   projectConfig: MarvinProjectConfig,
 ): MergedConfig {
-  const apiKey =
-    userConfig.apiKey ?? process.env["ANTHROPIC_API_KEY"];
+  const apiKey = userConfig.apiKey ?? process.env["ANTHROPIC_API_KEY"];
   return {
     apiKey,
     defaultModel: userConfig.defaultModel ?? "claude-sonnet-4-5-20250929",

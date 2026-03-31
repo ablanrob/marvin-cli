@@ -62,13 +62,21 @@ export async function ingestCommand(
     return;
   }
 
-  console.log(chalk.bold(`\nProcessing ${unprocessed.length} source file${unprocessed.length === 1 ? "" : "s"}...\n`));
+  console.log(
+    chalk.bold(
+      `\nProcessing ${unprocessed.length} source file${unprocessed.length === 1 ? "" : "s"}...\n`,
+    ),
+  );
 
   for (const fileName of unprocessed) {
     try {
       await ingestFile({ marvinDir, fileName, draft: isDraft, persona });
     } catch (err) {
-      console.log(chalk.red(`\nError processing ${fileName}: ${err instanceof Error ? err.message : String(err)}`));
+      console.log(
+        chalk.red(
+          `\nError processing ${fileName}: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
     }
   }
 }
@@ -78,7 +86,9 @@ function showSourceStatus(manifest: SourceManifestManager): void {
 
   if (all.length === 0) {
     console.log(chalk.dim("\nNo source files found in .marvin/sources/"));
-    console.log(chalk.dim("Drop PDF, Markdown, or text files there and run \"marvin ingest --all\".\n"));
+    console.log(
+      chalk.dim('Drop PDF, Markdown, or text files there and run "marvin ingest --all".\n'),
+    );
     return;
   }
 
@@ -94,16 +104,21 @@ function showSourceStatus(manifest: SourceManifestManager): void {
   for (const { name, entry } of all) {
     const colorFn = statusColors[entry.status] ?? chalk.white;
     const status = colorFn(entry.status.padEnd(10));
-    const artifacts = entry.artifacts.length > 0
-      ? chalk.dim(` → ${entry.artifacts.join(", ")}`)
-      : "";
+    const artifacts =
+      entry.artifacts.length > 0 ? chalk.dim(` → ${entry.artifacts.join(", ")}`) : "";
     const error = entry.error ? chalk.red(` (${entry.error})`) : "";
     console.log(`  ${status} ${name}${artifacts}${error}`);
   }
 
-  const pending = all.filter((f) => f.entry.status === "pending" || f.entry.status === "error").length;
+  const pending = all.filter(
+    (f) => f.entry.status === "pending" || f.entry.status === "error",
+  ).length;
   if (pending > 0) {
-    console.log(chalk.dim(`\n${pending} file${pending === 1 ? "" : "s"} ready to process. Run "marvin ingest --all" to process them.\n`));
+    console.log(
+      chalk.dim(
+        `\n${pending} file${pending === 1 ? "" : "s"} ready to process. Run "marvin ingest --all" to process them.\n`,
+      ),
+    );
   } else {
     console.log("");
   }

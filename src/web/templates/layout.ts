@@ -1,5 +1,6 @@
 import { CORE_ID_PREFIXES } from "../../storage/store.js";
 import { COMMON_REGISTRATIONS } from "../../plugins/common.js";
+import type { DashboardPersona } from "../persona-views.js";
 
 /**
  * Wrap a section title + content in a collapsible container.
@@ -38,19 +39,20 @@ export function escapeHtml(str: string): string {
 }
 
 export function statusBadge(status: string): string {
-  const cls = {
-    open: "badge-open",
-    done: "badge-done",
-    closed: "badge-done",
-    resolved: "badge-resolved",
-    decided: "badge-done",
-    superseded: "badge-draft",
-    dismissed: "badge-draft",
-    "in-progress": "badge-in-progress",
-    "in progress": "badge-in-progress",
-    draft: "badge-draft",
-    blocked: "badge-blocked",
-  }[status.toLowerCase()] ?? "badge-default";
+  const cls =
+    {
+      open: "badge-open",
+      done: "badge-done",
+      closed: "badge-done",
+      resolved: "badge-resolved",
+      decided: "badge-done",
+      superseded: "badge-draft",
+      dismissed: "badge-draft",
+      "in-progress": "badge-in-progress",
+      "in progress": "badge-in-progress",
+      draft: "badge-draft",
+      blocked: "badge-blocked",
+    }[status.toLowerCase()] ?? "badge-default";
   return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
 }
 
@@ -156,7 +158,7 @@ export function renderMarkdown(md: string): string {
     // Table body row
     if (inTable && /^\s*\|/.test(line)) {
       const cells = parseTableRow(line);
-      out.push("<tr>" + cells.map((c) => `<td>${inline(c)}</td>`).join("") + "</tr>");
+      out.push(`<tr>${cells.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`);
       i++;
       continue;
     }
@@ -284,7 +286,7 @@ interface LayoutOptions {
   projectName: string;
   navGroups: NavGroup[];
   mainClass?: string;
-  persona?: import("../persona-views.js").DashboardPersona;
+  persona?: DashboardPersona;
   personaSwitcherHtml?: string;
   personaNavHtml?: string;
   personaAccentColor?: string;
@@ -292,7 +294,6 @@ interface LayoutOptions {
 }
 
 export function layout(opts: LayoutOptions, body: string): string {
-
   const switcherHtml = opts.personaSwitcherHtml ?? "";
 
   let navHtml: string;
@@ -387,7 +388,9 @@ export function layout(opts: LayoutOptions, body: string): string {
       } catch(e) {}
     })();
   </script>
-  ${opts.persona ? `<script>
+  ${
+    opts.persona
+      ? `<script>
     // Preserve persona context on /docs/ links
     (function() {
       var persona = "${opts.persona}";
@@ -401,7 +404,9 @@ export function layout(opts: LayoutOptions, body: string): string {
         a.setAttribute('href', href + sep + 'persona=' + persona);
       }, true);
     })();
-  </script>` : ""}
+  </script>`
+      : ""
+  }
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>mermaid.initialize({
     startOnLoad: true,
