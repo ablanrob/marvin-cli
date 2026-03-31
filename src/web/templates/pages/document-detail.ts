@@ -163,6 +163,11 @@ function renderAssessmentTimeline(history: AssessmentSummary[]): string {
       parts.push(`<div class="assessment-stat">👶 Children: ${entry.childDoneCount}/${entry.childCount} done ${bar} ${entry.childRollupProgress ?? 0}%</div>`);
     }
 
+    if (entry.totalBlockers > 0) {
+      const bar = progressBarHtml(entry.blockerProgress ?? 0);
+      parts.push(`<div class="assessment-stat">🚧 Blockers: ${entry.resolvedBlockers}/${entry.totalBlockers} resolved ${bar} ${entry.blockerProgress ?? 0}%</div>`);
+    }
+
     if (entry.linkedIssueCount > 0) {
       parts.push(`<div class="assessment-stat">🔗 Linked issues: ${entry.linkedIssueCount}</div>`);
     }
