@@ -1,19 +1,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { DocumentError } from "../core/errors.js";
 import { parseDocument, serializeDocument } from "./document.js";
-import type {
-  Document,
-  DocumentFrontmatter,
-  DocumentQuery,
-  DocumentType,
-  DocumentTypeRegistration,
+import {
+  CORE_TYPE_DIRS,
+  type Document,
+  type DocumentFrontmatter,
+  type DocumentQuery,
+  type DocumentType,
+  type DocumentTypeRegistration,
 } from "./types.js";
-
-const CORE_TYPE_DIRS: Record<string, string> = {
-  decision: "decisions",
-  action: "actions",
-  question: "questions",
-};
 
 export const CORE_ID_PREFIXES: Record<string, string> = {
   decision: "D",
@@ -115,7 +111,7 @@ export class DocumentStore {
     const now = new Date().toISOString();
     const dirName = this.typeDirs[type];
     if (!dirName) {
-      throw new Error(`Unknown document type: ${type}`);
+      throw new DocumentError(`Unknown document type: ${type}`);
     }
     const dir = path.join(this.docsDir, dirName);
     fs.mkdirSync(dir, { recursive: true });
@@ -159,12 +155,12 @@ export class DocumentStore {
   ): Document {
     const dirName = this.typeDirs[type];
     if (!dirName) {
-      throw new Error(`Unknown document type: ${type}`);
+      throw new DocumentError(`Unknown document type: ${type}`);
     }
 
     const existing = this.get(frontmatter.id);
     if (existing) {
-      throw new Error(
+      throw new DocumentError(
         `Document ${frontmatter.id} already exists. Resolve conflicts before importing.`,
       );
     }
@@ -187,7 +183,7 @@ export class DocumentStore {
   update(id: string, updates: Partial<DocumentFrontmatter>, content?: string): Document {
     const existing = this.get(id);
     if (!existing) {
-      throw new Error(`Document ${id} not found`);
+      throw new DocumentError(`Document ${id} not found`);
     }
 
     // Separate explicit deletions (value === undefined) from actual updates
@@ -222,7 +218,7 @@ export class DocumentStore {
   nextId(type: DocumentType): string {
     const prefix = this.idPrefixes[type];
     if (!prefix) {
-      throw new Error(`Unknown document type: ${type}`);
+      throw new DocumentError(`Unknown document type: ${type}`);
     }
     const dirName = this.typeDirs[type];
     const dir = path.join(this.docsDir, dirName);

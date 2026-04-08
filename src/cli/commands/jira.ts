@@ -155,8 +155,8 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
   const statusMap = normalizeStatusMap(project.config.jira?.statusMap);
 
   // Fetch via v3 API
-  const email = jiraUserConfig?.email ?? process.env.JIRA_EMAIL!;
-  const apiToken = jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN!;
+  const email = jiraUserConfig?.email ?? process.env.JIRA_EMAIL ?? "";
+  const apiToken = jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN ?? "";
   const auth = `Basic ${Buffer.from(`${email}:${apiToken}`).toString("base64")}`;
 
   const params = new URLSearchParams({
@@ -251,7 +251,7 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
     console.log(chalk.green("\nAll statuses are mapped."));
   }
 
-  const usingConfig = statusMap.flat || statusMap.legacy;
+  const usingConfig = statusMap.flat ?? statusMap.legacy;
   console.log(
     chalk.dim(
       usingConfig

@@ -72,8 +72,8 @@ export function loadSkillFromDirectory(dirPath: string): SkillDefinition | undef
             promptFragments[personaId] = personaPrompt;
           }
         }
-      } catch {
-        // Skip unreadable personas dir
+      } catch (e) {
+        console.warn(`[marvin] Failed to read personas directory in ${dirPath}:`, e);
       }
     }
 
@@ -84,8 +84,8 @@ export function loadSkillFromDirectory(dirPath: string): SkillDefinition | undef
       try {
         const actionsRaw = fs.readFileSync(actionsPath, "utf-8");
         actions = YAML.parse(actionsRaw) as SkillDefinition["actions"];
-      } catch {
-        // Skip invalid actions file
+      } catch (e) {
+        console.warn(`[marvin] Failed to parse actions.yaml in ${dirPath}:`, e);
       }
     }
 
@@ -100,7 +100,8 @@ export function loadSkillFromDirectory(dirPath: string): SkillDefinition | undef
       promptFragments: Object.keys(promptFragments).length > 0 ? promptFragments : undefined,
       actions,
     };
-  } catch {
+  } catch (e) {
+    console.warn(`[marvin] Failed to load skill from ${dirPath}:`, e);
     return undefined;
   }
 }
@@ -125,8 +126,8 @@ export function loadAllSkills(marvinDir?: string): Map<string, SkillDefinition> 
         if (skill) skills.set(skill.id, skill);
       }
     }
-  } catch {
-    // Skip if builtin dir not found (e.g., in tests)
+  } catch (e) {
+    console.warn(`[marvin] Failed to load builtin skills directory:`, e);
   }
 
   if (marvinDir) {
@@ -135,7 +136,8 @@ export function loadAllSkills(marvinDir?: string): Map<string, SkillDefinition> 
       let entries: string[];
       try {
         entries = fs.readdirSync(skillsDir);
-      } catch {
+      } catch (e) {
+        console.warn(`[marvin] Failed to read skills directory in ${marvinDir}:`, e);
         entries = [];
       }
       for (const entry of entries) {
@@ -148,7 +150,8 @@ export function loadAllSkills(marvinDir?: string): Map<string, SkillDefinition> 
             if (skill) skills.set(skill.id, skill);
             continue;
           }
-        } catch {
+        } catch (e) {
+          console.warn(`[marvin] Failed to stat skill entry ${entryPath}:`, e);
           continue;
         }
 
@@ -169,8 +172,8 @@ export function loadAllSkills(marvinDir?: string): Map<string, SkillDefinition> 
             actions: parsed.actions as SkillDefinition["actions"],
           };
           skills.set(skill.id, skill);
-        } catch {
-          // Skip invalid YAML files
+        } catch (e) {
+          console.warn(`[marvin] Failed to parse skill YAML ${entryPath}:`, e);
         }
       }
     }
