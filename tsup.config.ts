@@ -18,14 +18,22 @@ function copyDirSync(src: string, dest: string): void {
   }
 }
 
-const copyBuiltinSkills: Options["plugins"] = [
+const copyStaticAssets: Options["plugins"] = [
   {
-    name: "copy-builtin-skills",
+    name: "copy-static-assets",
     buildEnd() {
-      const src = path.resolve("src/skills/builtin/governance-review");
-      const dest = path.resolve("dist/skills/builtin/governance-review");
-      if (fs.existsSync(src)) {
-        copyDirSync(src, dest);
+      // Builtin skill SKILL.md directories
+      const skillsSrc = path.resolve("src/skills/builtin/governance-review");
+      const skillsDest = path.resolve("dist/skills/builtin/governance-review");
+      if (fs.existsSync(skillsSrc)) {
+        copyDirSync(skillsSrc, skillsDest);
+      }
+
+      // Web static assets (CSS)
+      const webSrc = path.resolve("src/web/static");
+      const webDest = path.resolve("dist/web/static");
+      if (fs.existsSync(webSrc)) {
+        copyDirSync(webSrc, webDest);
       }
     },
   },
@@ -52,7 +60,7 @@ export default defineConfig([
     sourcemap: true,
     target: "node20",
     define,
-    plugins: copyBuiltinSkills,
+    plugins: copyStaticAssets,
   },
   {
     entry: ["bin/marvin-serve.ts"],
