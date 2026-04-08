@@ -13,9 +13,9 @@ import { collectSprintSummaryData } from "../reports/sprint-summary/collector.js
 import type { SprintSummaryData } from "../reports/sprint-summary/types.js";
 
 /** Preferred column order for board views (left to right). */
-const STATUS_PRIORITY_ORDER = ["open", "draft", "in-progress", "blocked"];
+const STATUS_PRIORITY_ORDER = ["open", "draft", "in-progress", "blocked"] as const;
 /** Terminal statuses always rendered last. */
-const TERMINAL_STATUSES = ["done", "closed", "resolved"];
+const TERMINAL_STATUSES = ["done", "closed", "resolved"] as const;
 
 export interface TypeSummary {
   type: string;
@@ -123,7 +123,7 @@ export function getBoardData(store: DocumentStore, type?: string): BoardData {
 
   // Order columns: priority statuses first, then rest alphabetically, terminal last
   const allStatuses = [...byStatus.keys()];
-  const terminalSet = new Set(TERMINAL_STATUSES);
+  const terminalSet: ReadonlySet<string> = new Set(TERMINAL_STATUSES);
   const ordered: string[] = [];
 
   for (const s of STATUS_PRIORITY_ORDER) {

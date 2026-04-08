@@ -155,8 +155,20 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
   const statusMap = normalizeStatusMap(project.config.jira?.statusMap);
 
   // Fetch via v3 API
-  const email = jiraUserConfig?.email ?? process.env.JIRA_EMAIL ?? "";
-  const apiToken = jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN ?? "";
+  const email =
+    trimmedOrUndefined(jiraUserConfig?.email) ?? trimmedOrUndefined(process.env.JIRA_EMAIL) ?? "";
+  const apiToken =
+    trimmedOrUndefined(jiraUserConfig?.apiToken) ??
+    trimmedOrUndefined(process.env.JIRA_API_TOKEN) ??
+    "";
+  if (!email || !apiToken) {
+    console.log(
+      chalk.red(
+        "Jira credentials are incomplete. Ensure JIRA_EMAIL and JIRA_API_TOKEN are set and non-empty.",
+      ),
+    );
+    return;
+  }
   const auth = `Basic ${Buffer.from(`${email}:${apiToken}`).toString("base64")}`;
 
   const params = new URLSearchParams({
@@ -451,4 +463,11 @@ function printIssueEntry(issue: DailyIssueEntry): void {
   }
 
   console.log();
+}
+
+/** Returns the trimmed string if non-empty, otherwise undefined. */
+function trimmedOrUndefined(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return trimmed;
 }

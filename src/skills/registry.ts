@@ -38,7 +38,7 @@ const GOVERNANCE_TOOL_NAMES = [
 ];
 
 /** Schema for validating legacy YAML skill definitions. */
-const yamlSkillSchema = z.object({
+const YAML_SKILL_SCHEMA = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional().default(""),
@@ -79,7 +79,9 @@ export function loadSkillFromDirectory(dirPath: string): SkillDefinition | undef
         ? (data.metadata as Record<string, unknown>)
         : {};
     const version = typeof metadata.version === "string" ? metadata.version : "1.0.0";
-    const personas = Array.isArray(metadata.personas) ? (metadata.personas as string[]) : undefined;
+    const personas = Array.isArray(metadata.personas)
+      ? (metadata.personas as unknown[]).filter((p): p is string => typeof p === "string")
+      : undefined;
 
     // Load persona-specific prompt fragments
     const promptFragments: Record<string, string> = {};
@@ -185,7 +187,7 @@ export function loadAllSkills(marvinDir?: string): Map<string, SkillDefinition> 
         if (!entry.endsWith(".yaml") && !entry.endsWith(".yml")) continue;
         try {
           const raw = fs.readFileSync(entryPath, "utf-8");
-          const parsed = yamlSkillSchema.parse(YAML.parse(raw));
+          const parsed = YAML_SKILL_SCHEMA.parse(YAML.parse(raw));
           const skill: SkillDefinition = {
             id: parsed.id,
             name: parsed.name,

@@ -40,25 +40,30 @@ export class DocumentStore {
 
   private ensureIndex(): void {
     if (this.indexBuilt) return;
-    this.indexBuilt = true;
-    this.index.clear();
-    for (const type of Object.keys(this.typeDirs)) {
-      const dir = path.join(this.docsDir, this.typeDirs[type]);
-      if (!fs.existsSync(dir)) continue;
-      const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
-      for (const file of files) {
-        const filePath = path.join(dir, file);
-        const raw = fs.readFileSync(filePath, "utf-8");
-        const doc = parseDocument(raw, filePath);
-        if (doc.frontmatter.id) {
-          if (this.index.has(doc.frontmatter.id)) {
-            console.warn(
-              `[marvin] Duplicate ID "${doc.frontmatter.id}" in ${file} — conflicts with existing entry. Run ID repair to fix.`,
-            );
+    try {
+      this.index.clear();
+      for (const type of Object.keys(this.typeDirs)) {
+        const dir = path.join(this.docsDir, this.typeDirs[type]);
+        if (!fs.existsSync(dir)) continue;
+        const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
+        for (const file of files) {
+          const filePath = path.join(dir, file);
+          const raw = fs.readFileSync(filePath, "utf-8");
+          const doc = parseDocument(raw, filePath);
+          if (doc.frontmatter.id) {
+            if (this.index.has(doc.frontmatter.id)) {
+              console.warn(
+                `[marvin] Duplicate ID "${doc.frontmatter.id}" in ${file} — conflicts with existing entry. Run ID repair to fix.`,
+              );
+            }
+            this.index.set(doc.frontmatter.id, doc.frontmatter);
           }
-          this.index.set(doc.frontmatter.id, doc.frontmatter);
         }
       }
+      this.indexBuilt = true;
+    } catch (e) {
+      this.index.clear();
+      throw e;
     }
   }
 
@@ -162,6 +167,15 @@ export class DocumentStore {
       throw new DocumentError(`Unknown document type: ${type}`);
     }
 
+    if (frontmatter.type && frontmatter.type !== type) {
+      throw new DocumentError(
+        `frontmatter.type "${frontmatter.type}" does not match target type "${type}"`,
+      );
+    }
+    if (!frontmatter.type) {
+      frontmatter.type = type;
+    }
+
     const existing = this.get(frontmatter.id);
     if (existing) {
       throw new DocumentError(
@@ -192,9 +206,11 @@ export class DocumentStore {
     }
 
     // Separate explicit deletions (value === undefined) from actual updates
+    const REQUIRED_FIELDS = new Set(["id", "type", "title"]);
     const keysToDelete = Object.entries(updates)
       .filter(([, v]) => v === undefined)
-      .map(([k]) => k);
+      .map(([k]) => k)
+      .filter((k) => !REQUIRED_FIELDS.has(k));
     const cleanedUpdates = Object.fromEntries(
       Object.entries(updates).filter(([, v]) => v !== undefined),
     );

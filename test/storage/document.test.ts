@@ -495,6 +495,49 @@ Duplicate decision.
     expect(nextId).toBe("D-003");
   });
 
+  it("importDocument — throws on frontmatter.type mismatch", () => {
+    const store = new DocumentStore(marvinDir);
+    expect(() =>
+      store.importDocument("decision", {
+        id: "D-100",
+        title: "Mismatch",
+        type: "action",
+        status: "open",
+        created: "2026-01-01T00:00:00.000Z",
+        updated: "2026-01-01T00:00:00.000Z",
+      }),
+    ).toThrow("frontmatter.type");
+  });
+
+  it("importDocument — sets frontmatter.type when missing", () => {
+    const store = new DocumentStore(marvinDir);
+    const fm = {
+      id: "D-200",
+      title: "No Type",
+      type: "" as string,
+      status: "open",
+      created: "2026-01-01T00:00:00.000Z",
+      updated: "2026-01-01T00:00:00.000Z",
+    };
+    // Clear type to simulate missing
+    (fm as Record<string, unknown>).type = "";
+    const doc = store.importDocument("decision", fm);
+    expect(doc.frontmatter.type).toBe("decision");
+  });
+
+  it("update — does not delete required fields (id, type, title)", () => {
+    const store = new DocumentStore(marvinDir);
+    store.create("decision", { title: "Keep Me" });
+    const updated = store.update("D-001", {
+      id: undefined,
+      type: undefined,
+      title: undefined,
+    } as any);
+    expect(updated.frontmatter.id).toBe("D-001");
+    expect(updated.frontmatter.type).toBe("decision");
+    expect(updated.frontmatter.title).toBe("Keep Me");
+  });
+
   it("counts — returns 0 for type with no directory", () => {
     const customRegistrations: DocumentTypeRegistration[] = [
       { type: "nonexistent-type", dirName: "nonexistent-dir", idPrefix: "NX" },
