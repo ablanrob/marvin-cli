@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as YAML from "yaml";
 import matter from "gray-matter";
+import { z } from "zod/v4";
 import type { AgentDefinition, SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../storage/store.js";
 import type { DocumentTypeRegistration } from "../storage/types.js";
@@ -36,6 +37,28 @@ const GOVERNANCE_TOOL_NAMES = [
   "mcp__marvin-governance__project_summary",
 ];
 
+/** Schema for validating legacy YAML skill definitions. */
+const yamlSkillSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional().default(""),
+  version: z.string(),
+  personas: z.array(z.string()).optional(),
+  promptFragments: z.record(z.string(), z.string()).optional(),
+  actions: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string(),
+        systemPrompt: z.string(),
+        maxTurns: z.number().optional(),
+        allowGovernanceTools: z.boolean().optional(),
+      }),
+    )
+    .optional(),
+});
+
 function getBuiltinSkillsDir(): string {
   const thisFile = fileURLToPath(import.meta.url);
   return path.join(path.dirname(thisFile), "builtin");
@@ -49,11 +72,14 @@ export function loadSkillFromDirectory(dirPath: string): SkillDefinition | undef
     const raw = fs.readFileSync(skillMdPath, "utf-8");
     const { data, content } = matter(raw);
 
-    if (!data.name || !data.description) return undefined;
+    if (typeof data.name !== "string" || typeof data.description !== "string") return undefined;
 
-    const metadata = (data.metadata as Record<string, unknown>) ?? {};
-    const version = (metadata.version as string) ?? "1.0.0";
-    const personas = metadata.personas as string[] | undefined;
+    const metadata =
+      data.metadata !== null && data.metadata !== undefined && typeof data.metadata === "object"
+        ? (data.metadata as Record<string, unknown>)
+        : {};
+    const version = typeof metadata.version === "string" ? metadata.version : "1.0.0";
+    const personas = Array.isArray(metadata.personas) ? (metadata.personas as string[]) : undefined;
 
     // Load persona-specific prompt fragments
     const promptFragments: Record<string, string> = {};
@@ -90,9 +116,9 @@ export function loadSkillFromDirectory(dirPath: string): SkillDefinition | undef
     }
 
     return {
-      id: data.name as string,
-      name: (data.name as string).replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      description: data.description as string,
+      id: data.name,
+      name: data.name.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+      description: data.description,
       version,
       format: "skill-md",
       dirPath,
@@ -159,17 +185,16 @@ export function loadAllSkills(marvinDir?: string): Map<string, SkillDefinition> 
         if (!entry.endsWith(".yaml") && !entry.endsWith(".yml")) continue;
         try {
           const raw = fs.readFileSync(entryPath, "utf-8");
-          const parsed = YAML.parse(raw) as Record<string, unknown>;
-          if (!parsed?.id || !parsed?.name || !parsed?.version) continue;
+          const parsed = yamlSkillSchema.parse(YAML.parse(raw));
           const skill: SkillDefinition = {
-            id: parsed.id as string,
-            name: parsed.name as string,
-            description: (parsed.description as string) ?? "",
-            version: parsed.version as string,
+            id: parsed.id,
+            name: parsed.name,
+            description: parsed.description,
+            version: parsed.version,
             format: "yaml",
-            personas: parsed.personas as string[] | undefined,
-            promptFragments: parsed.promptFragments as Record<string, string> | undefined,
-            actions: parsed.actions as SkillDefinition["actions"],
+            personas: parsed.personas,
+            promptFragments: parsed.promptFragments,
+            actions: parsed.actions,
           };
           skills.set(skill.id, skill);
         } catch (e) {

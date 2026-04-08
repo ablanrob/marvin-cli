@@ -174,7 +174,7 @@ export class DocumentStore {
 
     const fileName =
       type === "meeting"
-        ? `${((frontmatter as any).date as string)?.slice(0, 10) ?? frontmatter.created.slice(0, 10)}-${slugify(frontmatter.title)}.md`
+        ? `${(frontmatter.date as string | undefined)?.slice(0, 10) ?? frontmatter.created.slice(0, 10)}-${slugify(frontmatter.title)}.md`
         : `${frontmatter.id}.md`;
     const filePath = path.join(dir, fileName);
 
