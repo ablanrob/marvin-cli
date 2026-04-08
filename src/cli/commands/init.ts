@@ -5,6 +5,7 @@ import chalk from "chalk";
 import { input, confirm, select } from "@inquirer/prompts";
 import { isMarvinProject } from "../../core/project.js";
 import { resolvePlugin } from "../../plugins/registry.js";
+import { CORE_TYPE_DIRS } from "../../storage/types.js";
 import { getDefaultClaudeMdContent } from "../../templates/claude-md.js";
 
 export async function initCommand(): Promise<void> {
@@ -38,9 +39,7 @@ export async function initCommand(): Promise<void> {
   const dirs = [
     marvinDir,
     path.join(marvinDir, "templates"),
-    path.join(marvinDir, "docs", "decisions"),
-    path.join(marvinDir, "docs", "actions"),
-    path.join(marvinDir, "docs", "questions"),
+    ...Object.values(CORE_TYPE_DIRS).map((dirName) => path.join(marvinDir, "docs", dirName)),
     path.join(marvinDir, "sources"),
     path.join(marvinDir, "skills"),
   ];
@@ -81,9 +80,9 @@ export async function initCommand(): Promise<void> {
   console.log(chalk.dim("\nCreated:"));
   console.log(chalk.dim("  .marvin/config.yaml"));
   console.log(chalk.dim("  .marvin/CLAUDE.md"));
-  console.log(chalk.dim("  .marvin/docs/decisions/"));
-  console.log(chalk.dim("  .marvin/docs/actions/"));
-  console.log(chalk.dim("  .marvin/docs/questions/"));
+  for (const dirName of Object.values(CORE_TYPE_DIRS)) {
+    console.log(chalk.dim(`  .marvin/docs/${dirName}/`));
+  }
   for (const reg of registrations) {
     console.log(chalk.dim(`  .marvin/docs/${reg.dirName}/`));
   }

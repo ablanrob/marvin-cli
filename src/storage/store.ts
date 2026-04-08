@@ -1,19 +1,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { DocumentError } from "../core/errors.js";
 import { parseDocument, serializeDocument } from "./document.js";
-import type {
-  Document,
-  DocumentFrontmatter,
-  DocumentQuery,
-  DocumentType,
-  DocumentTypeRegistration,
+import {
+  CORE_TYPE_DIRS,
+  type Document,
+  type DocumentFrontmatter,
+  type DocumentQuery,
+  type DocumentType,
+  type DocumentTypeRegistration,
 } from "./types.js";
-
-const CORE_TYPE_DIRS: Record<string, string> = {
-  decision: "decisions",
-  action: "actions",
-  question: "questions",
-};
 
 export const CORE_ID_PREFIXES: Record<string, string> = {
   decision: "D",
@@ -24,6 +20,7 @@ export const CORE_ID_PREFIXES: Record<string, string> = {
 export class DocumentStore {
   private docsDir: string;
   private index: Map<string, DocumentFrontmatter> = new Map();
+  private indexBuilt = false;
   private typeDirs: Record<string, string>;
   private idPrefixes: Record<string, string>;
 
@@ -35,32 +32,38 @@ export class DocumentStore {
       this.typeDirs[reg.type] = reg.dirName;
       this.idPrefixes[reg.type] = reg.idPrefix;
     }
-    this.buildIndex();
   }
 
   get registeredTypes(): string[] {
     return Object.keys(this.typeDirs);
   }
 
-  private buildIndex(): void {
-    this.index.clear();
-    for (const type of Object.keys(this.typeDirs)) {
-      const dir = path.join(this.docsDir, this.typeDirs[type]);
-      if (!fs.existsSync(dir)) continue;
-      const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
-      for (const file of files) {
-        const filePath = path.join(dir, file);
-        const raw = fs.readFileSync(filePath, "utf-8");
-        const doc = parseDocument(raw, filePath);
-        if (doc.frontmatter.id) {
-          if (this.index.has(doc.frontmatter.id)) {
-            console.warn(
-              `[marvin] Duplicate ID "${doc.frontmatter.id}" in ${file} — conflicts with existing entry. Run ID repair to fix.`,
-            );
+  private ensureIndex(): void {
+    if (this.indexBuilt) return;
+    try {
+      this.index.clear();
+      for (const type of Object.keys(this.typeDirs)) {
+        const dir = path.join(this.docsDir, this.typeDirs[type]);
+        if (!fs.existsSync(dir)) continue;
+        const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
+        for (const file of files) {
+          const filePath = path.join(dir, file);
+          const raw = fs.readFileSync(filePath, "utf-8");
+          const doc = parseDocument(raw, filePath);
+          if (doc.frontmatter.id) {
+            if (this.index.has(doc.frontmatter.id)) {
+              console.warn(
+                `[marvin] Duplicate ID "${doc.frontmatter.id}" in ${file} — conflicts with existing entry. Run ID repair to fix.`,
+              );
+            }
+            this.index.set(doc.frontmatter.id, doc.frontmatter);
           }
-          this.index.set(doc.frontmatter.id, doc.frontmatter);
         }
       }
+      this.indexBuilt = true;
+    } catch (e) {
+      this.index.clear();
+      throw e;
     }
   }
 
@@ -111,11 +114,12 @@ export class DocumentStore {
     frontmatter: Partial<DocumentFrontmatter>,
     content: string = "",
   ): Document {
+    this.ensureIndex();
     const id = this.nextId(type);
     const now = new Date().toISOString();
     const dirName = this.typeDirs[type];
     if (!dirName) {
-      throw new Error(`Unknown document type: ${type}`);
+      throw new DocumentError(`Unknown document type: ${type}`);
     }
     const dir = path.join(this.docsDir, dirName);
     fs.mkdirSync(dir, { recursive: true });
@@ -157,14 +161,24 @@ export class DocumentStore {
     frontmatter: DocumentFrontmatter,
     content: string = "",
   ): Document {
+    this.ensureIndex();
     const dirName = this.typeDirs[type];
     if (!dirName) {
-      throw new Error(`Unknown document type: ${type}`);
+      throw new DocumentError(`Unknown document type: ${type}`);
+    }
+
+    if (frontmatter.type && frontmatter.type !== type) {
+      throw new DocumentError(
+        `frontmatter.type "${frontmatter.type}" does not match target type "${type}"`,
+      );
+    }
+    if (!frontmatter.type) {
+      frontmatter.type = type;
     }
 
     const existing = this.get(frontmatter.id);
     if (existing) {
-      throw new Error(
+      throw new DocumentError(
         `Document ${frontmatter.id} already exists. Resolve conflicts before importing.`,
       );
     }
@@ -174,7 +188,7 @@ export class DocumentStore {
 
     const fileName =
       type === "meeting"
-        ? `${((frontmatter as any).date as string)?.slice(0, 10) ?? frontmatter.created.slice(0, 10)}-${slugify(frontmatter.title)}.md`
+        ? `${(frontmatter.date as string | undefined)?.slice(0, 10) ?? frontmatter.created.slice(0, 10)}-${slugify(frontmatter.title)}.md`
         : `${frontmatter.id}.md`;
     const filePath = path.join(dir, fileName);
 
@@ -185,15 +199,18 @@ export class DocumentStore {
   }
 
   update(id: string, updates: Partial<DocumentFrontmatter>, content?: string): Document {
+    this.ensureIndex();
     const existing = this.get(id);
     if (!existing) {
-      throw new Error(`Document ${id} not found`);
+      throw new DocumentError(`Document ${id} not found`);
     }
 
     // Separate explicit deletions (value === undefined) from actual updates
+    const REQUIRED_FIELDS = new Set(["id", "type", "title"]);
     const keysToDelete = Object.entries(updates)
       .filter(([, v]) => v === undefined)
-      .map(([k]) => k);
+      .map(([k]) => k)
+      .filter((k) => !REQUIRED_FIELDS.has(k));
     const cleanedUpdates = Object.fromEntries(
       Object.entries(updates).filter(([, v]) => v !== undefined),
     );
@@ -222,7 +239,7 @@ export class DocumentStore {
   nextId(type: DocumentType): string {
     const prefix = this.idPrefixes[type];
     if (!prefix) {
-      throw new Error(`Unknown document type: ${type}`);
+      throw new DocumentError(`Unknown document type: ${type}`);
     }
     const dirName = this.typeDirs[type];
     const dir = path.join(this.docsDir, dirName);

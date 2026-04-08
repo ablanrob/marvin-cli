@@ -5,6 +5,7 @@ import { resolvePlugin } from "../plugins/registry.js";
 import { COMMON_REGISTRATIONS } from "../plugins/common.js";
 import { loadAllSkills, collectSkillRegistrations } from "../skills/registry.js";
 import { DocumentStore } from "../storage/store.js";
+import { CORE_DOCUMENT_TYPES } from "../storage/types.js";
 import { handleRequest } from "./router.js";
 import type { NavGroup } from "./templates/layout.js";
 
@@ -19,15 +20,13 @@ export interface BuildNavGroupsInput {
   pluginName?: string;
 }
 
-const CORE_TYPES = ["decision", "action", "question"];
-
 export function buildNavGroups(input: BuildNavGroupsInput): NavGroup[] {
   const commonTypes = new Set(COMMON_REGISTRATIONS.map((r) => r.type));
   const pluginOnlyTypes = input.pluginRegs.map((r) => r.type).filter((t) => !commonTypes.has(t));
   const skillTypes = input.skillRegs.map((r) => r.type);
 
   const navGroups: NavGroup[] = [
-    { label: "Governance", types: CORE_TYPES },
+    { label: "Governance", types: [...CORE_DOCUMENT_TYPES] },
     { label: "Project", types: [...commonTypes] },
   ];
   if (pluginOnlyTypes.length > 0) {

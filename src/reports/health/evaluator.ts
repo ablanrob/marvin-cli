@@ -1,5 +1,14 @@
 import type { HealthCategory, HealthMetrics, HealthReport, HealthStatus } from "./types.js";
 
+// Health evaluation thresholds
+const COMPLETENESS_AMBER_PCT = 75;
+const STALE_AMBER_THRESHOLD = 3;
+const AGING_AMBER_THRESHOLD = 3;
+const DECISION_VELOCITY_GREEN_DAYS = 7;
+const DECISION_VELOCITY_AMBER_DAYS = 21;
+const QUESTION_RESOLUTION_GREEN_DAYS = 7;
+const QUESTION_RESOLUTION_AMBER_DAYS = 14;
+
 function worstStatus(statuses: HealthStatus[]): HealthStatus {
   if (statuses.includes("red")) return "red";
   if (statuses.includes("amber")) return "amber";
@@ -10,7 +19,7 @@ function completenessStatus(total: number, complete: number): HealthStatus {
   if (total === 0) return "green";
   const pct = Math.round((complete / total) * 100);
   if (pct >= 100) return "green";
-  if (pct >= 75) return "amber";
+  if (pct >= COMPLETENESS_AMBER_PCT) return "amber";
   return "red";
 }
 
@@ -47,7 +56,8 @@ export function evaluateHealth(projectName: string, metrics: HealthMetrics): Hea
 
   // Stale items
   const staleCount = metrics.process.stale.length;
-  const staleStatus: HealthStatus = staleCount === 0 ? "green" : staleCount <= 3 ? "amber" : "red";
+  const staleStatus: HealthStatus =
+    staleCount === 0 ? "green" : staleCount <= STALE_AMBER_THRESHOLD ? "amber" : "red";
   process.push({
     name: "Stale Items",
     status: staleStatus,
@@ -60,7 +70,8 @@ export function evaluateHealth(projectName: string, metrics: HealthMetrics): Hea
 
   // Aging actions
   const agingCount = metrics.process.agingActions.length;
-  const agingStatus: HealthStatus = agingCount === 0 ? "green" : agingCount <= 3 ? "amber" : "red";
+  const agingStatus: HealthStatus =
+    agingCount === 0 ? "green" : agingCount <= AGING_AMBER_THRESHOLD ? "amber" : "red";
   process.push({
     name: "Aging Actions",
     status: agingStatus,
@@ -76,9 +87,9 @@ export function evaluateHealth(projectName: string, metrics: HealthMetrics): Hea
   let dvStatus: HealthStatus;
   if (dv.count === 0) {
     dvStatus = "green";
-  } else if (dv.avgDays <= 7) {
+  } else if (dv.avgDays <= DECISION_VELOCITY_GREEN_DAYS) {
     dvStatus = "green";
-  } else if (dv.avgDays <= 21) {
+  } else if (dv.avgDays <= DECISION_VELOCITY_AMBER_DAYS) {
     dvStatus = "amber";
   } else {
     dvStatus = "red";
@@ -98,9 +109,9 @@ export function evaluateHealth(projectName: string, metrics: HealthMetrics): Hea
   let qrStatus: HealthStatus;
   if (qr.count === 0) {
     qrStatus = "green";
-  } else if (qr.avgDays <= 7) {
+  } else if (qr.avgDays <= QUESTION_RESOLUTION_GREEN_DAYS) {
     qrStatus = "green";
-  } else if (qr.avgDays <= 14) {
+  } else if (qr.avgDays <= QUESTION_RESOLUTION_AMBER_DAYS) {
     qrStatus = "amber";
   } else {
     qrStatus = "red";

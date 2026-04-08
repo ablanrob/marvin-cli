@@ -12,6 +12,11 @@ import type { HealthReport } from "../reports/health/types.js";
 import { collectSprintSummaryData } from "../reports/sprint-summary/collector.js";
 import type { SprintSummaryData } from "../reports/sprint-summary/types.js";
 
+/** Preferred column order for board views (left to right). */
+const STATUS_PRIORITY_ORDER = ["open", "draft", "in-progress", "blocked"] as const;
+/** Terminal statuses always rendered last. */
+const TERMINAL_STATUSES = ["done", "closed", "resolved"] as const;
+
 export interface TypeSummary {
   type: string;
   total: number;
@@ -116,20 +121,20 @@ export function getBoardData(store: DocumentStore, type?: string): BoardData {
     byStatus.get(status)!.push(doc);
   }
 
-  // Order columns: open, draft, in-progress, then rest alphabetically, done last
-  const statusOrder = ["open", "draft", "in-progress", "blocked"];
+  // Order columns: priority statuses first, then rest alphabetically, terminal last
   const allStatuses = [...byStatus.keys()];
+  const terminalSet: ReadonlySet<string> = new Set(TERMINAL_STATUSES);
   const ordered: string[] = [];
 
-  for (const s of statusOrder) {
+  for (const s of STATUS_PRIORITY_ORDER) {
     if (allStatuses.includes(s)) ordered.push(s);
   }
   for (const s of allStatuses.sort()) {
-    if (!ordered.includes(s) && s !== "done" && s !== "closed" && s !== "resolved") {
+    if (!ordered.includes(s) && !terminalSet.has(s)) {
       ordered.push(s);
     }
   }
-  for (const s of ["done", "closed", "resolved"]) {
+  for (const s of TERMINAL_STATUSES) {
     if (allStatuses.includes(s)) ordered.push(s);
   }
 

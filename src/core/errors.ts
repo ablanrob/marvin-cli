@@ -43,3 +43,10 @@ export class ImportError extends MarvinError {
     this.name = "ImportError";
   }
 }
+
+export class DocumentError extends MarvinError {
+  constructor(message: string) {
+    super(message);
+    this.name = "DocumentError";
+  }
+}

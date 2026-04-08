@@ -342,4 +342,209 @@ describe("DocumentStore", () => {
     expect(() => store.create("unknown-type", { title: "Test" })).toThrow("Unknown document type");
     expect(() => store.nextId("unknown-type")).toThrow("Unknown document type");
   });
+
+  it("importDocument — happy path", () => {
+    const store = new DocumentStore(marvinDir);
+
+    const doc = store.importDocument(
+      "decision",
+      {
+        id: "D-100",
+        title: "Imported",
+        type: "decision",
+        status: "open",
+        created: "2026-01-01T00:00:00.000Z",
+        updated: "2026-01-01T00:00:00.000Z",
+      },
+      "Imported content.",
+    );
+
+    expect(doc.frontmatter.id).toBe("D-100");
+    expect(doc.frontmatter.title).toBe("Imported");
+    expect(doc.frontmatter.type).toBe("decision");
+    expect(doc.frontmatter.status).toBe("open");
+    expect(doc.content).toBe("Imported content.");
+
+    const retrieved = store.get("D-100");
+    expect(retrieved).toBeDefined();
+    expect(retrieved!.frontmatter.id).toBe("D-100");
+    expect(retrieved!.frontmatter.title).toBe("Imported");
+  });
+
+  it("importDocument — duplicate ID throws", () => {
+    const store = new DocumentStore(marvinDir);
+
+    store.create("decision", { title: "Existing" });
+
+    expect(() =>
+      store.importDocument(
+        "decision",
+        {
+          id: "D-001",
+          title: "Duplicate",
+          type: "decision",
+          status: "open",
+          created: "2026-01-01T00:00:00.000Z",
+          updated: "2026-01-01T00:00:00.000Z",
+        },
+        "Duplicate content.",
+      ),
+    ).toThrow("already exists");
+  });
+
+  it("importDocument — unknown type throws", () => {
+    const store = new DocumentStore(marvinDir);
+
+    expect(() =>
+      store.importDocument(
+        "nonexistent",
+        {
+          id: "X-001",
+          title: "Bad Type",
+          type: "nonexistent",
+          status: "open",
+          created: "2026-01-01T00:00:00.000Z",
+          updated: "2026-01-01T00:00:00.000Z",
+        },
+        "Content.",
+      ),
+    ).toThrow("Unknown document type");
+  });
+
+  it("update — preserves unmodified fields", () => {
+    const store = new DocumentStore(marvinDir);
+
+    store.create("decision", { title: "Original", status: "open" });
+
+    const updated = store.update("D-001", { status: "done" });
+
+    expect(updated.frontmatter.status).toBe("done");
+    expect(updated.frontmatter.title).toBe("Original");
+  });
+
+  it("update — deletes fields set to undefined", () => {
+    const store = new DocumentStore(marvinDir);
+
+    store.create("action", { title: "Task", owner: "alice" });
+
+    const updated = store.update("A-001", { owner: undefined });
+
+    expect(updated.frontmatter.owner).toBeUndefined();
+
+    const retrieved = store.get("A-001");
+    expect(retrieved).toBeDefined();
+    expect(retrieved!.frontmatter.owner).toBeUndefined();
+  });
+
+  it("list — returns empty array for unknown type", () => {
+    const store = new DocumentStore(marvinDir);
+
+    const results = store.list({ type: "nonexistent" });
+    expect(results).toEqual([]);
+  });
+
+  it("list — filter by tag", () => {
+    const store = new DocumentStore(marvinDir);
+
+    store.create("action", { title: "Urgent Task", tags: ["urgent"] });
+    store.create("action", { title: "Normal Task" });
+
+    const filtered = store.list({ type: "action", tag: "urgent" });
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].frontmatter.title).toBe("Urgent Task");
+  });
+
+  it("get — returns undefined for non-existent ID", () => {
+    const store = new DocumentStore(marvinDir);
+
+    const result = store.get("D-999");
+    expect(result).toBeUndefined();
+  });
+
+  it("nextId — handles corrupted duplicate IDs", () => {
+    const decisionsDir = path.join(marvinDir, "docs", "decisions");
+
+    const frontmatter1 = `---
+id: D-001
+title: First
+type: decision
+status: open
+created: "2026-01-01T00:00:00.000Z"
+updated: "2026-01-01T00:00:00.000Z"
+---
+
+First decision.
+`;
+    const frontmatter2 = `---
+id: D-001
+title: Duplicate
+type: decision
+status: open
+created: "2026-01-01T00:00:00.000Z"
+updated: "2026-01-01T00:00:00.000Z"
+---
+
+Duplicate decision.
+`;
+    fs.writeFileSync(path.join(decisionsDir, "D-001.md"), frontmatter1);
+    fs.writeFileSync(path.join(decisionsDir, "D-001-dup.md"), frontmatter2);
+
+    const store = new DocumentStore(marvinDir);
+    const nextId = store.nextId("decision");
+
+    expect(nextId).toBe("D-003");
+  });
+
+  it("importDocument — throws on frontmatter.type mismatch", () => {
+    const store = new DocumentStore(marvinDir);
+    expect(() =>
+      store.importDocument("decision", {
+        id: "D-100",
+        title: "Mismatch",
+        type: "action",
+        status: "open",
+        created: "2026-01-01T00:00:00.000Z",
+        updated: "2026-01-01T00:00:00.000Z",
+      }),
+    ).toThrow("frontmatter.type");
+  });
+
+  it("importDocument — sets frontmatter.type when missing", () => {
+    const store = new DocumentStore(marvinDir);
+    const fm = {
+      id: "D-200",
+      title: "No Type",
+      type: "" as string,
+      status: "open",
+      created: "2026-01-01T00:00:00.000Z",
+      updated: "2026-01-01T00:00:00.000Z",
+    };
+    // Clear type to simulate missing
+    (fm as Record<string, unknown>).type = "";
+    const doc = store.importDocument("decision", fm);
+    expect(doc.frontmatter.type).toBe("decision");
+  });
+
+  it("update — does not delete required fields (id, type, title)", () => {
+    const store = new DocumentStore(marvinDir);
+    store.create("decision", { title: "Keep Me" });
+    const updated = store.update("D-001", {
+      id: undefined,
+      type: undefined,
+      title: undefined,
+    } as any);
+    expect(updated.frontmatter.id).toBe("D-001");
+    expect(updated.frontmatter.type).toBe("decision");
+    expect(updated.frontmatter.title).toBe("Keep Me");
+  });
+
+  it("counts — returns 0 for type with no directory", () => {
+    const customRegistrations: DocumentTypeRegistration[] = [
+      { type: "nonexistent-type", dirName: "nonexistent-dir", idPrefix: "NX" },
+    ];
+    const store = new DocumentStore(marvinDir, customRegistrations);
+
+    const counts = store.counts();
+    expect(counts["nonexistent-type"]).toBe(0);
+  });
 });
