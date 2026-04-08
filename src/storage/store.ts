@@ -20,6 +20,7 @@ export const CORE_ID_PREFIXES: Record<string, string> = {
 export class DocumentStore {
   private docsDir: string;
   private index: Map<string, DocumentFrontmatter> = new Map();
+  private indexBuilt = false;
   private typeDirs: Record<string, string>;
   private idPrefixes: Record<string, string>;
 
@@ -31,14 +32,15 @@ export class DocumentStore {
       this.typeDirs[reg.type] = reg.dirName;
       this.idPrefixes[reg.type] = reg.idPrefix;
     }
-    this.buildIndex();
   }
 
   get registeredTypes(): string[] {
     return Object.keys(this.typeDirs);
   }
 
-  private buildIndex(): void {
+  private ensureIndex(): void {
+    if (this.indexBuilt) return;
+    this.indexBuilt = true;
     this.index.clear();
     for (const type of Object.keys(this.typeDirs)) {
       const dir = path.join(this.docsDir, this.typeDirs[type]);
@@ -107,6 +109,7 @@ export class DocumentStore {
     frontmatter: Partial<DocumentFrontmatter>,
     content: string = "",
   ): Document {
+    this.ensureIndex();
     const id = this.nextId(type);
     const now = new Date().toISOString();
     const dirName = this.typeDirs[type];
@@ -153,6 +156,7 @@ export class DocumentStore {
     frontmatter: DocumentFrontmatter,
     content: string = "",
   ): Document {
+    this.ensureIndex();
     const dirName = this.typeDirs[type];
     if (!dirName) {
       throw new DocumentError(`Unknown document type: ${type}`);
@@ -181,6 +185,7 @@ export class DocumentStore {
   }
 
   update(id: string, updates: Partial<DocumentFrontmatter>, content?: string): Document {
+    this.ensureIndex();
     const existing = this.get(id);
     if (!existing) {
       throw new DocumentError(`Document ${id} not found`);
