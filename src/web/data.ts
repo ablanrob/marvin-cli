@@ -2,13 +2,14 @@ import type { DocumentStore } from "../storage/store.js";
 import type { Document } from "../storage/types.js";
 import { normalizeLinkedFeatures } from "../plugins/builtin/tools/epic-utils.js";
 import { normalizeLinkedEpics } from "../plugins/builtin/tools/task-utils.js";
-import { daysBetween } from "../reports/health/collector.js";
 import { collectGarMetrics } from "../reports/gar/collector.js";
 import { evaluateGar } from "../reports/gar/evaluator.js";
 import type { GarReport } from "../reports/gar/types.js";
 import { collectHealthMetrics } from "../reports/health/collector.js";
 import { evaluateHealth } from "../reports/health/evaluator.js";
 import { DONE_STATUSES } from "../core/statuses.js";
+import { computeTrending } from "./trending.js";
+import type { TrendingItem } from "./trending.js";
 import type { HealthReport } from "../reports/health/types.js";
 import { collectSprintSummaryData } from "../reports/sprint-summary/collector.js";
 import type { SprintSummaryData } from "../reports/sprint-summary/types.js";
@@ -234,19 +235,7 @@ export interface DueSoonSprintTask {
   urgency: UrgencyTier;
 }
 
-export interface TrendingSignal {
-  factor: string;
-  points: number;
-}
-
-export interface TrendingItem {
-  id: string;
-  title: string;
-  type: string;
-  status: string;
-  score: number;
-  signals: TrendingSignal[];
-}
+export type { TrendingSignal, TrendingItem } from "./trending.js";
 
 export interface UpcomingData {
   dueSoonActions: DueSoonAction[];
@@ -424,85 +413,15 @@ export function getUpcomingData(store: DocumentStore): UpcomingData {
     }
   }
 
-  const trending: TrendingItem[] = openItems
-    .map((doc) => {
-      const signals: TrendingSignal[] = [];
-      let score = 0;
-
-      // Recency: max 20 pts, decay over 30 days
-      const updated = doc.frontmatter.updated ?? doc.frontmatter.created;
-      const ageDays = daysBetween(updated, today);
-      const recencyPts = Math.max(0, Math.round(20 * (1 - ageDays / 30)));
-      if (recencyPts > 0) {
-        signals.push({ factor: "recency", points: recencyPts });
-        score += recencyPts;
-      }
-
-      // Sprint proximity: max 25 pts
-      const tags = (doc.frontmatter.tags as string[]) ?? [];
-      const linkedToActiveSprint = tags.some(
-        (t) => t.startsWith("sprint:") && activeSprintIds.has(t.slice(7)),
-      );
-      const linkedToActiveEpic = tags.some(
-        (t) => t.startsWith("epic:") && activeEpicIds.has(t.slice(5)),
-      );
-      if (linkedToActiveSprint) {
-        signals.push({ factor: "sprint proximity", points: 25 });
-        score += 25;
-      } else if (linkedToActiveEpic) {
-        signals.push({ factor: "sprint proximity", points: 15 });
-        score += 15;
-      }
-
-      // Meeting mentions: max 15 pts
-      const mentionCount = recentMeetings.filter((m) =>
-        (m.content ?? "").includes(doc.frontmatter.id),
-      ).length;
-      if (mentionCount > 0) {
-        const meetingPts = Math.min(15, mentionCount * 5);
-        signals.push({ factor: "meeting mentions", points: meetingPts });
-        score += meetingPts;
-      }
-
-      // Priority: max 15 pts
-      const priority = (doc.frontmatter.priority as string)?.toLowerCase();
-      const priorityPts =
-        priority === "critical" ? 15 : priority === "high" ? 10 : priority === "medium" ? 3 : 0;
-      if (priorityPts > 0) {
-        signals.push({ factor: "priority", points: priorityPts });
-        score += priorityPts;
-      }
-
-      // Aging: max 10 pts for open questions/actions older than 14 days
-      if (["action", "question"].includes(doc.frontmatter.type)) {
-        const createdDays = daysBetween(doc.frontmatter.created, today);
-        if (createdDays >= 14) {
-          const agingPts = Math.min(10, Math.floor((createdDays - 14) / 7) * 3 + 5);
-          signals.push({ factor: "aging", points: agingPts });
-          score += agingPts;
-        }
-      }
-
-      // Cross-references: max 15 pts
-      const refs = crossRefCounts.get(doc.frontmatter.id) ?? 0;
-      if (refs > 0) {
-        const crossRefPts = Math.min(15, refs * 5);
-        signals.push({ factor: "cross-references", points: crossRefPts });
-        score += crossRefPts;
-      }
-
-      return {
-        id: doc.frontmatter.id,
-        title: doc.frontmatter.title,
-        type: doc.frontmatter.type,
-        status: doc.frontmatter.status,
-        score,
-        signals,
-      };
-    })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 15);
+  const trending = computeTrending({
+    openItems,
+    allDocs,
+    recentMeetings,
+    crossRefCounts,
+    activeSprintIds,
+    activeEpicIds,
+    today,
+  });
 
   return { dueSoonActions, dueSoonSprintTasks, trending };
 }
