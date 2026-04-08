@@ -11,8 +11,7 @@ import {
 } from "../../layout.js";
 import { normalizeLinkedFeatures } from "../../../../plugins/builtin/tools/epic-utils.js";
 import { getEffectiveProgress } from "../../../../storage/progress.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../../../core/statuses.js";
 const RESOLVED_DECISION_STATUSES = new Set(["decided", "superseded", "dismissed"]);
 
 export function poDashboardPage(ctx: PersonaPageContext): string {

@@ -2,8 +2,6 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
 import type { SprintSummaryData } from "./types.js";
 
-const _DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
-
 const SYSTEM_PROMPT = `You are a delivery management assistant generating a data-driven risk assessment.
 
 IMPORTANT: All the data you need is provided in the user message below. Do NOT attempt to look up, search for, or request additional information. Analyze ONLY the data given and produce your assessment immediately.

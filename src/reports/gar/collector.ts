@@ -3,8 +3,7 @@ import type { GarItemRef, GarMetrics } from "./types.js";
 import { computeUrgency } from "../../web/data.js";
 import { daysBetween } from "../health/collector.js";
 import { normalizeLinkedEpics } from "../../plugins/builtin/tools/task-utils.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../core/statuses.js";
 
 export function collectGarMetrics(store: DocumentStore): GarMetrics {
   const allDocs = store.list();

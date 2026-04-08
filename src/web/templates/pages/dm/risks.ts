@@ -9,8 +9,7 @@ import {
   statusBadge,
   typeLabel,
 } from "../../layout.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 export function dmRisksPage(ctx: PersonaPageContext): string {
   const allDocs = ctx.store.list();

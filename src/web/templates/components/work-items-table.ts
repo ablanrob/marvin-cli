@@ -6,6 +6,7 @@ import {
   jiraIcon,
   confluenceIcon,
 } from "../layout.js";
+import { DONE_STATUSES_WITH_DECIDED as DONE_STATUSES } from "../../../core/statuses.js";
 
 const FOCUS_BORDER_PALETTE = [
   "hsl(220, 60%, 55%)",
@@ -189,8 +190,6 @@ export function renderWorkItemsTable(
     { titleTag: "h3", defaultCollapsed },
   );
 }
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled", "decided"]);
 
 /**
  * Compute average progress for primary (non-contribution) items matching the given owner.

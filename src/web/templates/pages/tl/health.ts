@@ -5,8 +5,6 @@ import { evaluateHealth } from "../../../../reports/health/evaluator.js";
 import { collapsibleSection, escapeHtml, formatDate, typeLabel } from "../../layout.js";
 import { buildHealthGauge } from "../../mermaid.js";
 
-const _DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
-
 export function tlHealthPage(ctx: PersonaPageContext): string {
   const healthMetrics = collectHealthMetrics(ctx.store);
   const healthReport = evaluateHealth(ctx.projectName, healthMetrics);

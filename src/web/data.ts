@@ -8,6 +8,7 @@ import { evaluateGar } from "../reports/gar/evaluator.js";
 import type { GarReport } from "../reports/gar/types.js";
 import { collectHealthMetrics } from "../reports/health/collector.js";
 import { evaluateHealth } from "../reports/health/evaluator.js";
+import { DONE_STATUSES } from "../core/statuses.js";
 import type { HealthReport } from "../reports/health/types.js";
 import { collectSprintSummaryData } from "../reports/sprint-summary/collector.js";
 import type { SprintSummaryData } from "../reports/sprint-summary/types.js";
@@ -263,8 +264,6 @@ export function computeUrgency(dueDateStr: string, todayStr: string): UrgencyTie
   if (diffDays <= 14) return "upcoming";
   return "later";
 }
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
 export function getUpcomingData(store: DocumentStore): UpcomingData {
   const today = new Date().toISOString().slice(0, 10);

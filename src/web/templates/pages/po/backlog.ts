@@ -4,6 +4,7 @@ import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../l
 import { renderTableUtilsScript, sortableTh, tableFilter } from "../../table-utils.js";
 import { normalizeLinkedFeatures } from "../../../../plugins/builtin/tools/epic-utils.js";
 import { getEffectiveProgress } from "../../../../storage/progress.js";
+import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 function priorityClass(p?: string): string {
   if (!p) return "";
@@ -71,8 +72,6 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
       }
     }
   }
-
-  const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
 
   function featureTaskStats(featureId: string) {
     const fEpics = featureToEpics.get(featureId) ?? [];

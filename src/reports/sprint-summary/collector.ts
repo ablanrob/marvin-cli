@@ -9,8 +9,7 @@ import type {
   SprintMeetingSummary,
   SprintArtifactSummary,
 } from "./types.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../core/statuses.js";
 
 const COMPLEXITY_WEIGHTS: Record<string, number> = {
   trivial: 1,
