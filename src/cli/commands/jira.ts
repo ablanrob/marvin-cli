@@ -154,43 +154,13 @@ export async function jiraStatusesCommand(projectKey?: string): Promise<void> {
 
   const statusMap = normalizeStatusMap(project.config.jira?.statusMap);
 
-  // Fetch via v3 API
-  const email =
-    trimmedOrUndefined(jiraUserConfig?.email) ?? trimmedOrUndefined(process.env.JIRA_EMAIL) ?? "";
-  const apiToken =
-    trimmedOrUndefined(jiraUserConfig?.apiToken) ??
-    trimmedOrUndefined(process.env.JIRA_API_TOKEN) ??
-    "";
-  if (!email || !apiToken) {
-    console.log(
-      chalk.red(
-        "Jira credentials are incomplete. Ensure JIRA_EMAIL and JIRA_API_TOKEN are set and non-empty.",
-      ),
-    );
+  let data: { total: number; issues: { fields: { status: { name: string } } }[] };
+  try {
+    data = await jira.client.searchIssuesV3(`project = ${resolvedProjectKey}`, ["status"], 100);
+  } catch (err) {
+    console.log(chalk.red(`Jira API error: ${err instanceof Error ? err.message : String(err)}`));
     return;
   }
-  const auth = `Basic ${Buffer.from(`${email}:${apiToken}`).toString("base64")}`;
-
-  const params = new URLSearchParams({
-    jql: `project = ${resolvedProjectKey}`,
-    maxResults: "100",
-    fields: "status",
-  });
-
-  const resp = await fetch(`https://${jira.host}/rest/api/3/search/jql?${params}`, {
-    headers: { Authorization: auth, Accept: "application/json" },
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    console.log(chalk.red(`Jira API error ${resp.status}: ${text}`));
-    return;
-  }
-
-  const data = (await resp.json()) as {
-    total: number;
-    issues: { fields: { status: { name: string } } }[];
-  };
 
   // Collect distinct statuses
   const statusCounts = new Map<string, number>();
@@ -463,11 +433,4 @@ function printIssueEntry(issue: DailyIssueEntry): void {
   }
 
   console.log();
-}
-
-/** Returns the trimmed string if non-empty, otherwise undefined. */
-function trimmedOrUndefined(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  if (!trimmed) return undefined;
-  return trimmed;
 }

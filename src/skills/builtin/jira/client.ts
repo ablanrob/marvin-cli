@@ -271,9 +271,10 @@ export function createJiraClient(jiraUserConfig?: {
   email?: string;
   apiToken?: string;
 }): ResolvedJiraConfig | null {
-  const host = jiraUserConfig?.host ?? process.env.JIRA_HOST;
-  const email = jiraUserConfig?.email ?? process.env.JIRA_EMAIL;
-  const apiToken = jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN;
+  const host = (jiraUserConfig?.host?.trim() ?? process.env.JIRA_HOST?.trim()) || undefined;
+  const email = (jiraUserConfig?.email?.trim() ?? process.env.JIRA_EMAIL?.trim()) || undefined;
+  const apiToken =
+    (jiraUserConfig?.apiToken?.trim() ?? process.env.JIRA_API_TOKEN?.trim()) || undefined;
 
   if (!host || !email || !apiToken) return null;
 
