@@ -415,7 +415,6 @@ export function getUpcomingData(store: DocumentStore): UpcomingData {
 
   const trending = computeTrending({
     openItems,
-    allDocs,
     recentMeetings,
     crossRefCounts,
     activeSprintIds,

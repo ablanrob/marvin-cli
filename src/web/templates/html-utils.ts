@@ -52,7 +52,7 @@ export function statusBadge(status: string): string {
   return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
 }
 
-export function formatDate(iso: string): string {
+export function formatDate(iso: string | undefined | null): string {
   if (!iso) return "";
   return iso.slice(0, 10);
 }

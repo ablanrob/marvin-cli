@@ -48,6 +48,7 @@ export default defineConfig([
     clean: true,
     target: "node20",
     define,
+    plugins: copyStaticAssets,
     banner: {
       js: "#!/usr/bin/env node",
     },

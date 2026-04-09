@@ -125,10 +125,12 @@ function parseTableRow(line: string): string[] {
 function inline(text: string): string {
   let s = escapeHtml(text);
   s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  // Bold first (** and __) so single delimiters don't match inside bold tokens
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-  s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  s = s.replace(/_([^_]+)_/g, "<em>$1</em>");
+  // Italic: only match single delimiters not adjacent to another delimiter
+  s = s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
+  s = s.replace(/(?<!_)_([^_]+)_(?!_)/g, "<em>$1</em>");
   s = linkArtifactIds(s);
   return s;
 }

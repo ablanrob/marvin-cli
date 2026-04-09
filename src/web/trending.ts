@@ -17,7 +17,6 @@ export interface TrendingItem {
 
 export interface TrendingInput {
   openItems: Document[];
-  allDocs: Document[];
   recentMeetings: Document[];
   crossRefCounts: Map<string, number>;
   activeSprintIds: Set<string>;

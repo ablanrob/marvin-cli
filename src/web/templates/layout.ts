@@ -45,9 +45,10 @@ export function layout(opts: LayoutOptions, body: string): string {
         <a href="/" class="active">Home</a>`;
   }
 
-  const accentOverride = opts.personaAccentColor
-    ? ` style="--persona-accent: ${opts.personaAccentColor}"`
-    : "";
+  const accentOverride =
+    opts.personaAccentColor && /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/.test(opts.personaAccentColor)
+      ? ` style="--persona-accent: ${opts.personaAccentColor}"`
+      : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
