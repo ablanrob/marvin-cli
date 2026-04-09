@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../personas/owner.js";
+import { DECISION_STATUSES } from "../../core/statuses.js";
 
 export function createDecisionTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
@@ -10,7 +11,7 @@ export function createDecisionTools(store: DocumentStore): SdkMcpToolDefinition<
       "List all decisions in the project, optionally filtered by status",
       {
         status: z
-          .enum(["open", "decided", "superseded", "dismissed"])
+          .enum([...DECISION_STATUSES, "dismissed"])
           .optional()
           .describe("Filter by status"),
       },
@@ -59,10 +60,7 @@ export function createDecisionTools(store: DocumentStore): SdkMcpToolDefinition<
       {
         title: z.string().describe("Title of the decision"),
         content: z.string().describe("Decision description, context, and rationale"),
-        status: z
-          .enum(["open", "decided", "superseded", "dismissed"])
-          .optional()
-          .describe("Status (default: 'open')"),
+        status: z.enum(DECISION_STATUSES).optional().describe("Status (default: 'open')"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
@@ -96,10 +94,7 @@ export function createDecisionTools(store: DocumentStore): SdkMcpToolDefinition<
       {
         id: z.string().describe("Decision ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z
-          .enum(["open", "decided", "superseded", "dismissed"])
-          .optional()
-          .describe("New status"),
+        status: z.enum(DECISION_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),

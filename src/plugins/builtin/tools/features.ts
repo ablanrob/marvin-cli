@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
+import { FEATURE_STATUSES } from "../../../core/statuses.js";
 
 export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
@@ -9,10 +10,7 @@ export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<a
       "list_features",
       "List all features in the project, optionally filtered by status",
       {
-        status: z
-          .enum(["draft", "approved", "deferred", "done"])
-          .optional()
-          .describe("Filter by feature status"),
+        status: z.enum(FEATURE_STATUSES).optional().describe("Filter by feature status"),
       },
       async (args) => {
         const docs = store.list({ type: "feature", status: args.status });
@@ -61,10 +59,7 @@ export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<a
       {
         title: z.string().describe("Feature title"),
         content: z.string().describe("Feature description and requirements"),
-        status: z
-          .enum(["draft", "approved", "deferred", "done"])
-          .optional()
-          .describe("Feature status (default: 'draft')"),
+        status: z.enum(FEATURE_STATUSES).optional().describe("Feature status (default: 'draft')"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         priority: z
@@ -101,7 +96,7 @@ export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<a
       {
         id: z.string().describe("Feature ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z.enum(["draft", "approved", "deferred", "done"]).optional().describe("New status"),
+        status: z.enum(FEATURE_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),

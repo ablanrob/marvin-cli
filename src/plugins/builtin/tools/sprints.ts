@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
+import { SPRINT_STATUSES } from "../../../core/statuses.js";
 
 export function createSprintTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
@@ -8,10 +9,7 @@ export function createSprintTools(store: DocumentStore): SdkMcpToolDefinition<an
       "list_sprints",
       "List all sprints in the project, optionally filtered by status",
       {
-        status: z
-          .enum(["planned", "active", "completed", "cancelled"])
-          .optional()
-          .describe("Filter by sprint status"),
+        status: z.enum(SPRINT_STATUSES).optional().describe("Filter by sprint status"),
       },
       async (args) => {
         const docs = store.list({ type: "sprint", status: args.status });
@@ -65,10 +63,7 @@ export function createSprintTools(store: DocumentStore): SdkMcpToolDefinition<an
         goal: z.string().describe("Sprint goal — what this sprint aims to deliver"),
         startDate: z.string().describe("Sprint start date (ISO format, e.g. '2026-03-01')"),
         endDate: z.string().describe("Sprint end date (ISO format, e.g. '2026-03-14')"),
-        status: z
-          .enum(["planned", "active", "completed", "cancelled"])
-          .optional()
-          .describe("Sprint status (default: 'planned')"),
+        status: z.enum(SPRINT_STATUSES).optional().describe("Sprint status (default: 'planned')"),
         linkedEpics: z
           .array(z.string())
           .optional()
@@ -133,10 +128,7 @@ export function createSprintTools(store: DocumentStore): SdkMcpToolDefinition<an
       {
         id: z.string().describe("Sprint ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z
-          .enum(["planned", "active", "completed", "cancelled"])
-          .optional()
-          .describe("New status"),
+        status: z.enum(SPRINT_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         goal: z.string().optional().describe("New sprint goal"),
         startDate: z.string().optional().describe("New start date"),

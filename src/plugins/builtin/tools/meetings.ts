@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
+import { MEETING_STATUSES } from "../../../core/statuses.js";
 
 export function createMeetingTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
@@ -60,7 +61,7 @@ export function createMeetingTools(store: DocumentStore): SdkMcpToolDefinition<a
       {
         title: z.string().describe("Title of the meeting"),
         content: z.string().describe("Meeting agenda, notes, or minutes"),
-        status: z.string().optional().describe("Status (default: 'scheduled')"),
+        status: z.enum(MEETING_STATUSES).optional().describe("Status (default: 'scheduled')"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
@@ -100,7 +101,7 @@ export function createMeetingTools(store: DocumentStore): SdkMcpToolDefinition<a
       {
         id: z.string().describe("Meeting ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z.string().optional().describe("New status"),
+        status: z.enum(MEETING_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
