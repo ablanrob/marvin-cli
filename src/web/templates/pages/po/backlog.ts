@@ -1,6 +1,12 @@
 import type { Document } from "../../../../storage/types.js";
 import type { PersonaPageContext } from "../../../persona-views.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+} from "../../layout.js";
 import { renderTableUtilsScript, sortableTh, tableFilter } from "../../table-utils.js";
 import { normalizeLinkedFeatures } from "../../../../plugins/builtin/tools/epic-utils.js";
 import { getEffectiveProgress } from "../../../../storage/progress.js";
@@ -171,7 +177,7 @@ export function poBacklogPage(ctx: PersonaPageContext): string {
               <tr>
                 <td><a href="/docs/question/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
-                <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(d.frontmatter.owner)}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
               </tr>`,
                 )

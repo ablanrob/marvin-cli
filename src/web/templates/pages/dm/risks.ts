@@ -6,6 +6,7 @@ import {
   collapsibleSection,
   escapeHtml,
   formatDate,
+  ownerBadge,
   statusBadge,
   typeLabel,
 } from "../../layout.js";
@@ -75,7 +76,7 @@ export function dmRisksPage(ctx: PersonaPageContext): string {
                 <td><a href="/docs/${escapeHtml(d.frontmatter.type)}/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${escapeHtml(typeLabel(d.frontmatter.type))}</td>
-                <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(d.frontmatter.owner)}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
               </tr>`,
                 )

@@ -1,6 +1,13 @@
 import type { SprintSummaryData } from "../../../reports/sprint-summary/types.js";
 import type { DocumentStore } from "../../../storage/store.js";
-import { escapeHtml, formatDate, statusBadge, typeLabel, renderMarkdown } from "../layout.js";
+import {
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+  typeLabel,
+  renderMarkdown,
+} from "../layout.js";
 
 export function sprintBlockersPage(data: SprintSummaryData | null, store: DocumentStore): string {
   if (!data) {
@@ -45,7 +52,7 @@ export function sprintBlockersPage(data: SprintSummaryData | null, store: Docume
         </div>
         <h4 class="blocker-card-title">${escapeHtml(b.title)}</h4>
         <div class="blocker-card-meta">
-          ${owner ? `<span><strong>Owner:</strong> ${escapeHtml(owner)}</span>` : ""}
+          ${owner ? `<span><strong>Owner:</strong> ${ownerBadge(owner)}</span>` : ""}
           ${assignee ? `<span><strong>Assignee:</strong> ${escapeHtml(assignee)}</span>` : ""}
           ${doc?.frontmatter.created ? `<span><strong>Created:</strong> ${formatDate(doc.frontmatter.created)}</span>` : ""}
         </div>

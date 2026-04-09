@@ -1,18 +1,14 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getGarData } from "../../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+} from "../../layout.js";
 import { renderGarWidget } from "../../gar-widget.js";
 import { renderTableUtilsScript, sortableTh, tableFilter } from "../../table-utils.js";
-
-const KNOWN_OWNERS = new Set(["po", "tl", "dm"]);
-
-function ownerBadge(owner?: string): string {
-  if (!owner) return '<span class="text-dim">—</span>';
-  const cls = KNOWN_OWNERS.has(owner.toLowerCase())
-    ? `owner-badge-${owner.toLowerCase()}`
-    : "owner-badge-other";
-  return `<span class="owner-badge ${cls}">${escapeHtml(owner.toUpperCase())}</span>`;
-}
 
 export function poStakeholdersPage(ctx: PersonaPageContext): string {
   const garReport = getGarData(ctx.store, ctx.projectName);

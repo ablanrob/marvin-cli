@@ -1,6 +1,12 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getUpcomingData, type UrgencyTier } from "../../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+} from "../../layout.js";
 import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 function urgencyBadge(tier: UrgencyTier): string {
@@ -74,7 +80,7 @@ export function dmActionsPage(ctx: PersonaPageContext): string {
                 <td><a href="/docs/action/${escapeHtml(a.id)}">${escapeHtml(a.id)}</a></td>
                 <td>${escapeHtml(a.title)}</td>
                 <td>${statusBadge(a.status)}</td>
-                <td>${a.owner ? escapeHtml(a.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(a.owner)}</td>
                 <td>${formatDate(a.dueDate)}</td>
                 <td>${urgencyBadge(a.urgency)}</td>
               </tr>`,
@@ -107,7 +113,7 @@ export function dmActionsPage(ctx: PersonaPageContext): string {
                 <td><a href="/docs/action/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
                 <td>${statusBadge(d.frontmatter.status)}</td>
-                <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(d.frontmatter.owner)}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
               </tr>`,
                 )

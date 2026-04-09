@@ -2,7 +2,7 @@ import type { PersonaPageContext } from "../../../persona-views.js";
 import { getUpcomingData } from "../../../data.js";
 import { collectHealthMetrics } from "../../../../reports/health/collector.js";
 import { evaluateHealth } from "../../../../reports/health/evaluator.js";
-import { collapsibleSection, escapeHtml, formatDate, typeLabel } from "../../layout.js";
+import { collapsibleSection, escapeHtml, formatDate, ownerBadge, typeLabel } from "../../layout.js";
 import { buildHealthGauge } from "../../mermaid.js";
 
 export function tlHealthPage(ctx: PersonaPageContext): string {
@@ -109,7 +109,7 @@ export function tlHealthPage(ctx: PersonaPageContext): string {
                 <td><a href="/docs/task/${escapeHtml(t.frontmatter.id)}">${escapeHtml(t.frontmatter.id)}</a></td>
                 <td>${escapeHtml(t.frontmatter.title)}</td>
                 <td>${t.frontmatter.priority ? `<span class="${priorityClass(t.frontmatter.priority as string)}">${escapeHtml(t.frontmatter.priority as string)}</span>` : '<span class="text-dim">—</span>'}</td>
-                <td>${t.frontmatter.owner ? escapeHtml(t.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(t.frontmatter.owner)}</td>
                 <td>${formatDate(t.frontmatter.created)}</td>
               </tr>`,
                 )

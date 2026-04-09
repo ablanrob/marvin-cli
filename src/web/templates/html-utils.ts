@@ -108,3 +108,13 @@ export function integrationIcons(frontmatter: Record<string, unknown>): string {
   if (!jira && !confluence) return "";
   return `<span class="integration-icons">${jira}${confluence}</span>`;
 }
+
+const KNOWN_OWNERS = new Set(["po", "tl", "dm"]);
+
+export function ownerBadge(owner?: string): string {
+  if (!owner) return '<span class="text-dim">—</span>';
+  const cls = KNOWN_OWNERS.has(owner.toLowerCase())
+    ? `owner-badge-${owner.toLowerCase()}`
+    : "owner-badge-other";
+  return `<span class="owner-badge ${cls}">${escapeHtml(owner.toUpperCase())}</span>`;
+}

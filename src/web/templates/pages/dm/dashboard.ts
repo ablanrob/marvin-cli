@@ -1,6 +1,12 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getSprintSummaryData, getUpcomingData } from "../../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+} from "../../layout.js";
 import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 function progressBar(pct: number): string {
@@ -102,7 +108,7 @@ export function dmDashboardPage(ctx: PersonaPageContext): string {
               <tr>
                 <td><a href="/docs/action/${escapeHtml(a.id)}">${escapeHtml(a.id)}</a></td>
                 <td>${escapeHtml(a.title)}</td>
-                <td>${a.owner ? escapeHtml(a.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(a.owner)}</td>
                 <td>${formatDate(a.dueDate)}</td>
                 <td>${statusBadge(a.status)}</td>
               </tr>`,

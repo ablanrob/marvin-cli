@@ -1,5 +1,12 @@
 import type { UpcomingData, UrgencyTier } from "../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge, typeLabel } from "../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+  typeLabel,
+} from "../layout.js";
 
 function urgencyBadge(tier: UrgencyTier): string {
   const labels: Record<UrgencyTier, string> = {
@@ -49,7 +56,7 @@ export function upcomingPage(data: UpcomingData): string {
             <td><a href="/docs/action/${escapeHtml(a.id)}">${escapeHtml(a.id)}</a></td>
             <td>${escapeHtml(a.title)}</td>
             <td>${statusBadge(a.status)}</td>
-            <td>${a.owner ? escapeHtml(a.owner) : '<span class="text-dim">—</span>'}</td>
+            <td>${ownerBadge(a.owner)}</td>
             <td>${formatDate(a.dueDate)}</td>
             <td>${urgencyBadge(a.urgency)}</td>
             <td>${a.relatedTaskCount > 0 ? a.relatedTaskCount : "—"}</td>

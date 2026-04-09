@@ -1,5 +1,11 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+} from "../../layout.js";
 
 /** Decision statuses that indicate the decision has been resolved */
 const RESOLVED_STATUSES = new Set(["decided", "superseded", "dismissed"]);
@@ -78,7 +84,7 @@ export function tlDecisionsPage(ctx: PersonaPageContext): string {
             <td><a href="/docs/decision/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
             <td>${escapeHtml(d.frontmatter.title)}</td>
             <td>${statusBadge(d.frontmatter.status)}</td>
-            <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+            <td>${ownerBadge(d.frontmatter.owner)}</td>
             <td>${tags.length > 0 ? tags.map((t) => `<span class="signal-tag">${escapeHtml(t)}</span>`).join(" ") : '<span class="text-dim">—</span>'}</td>
             <td>${formatDate(d.frontmatter.created)}</td>
           </tr>`;
@@ -120,7 +126,7 @@ export function tlDecisionsPage(ctx: PersonaPageContext): string {
               <tr>
                 <td><a href="/docs/question/${escapeHtml(d.frontmatter.id)}">${escapeHtml(d.frontmatter.id)}</a></td>
                 <td>${escapeHtml(d.frontmatter.title)}</td>
-                <td>${d.frontmatter.owner ? escapeHtml(d.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(d.frontmatter.owner)}</td>
                 <td>${formatDate(d.frontmatter.created)}</td>
               </tr>`,
                 )

@@ -2,6 +2,7 @@ import type { SprintWorkItem } from "../../../reports/sprint-summary/types.js";
 import {
   collapsibleSection,
   escapeHtml,
+  ownerBadge,
   statusBadge,
   jiraIcon,
   confluenceIcon,
@@ -68,14 +69,6 @@ function countFocusStats(items: SprintWorkItem[]): {
     inProgress,
     weightedProgress: totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0,
   };
-}
-
-const KNOWN_OWNERS = new Set(["po", "tl", "dm"]);
-
-function ownerBadge(owner?: string): string {
-  if (!owner) return '<span class="text-dim">—</span>';
-  const cls = KNOWN_OWNERS.has(owner) ? `owner-badge-${owner}` : "owner-badge-other";
-  return `<span class="owner-badge ${cls}">${escapeHtml(owner.toUpperCase())}</span>`;
 }
 
 function renderItemRows(
