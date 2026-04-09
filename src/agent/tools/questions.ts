@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../personas/owner.js";
+import { QUESTION_STATUSES } from "../../core/statuses.js";
 
 export function createQuestionTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
@@ -60,7 +61,7 @@ export function createQuestionTools(store: DocumentStore): SdkMcpToolDefinition<
       {
         title: z.string().describe("The question being asked"),
         content: z.string().describe("Context and details about the question"),
-        status: z.string().optional().describe("Status (default: 'open')"),
+        status: z.enum(QUESTION_STATUSES).optional().describe("Status (default: 'open')"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         tags: z.array(z.string()).optional().describe("Tags for categorization"),
@@ -94,7 +95,7 @@ export function createQuestionTools(store: DocumentStore): SdkMcpToolDefinition<
       {
         id: z.string().describe("Question ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z.string().optional().describe("New status (e.g. 'answered')"),
+        status: z.enum(QUESTION_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("Updated content / answer"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),

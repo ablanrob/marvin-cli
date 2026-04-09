@@ -37,16 +37,28 @@ export function escapeHtml(str: string): string {
 export function statusBadge(status: string): string {
   const cls =
     {
+      // Canonical statuses
       open: "badge-open",
-      done: "badge-done",
-      closed: "badge-done",
-      resolved: "badge-resolved",
-      decided: "badge-done",
-      superseded: "badge-draft",
-      dismissed: "badge-draft",
+      draft: "badge-draft",
+      planned: "badge-draft",
+      backlog: "badge-draft",
+      ready: "badge-open",
+      scheduled: "badge-draft",
       "in-progress": "badge-in-progress",
       "in progress": "badge-in-progress",
-      draft: "badge-draft",
+      review: "badge-in-progress",
+      test: "badge-in-progress",
+      active: "badge-in-progress",
+      approved: "badge-done",
+      answered: "badge-done",
+      decided: "badge-done",
+      completed: "badge-done",
+      done: "badge-done",
+      superseded: "badge-draft",
+      // Legacy (may appear in existing data)
+      closed: "badge-done",
+      resolved: "badge-resolved",
+      dismissed: "badge-draft",
       blocked: "badge-blocked",
       cancelled: "badge-done",
     }[status.toLowerCase()] ?? "badge-default";

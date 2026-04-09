@@ -3,6 +3,7 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../../storage/store.js";
 import { normalizeLinkedFeatures, generateFeatureTags } from "./epic-utils.js";
 import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
+import { EPIC_STATUSES } from "../../../core/statuses.js";
 
 /**
  * Schema that advertises `type: array` but also accepts a JSON-stringified
@@ -175,7 +176,7 @@ export function createEpicTools(store: DocumentStore): SdkMcpToolDefinition<any>
       {
         id: z.string().describe("Epic ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z.enum(["planned", "in-progress", "done"]).optional().describe("New status"),
+        status: z.enum(EPIC_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),

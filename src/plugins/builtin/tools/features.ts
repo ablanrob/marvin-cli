@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../../storage/store.js";
 import { ownerSchema, normalizeOwner } from "../../../personas/owner.js";
+import { FEATURE_STATUSES } from "../../../core/statuses.js";
 
 export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
@@ -101,7 +102,7 @@ export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<a
       {
         id: z.string().describe("Feature ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z.enum(["draft", "approved", "deferred", "done"]).optional().describe("New status"),
+        status: z.enum(FEATURE_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),

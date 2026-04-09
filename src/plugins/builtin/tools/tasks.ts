@@ -3,6 +3,7 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../../storage/store.js";
 import { normalizeLinkedEpics, generateEpicTags } from "./task-utils.js";
 import { propagateProgressFromTask } from "../../../storage/progress.js";
+import { TASK_STATUSES } from "../../../core/statuses.js";
 
 /**
  * Schema that advertises `type: array` but also accepts a JSON-stringified
@@ -29,10 +30,7 @@ export function createTaskTools(store: DocumentStore): SdkMcpToolDefinition<any>
       "list_tasks",
       "List all tasks in the project, optionally filtered by status, linked epic, or priority",
       {
-        status: z
-          .enum(["backlog", "ready", "in-progress", "review", "done"])
-          .optional()
-          .describe("Filter by task status"),
+        status: z.enum(TASK_STATUSES).optional().describe("Filter by task status"),
         linkedEpic: z.string().optional().describe("Filter by linked epic ID (e.g. 'E-001')"),
         priority: z
           .enum(["critical", "high", "medium", "low"])
@@ -103,10 +101,7 @@ export function createTaskTools(store: DocumentStore): SdkMcpToolDefinition<any>
           .string()
           .optional()
           .describe("Parent artifact this task derives from (e.g. 'A-001')"),
-        status: z
-          .enum(["backlog", "ready", "in-progress", "review", "done"])
-          .optional()
-          .describe("Task status (default: 'backlog')"),
+        status: z.enum(TASK_STATUSES).optional().describe("Task status (default: 'backlog')"),
         acceptanceCriteria: z.string().optional().describe("Acceptance criteria for the task"),
         technicalNotes: z.string().optional().describe("Technical implementation notes"),
         estimatedPoints: z.number().optional().describe("Story point estimate"),
@@ -178,10 +173,7 @@ export function createTaskTools(store: DocumentStore): SdkMcpToolDefinition<any>
           .string()
           .optional()
           .describe("Parent artifact this task derives from (e.g. 'A-001')"),
-        status: z
-          .enum(["backlog", "ready", "in-progress", "review", "done"])
-          .optional()
-          .describe("New status"),
+        status: z.enum(TASK_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         linkedEpic: linkedEpicArray.optional().describe("New linked epic ID(s)"),
         acceptanceCriteria: z.string().optional().describe("New acceptance criteria"),

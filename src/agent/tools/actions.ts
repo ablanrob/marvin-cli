@@ -3,6 +3,7 @@ import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk"
 import type { DocumentStore } from "../../storage/store.js";
 import { propagateProgressToAction } from "../../storage/progress.js";
 import { ownerSchema, normalizeOwner } from "../../personas/owner.js";
+import { ACTION_STATUSES } from "../../core/statuses.js";
 
 function findMatchingSprints(
   store: DocumentStore,
@@ -93,7 +94,7 @@ export function createActionTools(store: DocumentStore): SdkMcpToolDefinition<an
       {
         title: z.string().describe("Title of the action item"),
         content: z.string().describe("Description of what needs to be done"),
-        status: z.string().optional().describe("Status (default: 'open')"),
+        status: z.enum(ACTION_STATUSES).optional().describe("Status (default: 'open')"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         priority: z.string().optional().describe("Priority (high, medium, low)"),
@@ -161,7 +162,7 @@ export function createActionTools(store: DocumentStore): SdkMcpToolDefinition<an
       {
         id: z.string().describe("Action ID to update"),
         title: z.string().optional().describe("New title"),
-        status: z.string().optional().describe("New status"),
+        status: z.enum(ACTION_STATUSES).optional().describe("New status"),
         content: z.string().optional().describe("New content"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
