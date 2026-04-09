@@ -1,8 +1,7 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getSprintSummaryData, getUpcomingData } from "../../../data.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 function progressBar(pct: number): string {
   return `<div class="sprint-progress-bar">

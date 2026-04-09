@@ -2,8 +2,7 @@ import type { PersonaPageContext } from "../../../persona-views.js";
 import { getDiagramData } from "../../../data.js";
 import { buildArtifactFlowchart } from "../../mermaid.js";
 import { collapsibleSection } from "../../layout.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../../../core/statuses.js";
 /** Decision statuses that indicate the decision has been resolved */
 const RESOLVED_DECISION_STATUSES = new Set(["decided", "superseded", "dismissed"]);
 

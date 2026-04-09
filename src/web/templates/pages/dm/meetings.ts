@@ -1,7 +1,6 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 export function dmMeetingsPage(ctx: PersonaPageContext): string {
   const meetings = ctx.store.list({ type: "meeting" });

@@ -16,8 +16,7 @@ import {
 import { normalizeLinkedFeatures } from "../../../../plugins/builtin/tools/epic-utils.js";
 import { normalizeLinkedEpics } from "../../../../plugins/builtin/tools/task-utils.js";
 import { getEffectiveProgress } from "../../../../storage/progress.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 const statusOrder: Record<string, number> = {

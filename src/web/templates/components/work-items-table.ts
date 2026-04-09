@@ -6,6 +6,7 @@ import {
   jiraIcon,
   confluenceIcon,
 } from "../layout.js";
+import { DONE_STATUSES_WITH_DECIDED as DONE_STATUSES } from "../../../core/statuses.js";
 
 const FOCUS_BORDER_PALETTE = [
   "hsl(220, 60%, 55%)",
@@ -26,7 +27,6 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
-const DONE_STATUS_SET = new Set(["done", "closed", "resolved", "decided"]);
 const DEFAULT_WEIGHT = 3;
 
 function countFocusStats(items: SprintWorkItem[]): {
@@ -47,7 +47,7 @@ function countFocusStats(items: SprintWorkItem[]): {
       if (w.type !== "contribution") {
         total++;
         const s = w.status.toLowerCase();
-        if (DONE_STATUS_SET.has(s)) done++;
+        if (DONE_STATUSES.has(s)) done++;
         else if (s === "in-progress" || s === "in progress") inProgress++;
       }
       if (w.children) walkStats(w.children);
@@ -58,7 +58,7 @@ function countFocusStats(items: SprintWorkItem[]): {
   for (const w of items) {
     if (w.type === "contribution") continue;
     const weight = w.weight ?? DEFAULT_WEIGHT;
-    const progress = w.progress ?? (DONE_STATUS_SET.has(w.status.toLowerCase()) ? 100 : 0);
+    const progress = w.progress ?? (DONE_STATUSES.has(w.status.toLowerCase()) ? 100 : 0);
     totalWeight += weight;
     weightedSum += weight * progress;
   }
@@ -189,8 +189,6 @@ export function renderWorkItemsTable(
     { titleTag: "h3", defaultCollapsed },
   );
 }
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled", "decided"]);
 
 /**
  * Compute average progress for primary (non-contribution) items matching the given owner.

@@ -1,7 +1,6 @@
 import type { DocumentStore } from "./store.js";
 import type { DocumentFrontmatter } from "./types.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../core/statuses.js";
 
 /**
  * Shared status → default progress mapping.

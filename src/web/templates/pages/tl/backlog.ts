@@ -1,8 +1,7 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getBoardData } from "../../../data.js";
 import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
-
-const DONE_STATUSES = new Set(["done", "closed", "resolved", "cancelled"]);
+import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 export function tlBacklogPage(ctx: PersonaPageContext): string {
   const epics = ctx.store.list({ type: "epic" });
