@@ -4,6 +4,7 @@ import {
   collapsibleSection,
   escapeHtml,
   formatDate,
+  ownerBadge,
   statusBadge,
   typeLabel,
 } from "../../layout.js";
@@ -16,15 +17,6 @@ import {
 
 /** Decision statuses that indicate the decision has been resolved */
 const RESOLVED_STATUSES = new Set(["decided", "superseded", "dismissed"]);
-const KNOWN_OWNERS = new Set(["po", "tl", "dm"]);
-
-function ownerBadge(owner?: string): string {
-  if (!owner) return '<span class="text-dim">—</span>';
-  const cls = KNOWN_OWNERS.has(owner.toLowerCase())
-    ? `owner-badge-${owner.toLowerCase()}`
-    : "owner-badge-other";
-  return `<span class="owner-badge ${cls}">${escapeHtml(owner.toUpperCase())}</span>`;
-}
 
 export function poDecisionsPage(ctx: PersonaPageContext): string {
   const decisions = ctx.store.list({ type: "decision" });

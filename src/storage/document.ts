@@ -10,6 +10,16 @@ export function parseDocument(raw: string, filePath: string): Document {
   };
 }
 
+/**
+ * Replace literal backslash-n sequences with actual newlines.
+ * This normalizes content from agent tools that double-escape newlines
+ * (e.g., sending `\\n` in JSON, which parses to the two characters `\n`).
+ */
+function normalizeLiteralNewlines(text: string): string {
+  return text.replace(/\\n/g, "\n");
+}
+
 export function serializeDocument(doc: Document): string {
-  return matter.stringify(doc.content ? `\n${doc.content}\n` : "\n", doc.frontmatter);
+  const content = doc.content ? normalizeLiteralNewlines(doc.content) : "";
+  return matter.stringify(content ? `\n${content}\n` : "\n", doc.frontmatter);
 }

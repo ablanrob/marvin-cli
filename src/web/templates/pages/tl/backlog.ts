@@ -1,6 +1,12 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getBoardData } from "../../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+} from "../../layout.js";
 import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 export function tlBacklogPage(ctx: PersonaPageContext): string {
@@ -104,7 +110,7 @@ export function tlBacklogPage(ctx: PersonaPageContext): string {
                 <td><a href="/docs/task/${escapeHtml(t.frontmatter.id)}">${escapeHtml(t.frontmatter.id)}</a></td>
                 <td>${escapeHtml(t.frontmatter.title)}</td>
                 <td>${statusBadge(t.frontmatter.status)}</td>
-                <td>${t.frontmatter.owner ? escapeHtml(t.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(t.frontmatter.owner)}</td>
                 <td>${formatDate(t.frontmatter.created)}</td>
               </tr>`,
                 )
@@ -136,7 +142,7 @@ export function tlBacklogPage(ctx: PersonaPageContext): string {
             <a href="/docs/task/${escapeHtml(d.frontmatter.id)}">
               <div class="bc-id">${escapeHtml(d.frontmatter.id)}</div>
               <div class="bc-title">${escapeHtml(d.frontmatter.title)}</div>
-              ${d.frontmatter.owner ? `<div class="bc-owner">${escapeHtml(d.frontmatter.owner)}</div>` : ""}
+              ${d.frontmatter.owner ? `<div class="bc-owner">${ownerBadge(d.frontmatter.owner)}</div>` : ""}
             </a>
           </div>`,
             )

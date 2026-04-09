@@ -1,5 +1,11 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+} from "../../layout.js";
 import { DONE_STATUSES } from "../../../../core/statuses.js";
 
 export function dmMeetingsPage(ctx: PersonaPageContext): string {
@@ -106,7 +112,7 @@ export function dmMeetingsPage(ctx: PersonaPageContext): string {
                 <td><a href="/docs/action/${escapeHtml(a.frontmatter.id)}">${escapeHtml(a.frontmatter.id)}</a></td>
                 <td>${escapeHtml(a.frontmatter.title)}</td>
                 <td><a href="/docs/meeting/${escapeHtml(meetingId)}">${escapeHtml(meetingId)}</a></td>
-                <td>${a.frontmatter.owner ? escapeHtml(a.frontmatter.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(a.frontmatter.owner)}</td>
                 <td>${a.frontmatter.dueDate ? formatDate(a.frontmatter.dueDate) : '<span class="text-dim">—</span>'}</td>
                 <td>${statusBadge(a.frontmatter.status)}</td>
               </tr>`,

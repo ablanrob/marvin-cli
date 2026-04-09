@@ -1,6 +1,12 @@
 import type { PersonaPageContext } from "../../../persona-views.js";
 import { getSprintSummaryData } from "../../../data.js";
-import { collapsibleSection, escapeHtml, formatDate, statusBadge } from "../../layout.js";
+import {
+  collapsibleSection,
+  escapeHtml,
+  formatDate,
+  ownerBadge,
+  statusBadge,
+} from "../../layout.js";
 import {
   renderWorkItemsTable,
   computeOwnerCompletionPct,
@@ -123,7 +129,7 @@ export function dmSprintPage(ctx: PersonaPageContext): string {
               <tr>
                 <td><a href="/docs/action/${escapeHtml(a.id)}">${escapeHtml(a.id)}</a></td>
                 <td>${escapeHtml(a.title)}</td>
-                <td>${a.owner ? escapeHtml(a.owner) : '<span class="text-dim">—</span>'}</td>
+                <td>${ownerBadge(a.owner)}</td>
                 <td>${a.dueDate ? formatDate(a.dueDate) : '<span class="text-dim">—</span>'}</td>
               </tr>`,
                 )

@@ -12,6 +12,7 @@ export {
   jiraIcon,
   confluenceIcon,
   integrationIcons,
+  ownerBadge,
 } from "./html-utils.js";
 export { renderMarkdown, linkArtifactIds } from "./markdown.js";
 

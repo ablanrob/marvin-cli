@@ -4,7 +4,8 @@ import { escapeHtml } from "./html-utils.js";
 
 /** Minimal markdown → HTML (headings, paragraphs, lists, tables, hr, bold, italic, code) */
 export function renderMarkdown(md: string): string {
-  const lines = md.split("\n");
+  // Normalize literal \n sequences from agent-generated content
+  const lines = md.replace(/\\n/g, "\n").split("\n");
   const out: string[] = [];
   let inList = false;
   let listTag = "ul";
