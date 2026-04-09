@@ -10,10 +10,7 @@ export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<a
       "list_features",
       "List all features in the project, optionally filtered by status",
       {
-        status: z
-          .enum(["draft", "approved", "deferred", "done"])
-          .optional()
-          .describe("Filter by feature status"),
+        status: z.enum(FEATURE_STATUSES).optional().describe("Filter by feature status"),
       },
       async (args) => {
         const docs = store.list({ type: "feature", status: args.status });
@@ -62,10 +59,7 @@ export function createFeatureTools(store: DocumentStore): SdkMcpToolDefinition<a
       {
         title: z.string().describe("Feature title"),
         content: z.string().describe("Feature description and requirements"),
-        status: z
-          .enum(["draft", "approved", "deferred", "done"])
-          .optional()
-          .describe("Feature status (default: 'draft')"),
+        status: z.enum(FEATURE_STATUSES).optional().describe("Feature status (default: 'draft')"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         priority: z

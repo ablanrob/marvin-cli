@@ -30,10 +30,7 @@ export function createEpicTools(store: DocumentStore): SdkMcpToolDefinition<any>
       "list_epics",
       "List all epics in the project, optionally filtered by status or linked feature",
       {
-        status: z
-          .enum(["planned", "in-progress", "done"])
-          .optional()
-          .describe("Filter by epic status"),
+        status: z.enum(EPIC_STATUSES).optional().describe("Filter by epic status"),
         linkedFeature: z.string().optional().describe("Filter by linked feature ID (e.g. 'F-001')"),
       },
       async (args) => {
@@ -93,10 +90,7 @@ export function createEpicTools(store: DocumentStore): SdkMcpToolDefinition<any>
         linkedFeature: linkedFeatureArray.describe(
           "Feature ID(s) to link this epic to (e.g. ['F-001'] or ['F-001', 'F-002'])",
         ),
-        status: z
-          .enum(["planned", "in-progress", "done"])
-          .optional()
-          .describe("Epic status (default: 'planned')"),
+        status: z.enum(EPIC_STATUSES).optional().describe("Epic status (default: 'planned')"),
         owner: ownerSchema.optional().describe("Persona role responsible (po, dm, tl)"),
         assignee: z.string().optional().describe("Person assigned to do the work"),
         targetDate: z.string().optional().describe("Target completion date (ISO format)"),

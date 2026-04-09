@@ -10,7 +10,10 @@ export function createDecisionTools(store: DocumentStore): SdkMcpToolDefinition<
       "list_decisions",
       "List all decisions in the project, optionally filtered by status",
       {
-        status: z.enum(DECISION_STATUSES).optional().describe("Filter by status"),
+        status: z
+          .enum([...DECISION_STATUSES, "dismissed"])
+          .optional()
+          .describe("Filter by status"),
       },
       async (args) => {
         const docs = store.list({ type: "decision", status: args.status });

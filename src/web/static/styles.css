@@ -234,6 +234,7 @@ a.card-link { color: inherit; text-decoration: none; cursor: pointer; }
 .badge-draft { background: rgba(139, 143, 164, 0.15); color: var(--text-dim); }
 .badge-closed, .badge-resolved { background: rgba(52, 211, 153, 0.15); color: var(--green); }
 .badge-blocked { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+.badge-superseded { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
 .badge-default { background: rgba(139, 143, 164, 0.1); color: var(--text-dim); }
 .badge-subtle {
   background: rgba(139, 143, 164, 0.12);

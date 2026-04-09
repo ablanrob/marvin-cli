@@ -13,6 +13,7 @@ const REGISTRATIONS: DocumentTypeRegistration[] = [
   { type: "feature", dirName: "features", idPrefix: "F" },
   { type: "sprint", dirName: "sprints", idPrefix: "SP" },
   { type: "meeting", dirName: "meetings", idPrefix: "M" },
+  { type: "report", dirName: "reports", idPrefix: "R" },
 ];
 
 function setupStore(): { store: DocumentStore; tmpDir: string } {
@@ -27,6 +28,7 @@ function setupStore(): { store: DocumentStore; tmpDir: string } {
     "features",
     "sprints",
     "meetings",
+    "reports",
   ]) {
     fs.mkdirSync(path.join(marvinDir, "docs", dir), { recursive: true });
   }
@@ -167,13 +169,12 @@ describe("status-alignment rule", () => {
   });
 
   it("should skip document types without defined canonical statuses", () => {
-    // Core types like "report" don't have canonical statuses
-    store.create("decision", { title: "D1", status: "open" });
+    // "report" has no canonical status list — should be ignored
+    store.create("report" as any, { title: "R1", status: "final" });
 
     const ctx = buildDoctorContext(store);
     const issues = statusAlignmentRule.scan(ctx);
 
-    // Only scans types with defined canonical statuses
     expect(issues).toHaveLength(0);
   });
 

@@ -54,7 +54,7 @@ export function statusBadge(status: string): string {
       decided: "badge-done",
       completed: "badge-done",
       done: "badge-done",
-      superseded: "badge-draft",
+      superseded: "badge-superseded",
       // Legacy (may appear in existing data)
       closed: "badge-done",
       resolved: "badge-resolved",
