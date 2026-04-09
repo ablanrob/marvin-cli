@@ -18,7 +18,7 @@ export function collapsibleSection(
         <svg class="collapsible-chevron" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
           <path d="M4.94 5.72a.75.75 0 0 1 1.06-.02L8 7.56l1.97-1.84a.75.75 0 1 1 1.02 1.1l-2.5 2.34a.75.75 0 0 1-1.02 0l-2.5-2.34a.75.75 0 0 1-.03-1.06z"/>
         </svg>
-        <span>${title}</span>
+        <span>${escapeHtml(title)}</span>
       </${tag}>
       <div class="collapsible-body">
         ${content}
@@ -48,6 +48,7 @@ export function statusBadge(status: string): string {
       "in progress": "badge-in-progress",
       draft: "badge-draft",
       blocked: "badge-blocked",
+      cancelled: "badge-done",
     }[status.toLowerCase()] ?? "badge-default";
   return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
 }
@@ -91,14 +92,18 @@ export function confluenceIcon(confluenceUrl?: string, confluenceTitle?: string)
 /**
  * Render all integration icons for an artifact (Jira + Confluence).
  */
+function toStringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 export function integrationIcons(frontmatter: Record<string, unknown>): string {
   const jira = jiraIcon(
-    frontmatter.jiraKey as string | undefined,
-    frontmatter.jiraUrl as string | undefined,
+    toStringOrUndefined(frontmatter.jiraKey),
+    toStringOrUndefined(frontmatter.jiraUrl),
   );
   const confluence = confluenceIcon(
-    frontmatter.confluenceUrl as string | undefined,
-    frontmatter.confluenceTitle as string | undefined,
+    toStringOrUndefined(frontmatter.confluenceUrl),
+    toStringOrUndefined(frontmatter.confluenceTitle),
   );
   if (!jira && !confluence) return "";
   return `<span class="integration-icons">${jira}${confluence}</span>`;

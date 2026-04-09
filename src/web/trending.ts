@@ -42,7 +42,8 @@ export function computeTrending(input: TrendingInput): TrendingItem[] {
       // Recency: max 20 pts, decay over 30 days
       const updated = doc.frontmatter.updated ?? doc.frontmatter.created;
       const ageDays = daysBetween(updated, today);
-      const recencyPts = Math.max(0, Math.round(20 * (1 - ageDays / 30)));
+      const safeAge = Math.max(0, ageDays);
+      const recencyPts = Math.min(20, Math.max(0, Math.round(20 * (1 - safeAge / 30))));
       if (recencyPts > 0) {
         signals.push({ factor: "recency", points: recencyPts });
         score += recencyPts;
