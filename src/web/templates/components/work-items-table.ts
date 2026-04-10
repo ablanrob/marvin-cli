@@ -7,6 +7,13 @@ import {
   jiraIcon,
   confluenceIcon,
 } from "../layout.js";
+
+function renderIntegrationIcons(w: SprintWorkItem): string {
+  const jira = jiraIcon(w.jiraKey, w.jiraUrl);
+  const confluence = confluenceIcon(w.confluenceUrl, w.confluenceTitle);
+  if (!jira && !confluence) return "";
+  return `<span class="integration-icons">${jira}${confluence}</span>`;
+}
 import { DONE_STATUSES_WITH_DECIDED as DONE_STATUSES } from "../../../core/statuses.js";
 
 const FOCUS_BORDER_PALETTE = [
@@ -92,7 +99,7 @@ function renderItemRows(
     const row = `
               <tr class="${classes.join(" ")}" style="--focus-color: ${borderColor}">
                 <td${indent}><a href="/docs/${escapeHtml(w.type)}/${escapeHtml(w.id)}">${escapeHtml(w.id)}</a></td>
-                <td>${escapeHtml(w.title)}${jiraIcon(w.jiraKey, w.jiraUrl)}${confluenceIcon(w.confluenceUrl, w.confluenceTitle)}</td>
+                <td>${escapeHtml(w.title)}${renderIntegrationIcons(w)}</td>
                 ${ownerCell}
                 <td>${statusBadge(w.status)}</td>
                 <td>${progressCell}</td>
