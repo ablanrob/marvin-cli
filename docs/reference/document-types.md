@@ -63,19 +63,21 @@ to specify exactly the fields they need...
 
 ## Common frontmatter fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Auto-generated ID (e.g., `D-001`) |
-| `title` | string | Document title |
-| `type` | string | Document type |
-| `status` | string | Current status |
-| `created` | string | ISO timestamp |
-| `updated` | string | ISO timestamp |
-| `owner` | string | Owner persona or person |
-| `assignee` | string | Assigned person |
-| `priority` | string | Priority level |
-| `tags` | string[] | Arbitrary tags |
-| `dueDate` | string | ISO date |
-| `source` | string | Source artifact ID |
+These fields are defined on `DocumentFrontmatter` in `src/storage/types.ts`. Additional fields may be registered by plugins or skills.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | yes | Auto-generated ID (e.g., `D-001`) |
+| `title` | string | yes | Document title |
+| `type` | string | yes | Document type |
+| `status` | string | yes | Current status |
+| `created` | string | yes | ISO timestamp |
+| `updated` | string | yes | ISO timestamp |
+| `owner` | string | no | Owner persona or person |
+| `assignee` | string | no | Assigned person |
+| `priority` | string | no | Priority level |
+| `tags` | string[] | no | Arbitrary tags |
+| `dueDate` | string | no | ISO date |
+| `source` | string | no | Source artifact ID |
 
 Additional fields vary by type (e.g., sprints have `startDate`, `endDate`, `goal`, `linkedEpics`; features have `linkedEpics`; tasks have `linkedEpic`, `complexity`, `estimatedPoints`).

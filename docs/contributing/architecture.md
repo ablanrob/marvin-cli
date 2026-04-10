@@ -9,9 +9,10 @@ This document describes how the Marvin codebase is organized, how the major subs
 │                   Entry Points                   │
 │         bin/marvin.ts    bin/marvin-serve.ts     │
 ├──────────────────────┬──────────────────────────┤
-│     CLI Layer        │     MCP Layer            │
-│   src/cli/           │   src/mcp/               │
-│   src/agent/session  │   src/agent/mcp-server   │
+│     CLI Layer        │     MCP Layer             │
+│   src/cli/           │   src/mcp/stdio-server    │
+│   src/agent/session  │                           │
+│   src/agent/mcp-server                           │
 ├──────────────────────┴──────────────────────────┤
 │              Persona System                      │
 │   src/personas/ (registry, prompt-builder)       │

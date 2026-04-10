@@ -24,16 +24,20 @@ MAPPINGS=(
   "src/index.ts|docs/contributing/architecture.md|Public API exports changed"
 )
 
-# Collect staged files (excludes deletions)
-STAGED=$(git diff --cached --name-only --diff-filter=d 2>/dev/null || true)
+# Collect staged files (excludes deletions) as a NUL-delimited array so
+# paths containing spaces or newlines are handled safely.
+STAGED_FILES=()
+while IFS= read -r -d '' file; do
+  STAGED_FILES+=("$file")
+done < <(git diff --cached --name-only --diff-filter=d -z 2>/dev/null || true)
 
-if [ -z "$STAGED" ]; then
+if [ ${#STAGED_FILES[@]} -eq 0 ]; then
   exit 0
 fi
 
 # Check if any src/ files are staged
 HAS_SRC_CHANGES=false
-for file in $STAGED; do
+for file in "${STAGED_FILES[@]}"; do
   if [[ "$file" == src/* ]] || [[ "$file" == bin/* ]]; then
     HAS_SRC_CHANGES=true
     break
@@ -46,7 +50,7 @@ fi
 
 # Check if any docs/ files are also staged
 HAS_DOC_CHANGES=false
-for file in $STAGED; do
+for file in "${STAGED_FILES[@]}"; do
   if [[ "$file" == docs/* ]] || [[ "$file" == README.md ]] || [[ "$file" == CLAUDE.md ]]; then
     HAS_DOC_CHANGES=true
     break
@@ -62,7 +66,7 @@ fi
 SUGGESTIONS=()
 for mapping in "${MAPPINGS[@]}"; do
   IFS='|' read -r pattern doc_file reason <<< "$mapping"
-  for file in $STAGED; do
+  for file in "${STAGED_FILES[@]}"; do
     if [[ "$file" == ${pattern}* ]]; then
       # Avoid duplicate suggestions for the same doc
       already_listed=false

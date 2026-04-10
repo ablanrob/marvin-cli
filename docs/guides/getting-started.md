@@ -34,7 +34,10 @@ export ANTHROPIC_API_KEY=sk-ant-...
 **User configuration** (persists across sessions):
 
 ```bash
-marvin config apiKey sk-ant-...
+# Export the key first so it isn't captured in shell history,
+# then pass it via the environment variable.
+export ANTHROPIC_API_KEY=sk-ant-...
+marvin config api-key "$ANTHROPIC_API_KEY"
 ```
 
 This saves the key to `~/.config/marvin/config.yaml`.

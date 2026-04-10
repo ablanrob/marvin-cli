@@ -26,7 +26,7 @@ Marvin stores project governance data as **Markdown files with YAML frontmatter*
 
 When you start a chat session, Marvin loads a persona-specific system prompt, exposes your project data as **MCP tools** that Claude can call, and starts an interactive conversation where the agent reads, creates, and updates artifacts on your behalf.
 
-```
+```text
 .marvin/
 ├── config.yaml              # Project configuration
 ├── sessions.yaml            # Saved chat sessions
