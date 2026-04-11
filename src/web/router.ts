@@ -132,11 +132,16 @@ export function handleRequest(
   try {
     // GET /styles.css
     if (pathname === "/styles.css") {
+      // Resolve the body before writing headers so that any error from
+      // renderStyles() is caught by the outer try/catch and returned as a
+      // clean 500 — otherwise ERR_HTTP_HEADERS_SENT escapes and crashes
+      // the process, taking the MCP stdio transport with it.
+      const css = renderStyles();
       res.writeHead(200, {
         "Content-Type": "text/css",
         "Cache-Control": "public, max-age=300",
       });
-      res.end(renderStyles());
+      res.end(css);
       return;
     }
 
@@ -386,8 +391,15 @@ export function handleRequest(
     notFound(res, projectName, navGroups, pathname, null);
   } catch (err) {
     console.error("[marvin web] Error handling request:", err);
-    res.writeHead(500, { "Content-Type": "text/html" });
-    res.end("<h1>500 — Internal Server Error</h1>");
+    // Guard against ERR_HTTP_HEADERS_SENT when the throwing route already
+    // started writing a response. Writing a second time would crash the
+    // process, which is fatal for the MCP stdio transport.
+    if (!res.headersSent) {
+      res.writeHead(500, { "Content-Type": "text/html" });
+      res.end("<h1>500 — Internal Server Error</h1>");
+    } else {
+      res.end();
+    }
   }
 }
 
