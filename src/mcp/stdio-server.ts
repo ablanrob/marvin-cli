@@ -17,6 +17,7 @@ import { resolvePlugin, getPluginTools } from "../plugins/registry.js";
 import { loadAllSkills, getSkillTools, collectSkillRegistrations } from "../skills/registry.js";
 import { createSkillActionTools } from "../skills/action-tools.js";
 import { createWebTools } from "../agent/tools/web.js";
+import { createDoctorTools } from "../agent/tools/doctor.js";
 import { buildNavGroups } from "../web/server.js";
 import { PersonaContextManager } from "./persona-context.js";
 import { createPersonaTools } from "./persona-tools.js";
@@ -68,6 +69,7 @@ export function collectTools(marvinDir: string): SdkMcpToolDefinition<any>[] {
     ...(manifest ? createSourceTools(manifest) : []),
     ...createSessionTools(sessionStore),
     ...createWebTools(store, config.name, navGroups),
+    ...createDoctorTools(store, { config, manifest, marvinDir }),
     ...pluginTools,
     ...codeSkillTools,
     ...actionTools,

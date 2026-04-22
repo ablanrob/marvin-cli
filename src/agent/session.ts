@@ -74,6 +74,8 @@ export async function startSession(options: SessionOptions): Promise<void> {
     skillTools: codeSkillTools,
     projectName: config.project.name,
     navGroups,
+    config: config.project,
+    marvinDir,
   });
   const systemPrompt = buildSystemPrompt(
     persona,
@@ -188,6 +190,8 @@ export async function startSession(options: SessionOptions): Promise<void> {
       "mcp__marvin-governance__get_dashboard_board",
       "mcp__marvin-governance__get_dashboard_upcoming",
       "mcp__marvin-governance__get_dashboard_sprint_summary",
+      "mcp__marvin-governance__run_doctor",
+      "mcp__marvin-governance__check_project_health",
       ...pluginTools.map((t) => `mcp__marvin-governance__${t.name}`),
       ...codeSkillTools.map((t) => `mcp__marvin-governance__${t.name}`),
     ],

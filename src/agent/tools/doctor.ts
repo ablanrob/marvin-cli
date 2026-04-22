@@ -1,10 +1,22 @@
 import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { DocumentStore } from "../../storage/store.js";
+import type { SourceManifestManager } from "../../sources/manifest.js";
+import type { MarvinProjectConfig } from "../../core/config.js";
 import { runDoctorScan, runDoctorFix } from "../../doctor/engine.js";
+import { runHealthCheck } from "../../doctor/health/engine.js";
 
-export function createDoctorTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
-  return [
+export interface DoctorToolOptions {
+  config?: MarvinProjectConfig;
+  manifest?: SourceManifestManager;
+  marvinDir?: string;
+}
+
+export function createDoctorTools(
+  store: DocumentStore,
+  options?: DoctorToolOptions,
+): SdkMcpToolDefinition<any>[] {
+  const tools: SdkMcpToolDefinition<any>[] = [
     tool(
       "run_doctor",
       "Scan project documents for structural issues and optionally auto-repair them. Returns a JSON report with all issues found and fixes applied.",
@@ -49,4 +61,46 @@ export function createDoctorTools(store: DocumentStore): SdkMcpToolDefinition<an
       },
     ),
   ];
+
+  if (options?.config && options?.marvinDir) {
+    tools.push(
+      tool(
+        "check_project_health",
+        "Run governance health checks on the project. Returns soft recommendations about missing setup (sprints, Jira, source processing) and phase readiness — not document-level issues (use run_doctor for those).",
+        {},
+        async () => {
+          try {
+            const report = runHealthCheck({
+              store,
+              config: options.config!,
+              manifest: options.manifest,
+              marvinDir: options.marvinDir!,
+            });
+
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(report, null, 2),
+                },
+              ],
+            };
+          } catch (err) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Health check error: ${err instanceof Error ? err.message : String(err)}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+        },
+        { annotations: { readOnlyHint: true } },
+      ),
+    );
+  }
+
+  return tools;
 }
