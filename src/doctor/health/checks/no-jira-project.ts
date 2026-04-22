@@ -14,7 +14,7 @@ export const noJiraProjectCheck: HealthCheck = {
     const totalArtifacts = Object.values(counts).reduce((sum, n) => sum + n, 0);
     if (totalArtifacts === 0) return [];
 
-    if (ctx.config.jira?.projectKey) return [];
+    if (ctx.config.jira?.projectKey?.trim()) return [];
 
     return [
       {
