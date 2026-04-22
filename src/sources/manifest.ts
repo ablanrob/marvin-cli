@@ -11,6 +11,7 @@ function emptyManifest(): SourceManifest {
   return { version: 1, files: {} };
 }
 
+/** Tracks source files in `.marvin/sources/` via a YAML manifest with content hashing. */
 export class SourceManifestManager {
   private manifest: SourceManifest;
   private manifestPath: string;
@@ -36,6 +37,7 @@ export class SourceManifestManager {
     fs.writeFileSync(this.manifestPath, YAML.stringify(this.manifest), "utf-8");
   }
 
+  /** Sync the manifest with files on disk. Uses mtime/size to skip unchanged files. */
   scan(): { added: string[]; changed: string[]; removed: string[] } {
     const added: string[] = [];
     const changed: string[] = [];
@@ -97,12 +99,14 @@ export class SourceManifestManager {
     return { added, changed, removed };
   }
 
+  /** Return manifest entries, optionally filtered by processing status. */
   list(status?: SourceFileStatus): Array<{ name: string; entry: SourceFileEntry }> {
     return Object.entries(this.manifest.files)
       .filter(([, entry]) => !status || entry.status === status)
       .map(([name, entry]) => ({ name, entry }));
   }
 
+  /** Look up a single source file entry by name. */
   get(fileName: string): SourceFileEntry | undefined {
     return this.manifest.files[fileName];
   }
