@@ -62,6 +62,10 @@ export interface JiraProjectConfig {
       };
 }
 
+export interface AemConfig {
+  currentPhase?: string;
+}
+
 export interface MarvinProjectConfig {
   name: string;
   methodology?: string;
@@ -70,6 +74,7 @@ export interface MarvinProjectConfig {
   git?: GitConfig;
   skills?: Record<string, string[]>;
   jira?: JiraProjectConfig;
+  aem?: AemConfig;
 }
 
 export interface PersonaConfigOverride {

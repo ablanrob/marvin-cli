@@ -17,13 +17,8 @@ export const emptyProjectCheck: HealthCheck = {
 
     const findings: HealthFinding[] = [];
 
-    // Check for unprocessed sources
+    // Check for unprocessed sources (manifest already scanned by engine)
     if (ctx.manifest) {
-      try {
-        ctx.manifest.scan();
-      } catch {
-        // Ignore scan errors — other checks handle that
-      }
       const pending = ctx.manifest.list("pending");
       if (pending.length > 0) {
         findings.push({

@@ -2,7 +2,6 @@ import { describe, it, expect, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import * as YAML from "yaml";
 import { DocumentStore } from "../../../src/storage/store.js";
 import { phaseReadinessCheck } from "../../../src/doctor/health/checks/phase-readiness.js";
 import type { HealthContext } from "../../../src/doctor/health/types.js";
@@ -14,18 +13,10 @@ function setup(phase?: string) {
   const docsDir = path.join(marvinDir, "docs");
   fs.mkdirSync(docsDir, { recursive: true });
 
-  const projectConfig: Record<string, unknown> = {
-    name: "test-project",
-    methodology: "sap-aem",
-  };
-  if (phase) {
-    projectConfig.aem = { currentPhase: phase };
-  }
-  fs.writeFileSync(path.join(marvinDir, "config.yaml"), YAML.stringify(projectConfig), "utf-8");
-
   const config: MarvinProjectConfig = {
     name: "test-project",
     methodology: "sap-aem",
+    aem: phase ? { currentPhase: phase } : undefined,
   };
 
   const registrations = [
@@ -96,6 +87,16 @@ describe("Phase Readiness Check", () => {
     const findings = phaseReadinessCheck.run(env.ctx);
     expect(findings).toHaveLength(1);
     expect(findings[0].message).toContain("no tech assessments");
+  });
+
+  it("should not flag Phase 2 when use cases are only assessed (not approved)", () => {
+    const env = setup("assess-technology");
+    tmpDir = env.tmpDir;
+
+    env.store.create("use-case", { title: "UC1", status: "assessed" });
+
+    const findings = phaseReadinessCheck.run(env.ctx);
+    expect(findings).toHaveLength(0);
   });
 
   it("should flag no extension designs in Phase 3 with recommended assessments", () => {

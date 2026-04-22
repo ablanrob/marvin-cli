@@ -1,6 +1,3 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
-import * as YAML from "yaml";
 import type { HealthCheck, HealthContext, HealthFinding } from "../types.js";
 
 const CHECK_ID = "phase-readiness";
@@ -15,7 +12,7 @@ export const phaseReadinessCheck: HealthCheck = {
   run(ctx: HealthContext): HealthFinding[] {
     if (ctx.config.methodology !== "sap-aem") return [];
 
-    const phase = readPhase(ctx.marvinDir);
+    const phase = ctx.config.aem?.currentPhase;
     if (!phase) return [];
 
     const findings: HealthFinding[] = [];
@@ -49,9 +46,7 @@ export const phaseReadinessCheck: HealthCheck = {
       const tas = ctx.store.list({ type: "tech-assessment" });
       const approvedUCs = ctx.store
         .list({ type: "use-case" })
-        .filter(
-          (uc) => uc.frontmatter.status === "assessed" || uc.frontmatter.status === "approved",
-        );
+        .filter((uc) => uc.frontmatter.status === "approved");
 
       if (approvedUCs.length > 0 && tas.length === 0) {
         findings.push({
@@ -85,15 +80,3 @@ export const phaseReadinessCheck: HealthCheck = {
     return findings;
   },
 };
-
-function readPhase(marvinDir: string): string | undefined {
-  try {
-    const configPath = path.join(marvinDir, "config.yaml");
-    const raw = fs.readFileSync(configPath, "utf-8");
-    const config = YAML.parse(raw) as Record<string, unknown>;
-    const aem = config.aem as Record<string, unknown> | undefined;
-    return aem?.currentPhase as string | undefined;
-  } catch {
-    return undefined;
-  }
-}

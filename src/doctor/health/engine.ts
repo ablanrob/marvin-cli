@@ -3,6 +3,15 @@ import { allHealthChecks } from "./checks/index.js";
 
 /** Run all health checks and produce a report with findings. */
 export function runHealthCheck(ctx: HealthContext): HealthReport {
+  // Pre-scan manifest once so individual checks don't need to
+  if (ctx.manifest) {
+    try {
+      ctx.manifest.scan();
+    } catch {
+      // Scan failure is non-fatal — checks will see stale/empty manifest data
+    }
+  }
+
   const findings = allHealthChecks.flatMap((check) => check.run(ctx));
 
   const byCheck: Record<string, number> = {};
