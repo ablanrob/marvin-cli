@@ -14,6 +14,19 @@ export function createSourceTools(manifest: SourceManifestManager): SdkMcpToolDe
           .describe("Filter by status (pending, processing, completed, error)"),
       },
       async (args) => {
+        try {
+          manifest.scan();
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Failed to scan sources directory: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
         const statusFilter = args.status as
           | "pending"
           | "processing"
@@ -48,6 +61,19 @@ export function createSourceTools(manifest: SourceManifestManager): SdkMcpToolDe
         fileName: z.string().describe("Name of the source file (e.g. 'Requirements.pdf')"),
       },
       async (args) => {
+        try {
+          manifest.scan();
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Failed to scan sources directory: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
         const entry = manifest.get(args.fileName);
         if (!entry) {
           return {

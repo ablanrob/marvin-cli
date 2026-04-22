@@ -11,7 +11,7 @@ function extractDocType(toolName: string): string | undefined {
   if (toolName === "save_report") return "report";
 
   const match = toolName.match(/^(?:create|update)_(\w+)$/);
-  return match ? match[1] : undefined;
+  return match ? match[1].replace(/_/g, "-") : undefined;
 }
 
 /**

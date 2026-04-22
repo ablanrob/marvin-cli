@@ -102,8 +102,33 @@ describe("wrapToolsWithPersonaValidation", () => {
     expect(text).toContain("[PERSONA WARNING]");
     expect(text).toContain("Product Owner");
     expect(text).toContain('"epic"');
-    expect(text).toContain("decision, question, action, feature");
+    expect(text).toContain("decision, question, action, feature, use-case");
     expect(text).toContain("Created epic E-001");
+  });
+
+  it("should normalize underscores to hyphens in doc type extraction", async () => {
+    ctx.setPersona("po"); // PO has use-case in documentTypes
+    const tools = [fakeTool("create_use_case", "Created use case UC-001")];
+    const wrapped = wrapToolsWithPersonaValidation(tools, ctx);
+
+    const result = await wrapped[0].handler({}, {});
+    const text = result.content[0].text;
+
+    expect(text).not.toContain("[PERSONA WARNING]");
+    expect(text).toBe("Created use case UC-001");
+  });
+
+  it("should warn with hyphenated type name for unrecognized multi-word tools", async () => {
+    ctx.setPersona("po"); // PO doesn't have "foo-bar"
+    const tools = [fakeTool("create_foo_bar", "Created foo-bar")];
+    const wrapped = wrapToolsWithPersonaValidation(tools, ctx);
+
+    const result = await wrapped[0].handler({}, {});
+    const text = result.content[0].text;
+
+    expect(text).toContain("[PERSONA WARNING]");
+    expect(text).toContain('"foo-bar"');
+    expect(text).toContain("Created foo-bar");
   });
 
   it("should prepend warning when update_ doc type is out of scope", async () => {
