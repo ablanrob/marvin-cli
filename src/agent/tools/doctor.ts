@@ -5,6 +5,7 @@ import type { SourceManifestManager } from "../../sources/manifest.js";
 import type { MarvinProjectConfig } from "../../core/config.js";
 import { runDoctorScan, runDoctorFix } from "../../doctor/engine.js";
 import { runHealthCheck } from "../../doctor/health/engine.js";
+import { buildOnboardingGuide } from "../../doctor/health/onboarding.js";
 
 export interface DoctorToolOptions {
   config?: MarvinProjectConfig;
@@ -97,6 +98,60 @@ export function createDoctorTools(
               {
                 type: "text" as const,
                 text: `Health check error: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+      { annotations: { readOnlyHint: true } },
+    ),
+
+    tool(
+      "get_started",
+      "Get a tailored onboarding guide for the project. Inspects current state (artifacts, sources, config) and returns an ordered checklist of recommended setup steps with completion status. Methodology-aware (SAP AEM vs generic agile).",
+      {},
+      async () => {
+        if (!options?.config || !options?.marvinDir) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Onboarding unavailable: project config or marvinDir not initialized.",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const { config, marvinDir, manifest } = options;
+
+        // Scan manifest before building guide
+        if (manifest) {
+          try {
+            manifest.scan();
+          } catch {
+            // Non-fatal
+          }
+        }
+
+        try {
+          const guide = buildOnboardingGuide({ store, config, manifest, marvinDir });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(guide, null, 2),
+              },
+            ],
+          };
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Onboarding error: ${err instanceof Error ? err.message : String(err)}`,
               },
             ],
             isError: true,

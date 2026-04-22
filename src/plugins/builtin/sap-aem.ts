@@ -122,7 +122,14 @@ export const sapAemPlugin: MarvinPlugin = {
 - Advance phases only when gate conditions are met (soft enforcement — warnings, not blocks).
 - Generate extension portfolio reports for stakeholder updates.
 - Generate tech readiness reports to identify BTP service gaps.
-- Track risks via actions and questions. Flag unresolved items before phase gates.`,
+- Track risks via actions and questions. Flag unresolved items before phase gates.
+
+**Sprint 0 for AEM Projects:**
+When setting up Sprint 0, also include AEM-specific bootstrapping:
+- **Phase gate preparation**: Define soft gate checklists with readiness criteria for each AEM phase transition.
+- **Tech assessment prerequisites**: Ensure BTP service access, extension point documentation, and sandbox environments are provisioned.
+- **Iterative loop definitions**: Map the iterative loops between Assess Use Case ↔ Assess Technology ↔ Define Solution phases.
+- **Extension design templates**: Prepare architecture pattern templates for in-app, side-by-side, and hybrid extensions.`,
 
     "*": `This project uses the **SAP Application Extension Methodology (AEM)** — a 3-phase approach for building extensions on SAP BTP:
 
