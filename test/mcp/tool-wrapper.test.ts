@@ -118,6 +118,19 @@ describe("wrapToolsWithPersonaValidation", () => {
     expect(text).toBe("Created use case UC-001");
   });
 
+  it("should warn with hyphenated type name for unrecognized multi-word tools", async () => {
+    ctx.setPersona("po"); // PO doesn't have "foo-bar"
+    const tools = [fakeTool("create_foo_bar", "Created foo-bar")];
+    const wrapped = wrapToolsWithPersonaValidation(tools, ctx);
+
+    const result = await wrapped[0].handler({}, {});
+    const text = result.content[0].text;
+
+    expect(text).toContain("[PERSONA WARNING]");
+    expect(text).toContain('"foo-bar"');
+    expect(text).toContain("Created foo-bar");
+  });
+
   it("should prepend warning when update_ doc type is out of scope", async () => {
     ctx.setPersona("tl"); // TL cannot update features
     const tools = [fakeTool("update_feature", "Updated feature F-001")];

@@ -55,12 +55,14 @@ export class SourceManifestManager {
     // Detect new and changed files
     for (const fileName of onDisk) {
       const filePath = path.join(this.sourcesDir, fileName);
-      const hash = this.hashFile(filePath);
+      const stat = fs.statSync(filePath);
       const existing = this.manifest.files[fileName];
 
       if (!existing) {
         this.manifest.files[fileName] = {
-          hash,
+          hash: this.hashFile(filePath),
+          size: stat.size,
+          mtimeMs: stat.mtimeMs,
           addedAt: new Date().toISOString(),
           processedAt: null,
           status: "pending",
@@ -68,13 +70,18 @@ export class SourceManifestManager {
           error: null,
         };
         added.push(fileName);
-      } else if (existing.hash !== hash) {
-        existing.hash = hash;
-        existing.status = "pending";
-        existing.processedAt = null;
-        existing.artifacts = [];
-        existing.error = null;
-        changed.push(fileName);
+      } else if (existing.size !== stat.size || existing.mtimeMs !== stat.mtimeMs) {
+        const hash = this.hashFile(filePath);
+        if (existing.hash !== hash) {
+          existing.hash = hash;
+          existing.status = "pending";
+          existing.processedAt = null;
+          existing.artifacts = [];
+          existing.error = null;
+          changed.push(fileName);
+        }
+        existing.size = stat.size;
+        existing.mtimeMs = stat.mtimeMs;
       }
     }
 

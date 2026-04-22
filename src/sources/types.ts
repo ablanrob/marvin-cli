@@ -2,6 +2,8 @@ export type SourceFileStatus = "pending" | "processing" | "completed" | "error";
 
 export interface SourceFileEntry {
   hash: string;
+  size: number;
+  mtimeMs: number;
   addedAt: string;
   processedAt: string | null;
   status: SourceFileStatus;
