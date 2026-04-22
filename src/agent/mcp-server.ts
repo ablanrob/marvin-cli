@@ -6,6 +6,7 @@ import {
 import type { DocumentStore } from "../storage/store.js";
 import type { SessionStore } from "../storage/session-store.js";
 import type { SourceManifestManager } from "../sources/manifest.js";
+import type { MarvinProjectConfig } from "../core/config.js";
 import { createDecisionTools } from "./tools/decisions.js";
 import { createActionTools } from "./tools/actions.js";
 import { createQuestionTools } from "./tools/questions.js";
@@ -24,6 +25,8 @@ export interface McpServerOptions {
   skillTools?: SdkMcpToolDefinition<any>[];
   projectName?: string;
   navGroups?: NavGroup[];
+  config?: MarvinProjectConfig;
+  marvinDir?: string;
 }
 
 export function createMarvinMcpServer(
@@ -42,7 +45,11 @@ export function createMarvinMcpServer(
     ...(options?.projectName && options?.navGroups
       ? createWebTools(store, options.projectName, options.navGroups)
       : []),
-    ...createDoctorTools(store),
+    ...createDoctorTools(store, {
+      config: options?.config,
+      manifest: options?.manifest,
+      marvinDir: options?.marvinDir,
+    }),
   ];
 
   return createSdkMcpServer({
