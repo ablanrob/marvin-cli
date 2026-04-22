@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { SourceManifestManager } from "../../sources/manifest.js";
 
+/** Create MCP tools for listing and inspecting source documents. */
 export function createSourceTools(manifest: SourceManifestManager): SdkMcpToolDefinition<any>[] {
   return [
     tool(
