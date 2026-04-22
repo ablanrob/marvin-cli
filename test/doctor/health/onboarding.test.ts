@@ -47,7 +47,7 @@ describe("Onboarding Guide", () => {
     if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("should return empty status for a blank project", () => {
+  it("should return empty status for a blank project with full 7-step checklist", () => {
     const env = setup();
     tmpDir = env.tmpDir;
 
@@ -55,8 +55,29 @@ describe("Onboarding Guide", () => {
 
     expect(guide.status).toBe("empty");
     expect(guide.projectName).toBe("test-project");
-    expect(guide.steps.length).toBeGreaterThan(0);
-    expect(guide.steps.every((s) => !s.done || s.title === "Run a health check")).toBe(true);
+    expect(guide.steps).toHaveLength(7);
+
+    const titles = guide.steps.map((s) => s.title);
+    expect(titles).toEqual([
+      "Ingest source documents",
+      "Define features",
+      "Capture key decisions and actions",
+      "Break work into epics",
+      "Set up Sprint 0",
+      "Configure Jira integration",
+      "Run a health check",
+    ]);
+
+    // All steps should be not-done on a blank project
+    for (const step of guide.steps) {
+      expect(step.done).toBe(false);
+    }
+
+    // Orders should be sequential
+    expect(guide.steps.map((s) => s.order)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+
+    // Source step should prompt user to add files
+    expect(guide.steps[0].description).toContain("No source files found");
   });
 
   it("should mark source ingestion as pending when sources exist", () => {
@@ -124,6 +145,11 @@ describe("Onboarding Guide", () => {
   it("should report in-progress when most steps are done", () => {
     const env = setup({ jiraProjectKey: "TEST" });
     tmpDir = env.tmpDir;
+
+    // Add and process a source file so the ingest step is done
+    fs.writeFileSync(path.join(env.marvinDir, "sources", "spec.md"), "# Spec");
+    env.manifest.scan();
+    env.manifest.markCompleted("spec.md", ["D-001"]);
 
     env.store.create("decision", { title: "Use React" });
     env.store.create("action", { title: "Set up CI/CD" });

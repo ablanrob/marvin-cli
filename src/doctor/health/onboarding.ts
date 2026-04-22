@@ -38,18 +38,18 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
   let order = 1;
 
   // Step 1: Ingest source documents
-  if (hasSources || pendingSources > 0) {
-    steps.push({
-      order: order++,
-      title: "Ingest source documents",
-      description:
-        pendingSources > 0
-          ? `${pendingSources} source file(s) in .marvin/sources/ are ready for processing. Set the PO persona and ingest them to extract requirements, use cases, and initial artifacts.`
-          : "All source files have been processed.",
-      tool: "set_persona",
-      done: pendingSources === 0 && hasSources,
-    });
-  }
+  steps.push({
+    order: order++,
+    title: "Ingest source documents",
+    description:
+      pendingSources > 0
+        ? `${pendingSources} source file(s) in .marvin/sources/ are ready for processing. Set the PO persona and ingest them to extract requirements, use cases, and initial artifacts.`
+        : hasSources
+          ? "All source files have been processed."
+          : "No source files found. Add documents (PDF, Markdown, or text) to .marvin/sources/ to begin processing.",
+    tool: "set_persona",
+    done: pendingSources === 0 && hasSources,
+  });
 
   // Step 2: Define scope (methodology-specific)
   if (isAem) {
