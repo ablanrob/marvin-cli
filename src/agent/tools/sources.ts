@@ -14,6 +14,7 @@ export function createSourceTools(manifest: SourceManifestManager): SdkMcpToolDe
           .describe("Filter by status (pending, processing, completed, error)"),
       },
       async (args) => {
+        manifest.scan();
         const statusFilter = args.status as
           | "pending"
           | "processing"
@@ -48,6 +49,7 @@ export function createSourceTools(manifest: SourceManifestManager): SdkMcpToolDe
         fileName: z.string().describe("Name of the source file (e.g. 'Requirements.pdf')"),
       },
       async (args) => {
+        manifest.scan();
         const entry = manifest.get(args.fileName);
         if (!entry) {
           return {
