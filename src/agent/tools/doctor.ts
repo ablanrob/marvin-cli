@@ -168,40 +168,52 @@ export function createDoctorTools(
       "Check which integrations (Jira, Confluence) are configured and their credential status. Returns presence/source info without exposing secrets. Use this instead of reading config files directly.",
       {},
       async () => {
-        const jiraSources = {
-          project: options?.config?.jira
-            ? { host: options.config.jira.host, email: options.config.jira.email }
-            : undefined,
-          user: loadUserConfig().jira,
-        };
+        try {
+          const jiraSources = {
+            project: options?.config?.jira
+              ? { host: options.config.jira.host, email: options.config.jira.email }
+              : undefined,
+            user: loadUserConfig().jira,
+          };
 
-        const jira = resolveJiraStatus(jiraSources);
+          const jira = resolveJiraStatus(jiraSources);
 
-        const result = {
-          jira: {
-            configured: jira.host.configured && jira.email.configured && jira.apiToken.configured,
-            host: jira.host.value ?? null,
-            hostSource: jira.host.source ?? null,
-            emailConfigured: jira.email.configured,
-            emailSource: jira.email.source ?? null,
-            apiTokenConfigured: jira.apiToken.configured,
-            apiTokenSource: jira.apiToken.source ?? null,
-            projectKey: options?.config?.jira?.projectKey?.trim() || null,
-          },
-          confluence: {
-            configured: jira.host.configured && jira.email.configured && jira.apiToken.configured,
-            note: "Confluence uses the same Jira/Atlassian credentials.",
-          },
-        };
-
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(result, null, 2),
+          const result = {
+            jira: {
+              configured: jira.host.configured && jira.email.configured && jira.apiToken.configured,
+              host: jira.host.value ?? null,
+              hostSource: jira.host.source ?? null,
+              emailConfigured: jira.email.configured,
+              emailSource: jira.email.source ?? null,
+              apiTokenConfigured: jira.apiToken.configured,
+              apiTokenSource: jira.apiToken.source ?? null,
+              projectKey: options?.config?.jira?.projectKey?.trim() || null,
             },
-          ],
-        };
+            confluence: {
+              configured: jira.host.configured && jira.email.configured && jira.apiToken.configured,
+              note: "Confluence uses the same Jira/Atlassian credentials.",
+            },
+          };
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(result, null, 2),
+              },
+            ],
+          };
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Integration check error: ${err instanceof Error ? err.message : String(err)}`,
+              },
+            ],
+            isError: true,
+          };
+        }
       },
       { annotations: { readOnlyHint: true } },
     ),

@@ -1,11 +1,28 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { createJiraClient, resolveJiraStatus } from "../../../src/skills/builtin/jira/client.js";
 
+function restoreEnv(original: Record<string, string | undefined>): void {
+  // Remove keys that weren't in the original
+  for (const key of Object.keys(process.env)) {
+    if (!(key in original)) {
+      Reflect.deleteProperty(process.env, key);
+    }
+  }
+  // Restore original values
+  for (const [key, value] of Object.entries(original)) {
+    if (value === undefined) {
+      Reflect.deleteProperty(process.env, key);
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
+
 describe("createJiraClient with project config", () => {
   const originalEnv = { ...process.env };
 
   afterEach(() => {
-    process.env = { ...originalEnv };
+    restoreEnv(originalEnv);
   });
 
   it("should prefer project config over user config and env vars", () => {
@@ -81,7 +98,7 @@ describe("resolveJiraStatus", () => {
   const originalEnv = { ...process.env };
 
   afterEach(() => {
-    process.env = { ...originalEnv };
+    restoreEnv(originalEnv);
   });
 
   it("should report all configured when credentials exist", () => {

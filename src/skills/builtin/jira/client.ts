@@ -301,14 +301,17 @@ export function createJiraClient(
   if (!host || !email || !apiToken) return null;
 
   const normalizedHost = host.replace(/^https?:\/\//, "").replace(/\/+$/, "");
-  return { client: new JiraClient({ host, email, apiToken }), host: normalizedHost };
+  return {
+    client: new JiraClient({ host: normalizedHost, email, apiToken }),
+    host: normalizedHost,
+  };
 }
 
 /** Check which Jira credentials are present without exposing values. */
 export function resolveJiraStatus(sources?: JiraConfigSources): {
-  host: { configured: boolean; value?: string; source?: string };
-  email: { configured: boolean; source?: string };
-  apiToken: { configured: boolean; source?: string };
+  host: { configured: boolean; value?: string; source?: CredentialSource };
+  email: { configured: boolean; source?: CredentialSource };
+  apiToken: { configured: boolean; source?: CredentialSource };
 } {
   const projectHost = sources?.project?.host?.trim();
   const userHost = sources?.user?.host?.trim();
@@ -339,9 +342,13 @@ export function resolveJiraStatus(sources?: JiraConfigSources): {
   };
 }
 
+type CredentialSource = "project" | "user" | "env";
+
 function isConfigSources(
   value: JiraConfigSources["user"] | JiraConfigSources | undefined,
 ): value is JiraConfigSources {
   if (!value) return false;
+  // Reject legacy objects that have top-level credentials (host/email/apiToken)
+  if ("host" in value || "email" in value || "apiToken" in value) return false;
   return "project" in value || "user" in value;
 }

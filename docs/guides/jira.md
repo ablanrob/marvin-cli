@@ -53,7 +53,9 @@ Use the `check_integrations` MCP tool to verify your Jira setup without exposing
     "host": "your-instance.atlassian.net",
     "hostSource": "user",
     "emailConfigured": true,
+    "emailSource": "user",
     "apiTokenConfigured": true,
+    "apiTokenSource": "env",
     "projectKey": "PROJ"
   }
 }

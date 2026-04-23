@@ -764,39 +764,24 @@ export function createJiraTools(
         const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
-        // Use v3 search/jql to get statuses
-        const host = jira.host;
-        const auth = `Basic ${Buffer.from(
-          `${(jiraUserConfig?.email ?? process.env.JIRA_EMAIL)!}:${(jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN)!}`,
-        ).toString("base64")}`;
-
-        const params = new URLSearchParams({
-          jql: `project = ${resolvedProjectKey}`,
-          maxResults: String(args.maxResults ?? 100),
-          fields: "status",
-        });
-
-        const resp = await fetch(`https://${host}/rest/api/3/search/jql?${params}`, {
-          headers: { Authorization: auth, Accept: "application/json" },
-        });
-
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => "");
+        let data: { total: number; issues: { fields: { status: { name: string } } }[] };
+        try {
+          data = await jira.client.searchIssuesV3(
+            `project = ${resolvedProjectKey}`,
+            ["status"],
+            args.maxResults ?? 100,
+          );
+        } catch (err) {
           return {
             content: [
               {
                 type: "text" as const,
-                text: `Jira API error ${resp.status}: ${text}`,
+                text: `Jira API error: ${err instanceof Error ? err.message : String(err)}`,
               },
             ],
             isError: true,
           };
         }
-
-        const data = (await resp.json()) as {
-          total: number;
-          issues: { fields: { status: { name: string } } }[];
-        };
 
         // Collect distinct statuses
         const statusCounts = new Map<string, number>();
