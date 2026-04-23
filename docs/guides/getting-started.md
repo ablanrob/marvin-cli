@@ -120,6 +120,25 @@ marvin serve
 
 See the [MCP Server guide](mcp-server.md) for configuration details.
 
+## Onboarding assistance
+
+If you're unsure what to do next, Marvin can guide you. Use the `get_started` tool in an MCP session (Claude Desktop or Claude Code) to get a tailored checklist based on your project's current state:
+
+```
+> get_started
+{
+  "status": "empty",
+  "steps": [
+    { "title": "Ingest source documents", "done": false },
+    { "title": "Define features", "done": false },
+    ...
+  ],
+  "summary": "0 of 7 steps complete. Next: Ingest source documents."
+}
+```
+
+You can also run `check_project_health` at any time to get recommendations about missing governance setup (sprints, Jira integration, phase readiness).
+
 ## Next steps
 
 - **[Personas](personas.md)** — learn what each persona does and when to use it
