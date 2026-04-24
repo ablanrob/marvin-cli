@@ -79,6 +79,8 @@ git:
 
 # Jira project settings (optional)
 jira:
+  host: project-specific.atlassian.net    # overrides user config and env var
+  email: project-team@example.com         # overrides user config and env var
   projectKey: PROJ
   statusMap:
     To Do: open
@@ -87,6 +89,10 @@ jira:
     Blocked:
       default: blocked
       inSprint: in-progress
+
+# AEM phase tracking (sap-aem methodology only)
+aem:
+  currentPhase: assess-use-case
 ```
 
 ### Fields
@@ -99,8 +105,11 @@ jira:
 | `personas.<id>.extraInstructions` | string | no | Additional system prompt text for the persona. |
 | `skills.<personaId>` | string[] | no | List of skill IDs assigned to a persona. |
 | `git.remote` | string | no | Remote URL for governance data sync. |
+| `jira.host` | string | no | Project-specific Jira host. Overrides user config and `JIRA_HOST` env var. |
+| `jira.email` | string | no | Project-specific Jira email. Overrides user config and `JIRA_EMAIL` env var. |
 | `jira.projectKey` | string | no | Jira project key for integration. |
 | `jira.statusMap` | object | no | Mapping of Jira statuses to Marvin statuses. See below. |
+| `aem.currentPhase` | string | no | Current AEM phase (`assess-use-case`, `assess-technology`, `define-solution`). Managed by the `advance_phase` tool. |
 
 ### Jira status mapping
 
@@ -133,8 +142,25 @@ Methodologies are plugins that define additional document types, tools, and pers
 
 **sap-aem** — Extends generic-agile with SAP-specific artifacts: use cases (UC), tech assessments (TA), and extension designs (XD). Includes phase management and SAP BTP guidance.
 
+## Jira credential resolution
+
+Jira credentials are resolved in priority order: **project config → user config → environment variables**. This allows per-project overrides for teams working across multiple Jira instances.
+
+| Credential | Project config | User config | Environment variable |
+|------------|---------------|-------------|---------------------|
+| Host | `jira.host` | `jira.host` | `JIRA_HOST` |
+| Email | `jira.email` | `jira.email` | `JIRA_EMAIL` |
+| API Token | — (not supported) | `jira.apiToken` | `JIRA_API_TOKEN` |
+
+The API token is intentionally excluded from project config to avoid committing secrets. Use the user config or environment variables for the token.
+
+Use the `check_integrations` MCP tool to verify which credentials are configured and their source — it reports status without exposing secret values.
+
 ## Environment variables
 
 | Variable | Description |
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Anthropic API key (overrides user config). |
+| `JIRA_HOST` | Jira Cloud instance hostname (fallback when not in user/project config). |
+| `JIRA_EMAIL` | Jira account email (fallback when not in user/project config). |
+| `JIRA_API_TOKEN` | Jira API token (fallback when not in user config). |

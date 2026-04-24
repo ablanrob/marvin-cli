@@ -266,19 +266,91 @@ export interface ResolvedJiraConfig {
   host: string;
 }
 
-export function createJiraClient(jiraUserConfig?: {
-  host?: string;
-  email?: string;
-  apiToken?: string;
-}): ResolvedJiraConfig | null {
-  const host = (jiraUserConfig?.host?.trim() ?? process.env.JIRA_HOST?.trim()) || undefined;
-  const email = (jiraUserConfig?.email?.trim() ?? process.env.JIRA_EMAIL?.trim()) || undefined;
+export interface JiraConfigSources {
+  /** Project-level config (.marvin/config.yaml jira section) */
+  project?: { host?: string; email?: string };
+  /** User-level config (~/.config/marvin/config.yaml jira section) */
+  user?: { host?: string; email?: string; apiToken?: string };
+}
+
+/**
+ * Resolve Jira credentials from project config → user config → env vars.
+ * Returns null if any required credential is missing.
+ */
+export function createJiraClient(
+  userConfigOrSources?: JiraConfigSources["user"] | JiraConfigSources,
+): ResolvedJiraConfig | null {
+  // Support both legacy (user-only) and new (project+user) signatures
+  const sources = isConfigSources(userConfigOrSources)
+    ? userConfigOrSources
+    : { user: userConfigOrSources };
+
+  const host =
+    sources.project?.host?.trim() ||
+    sources.user?.host?.trim() ||
+    process.env.JIRA_HOST?.trim() ||
+    undefined;
+  const email =
+    sources.project?.email?.trim() ||
+    sources.user?.email?.trim() ||
+    process.env.JIRA_EMAIL?.trim() ||
+    undefined;
   const apiToken =
-    (jiraUserConfig?.apiToken?.trim() ?? process.env.JIRA_API_TOKEN?.trim()) || undefined;
+    sources.user?.apiToken?.trim() || process.env.JIRA_API_TOKEN?.trim() || undefined;
 
   if (!host || !email || !apiToken) return null;
 
-  // Normalize host for consistent jiraUrl generation
   const normalizedHost = host.replace(/^https?:\/\//, "").replace(/\/+$/, "");
-  return { client: new JiraClient({ host, email, apiToken }), host: normalizedHost };
+  return {
+    client: new JiraClient({ host: normalizedHost, email, apiToken }),
+    host: normalizedHost,
+  };
+}
+
+export type CredentialSource = "project" | "user" | "env";
+
+export interface JiraIntegrationStatus {
+  host: { configured: boolean; value?: string; source?: CredentialSource };
+  email: { configured: boolean; source?: CredentialSource };
+  apiToken: { configured: boolean; source?: CredentialSource };
+}
+
+/** Check which Jira credentials are present without exposing values. */
+export function resolveJiraStatus(sources?: JiraConfigSources): JiraIntegrationStatus {
+  const projectHost = sources?.project?.host?.trim();
+  const userHost = sources?.user?.host?.trim();
+  const envHost = process.env.JIRA_HOST?.trim();
+  const host = projectHost || userHost || envHost;
+
+  const projectEmail = sources?.project?.email?.trim();
+  const userEmail = sources?.user?.email?.trim();
+  const envEmail = process.env.JIRA_EMAIL?.trim();
+
+  const userToken = sources?.user?.apiToken?.trim();
+  const envToken = process.env.JIRA_API_TOKEN?.trim();
+
+  return {
+    host: {
+      configured: !!host,
+      value: host ? host.replace(/^https?:\/\//, "").replace(/\/+$/, "") : undefined,
+      source: projectHost ? "project" : userHost ? "user" : envHost ? "env" : undefined,
+    },
+    email: {
+      configured: !!(projectEmail || userEmail || envEmail),
+      source: projectEmail ? "project" : userEmail ? "user" : envEmail ? "env" : undefined,
+    },
+    apiToken: {
+      configured: !!(userToken || envToken),
+      source: userToken ? "user" : envToken ? "env" : undefined,
+    },
+  };
+}
+
+function isConfigSources(
+  value: JiraConfigSources["user"] | JiraConfigSources | undefined,
+): value is JiraConfigSources {
+  if (!value) return false;
+  // Reject legacy objects that have top-level credentials (host/email/apiToken)
+  if ("host" in value || "email" in value || "apiToken" in value) return false;
+  return "project" in value || "user" in value;
 }

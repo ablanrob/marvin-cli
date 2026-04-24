@@ -26,6 +26,41 @@ jira:
     Done: done
 ```
 
+Alternatively, set credentials via environment variables: `JIRA_HOST`, `JIRA_EMAIL`, `JIRA_API_TOKEN`.
+
+### Project-scoped credentials
+
+If you work with multiple Jira instances, you can override the host and email per project in `.marvin/config.yaml`:
+
+```yaml
+jira:
+  host: project-specific.atlassian.net
+  email: project-team@example.com
+  projectKey: PROJ
+```
+
+The resolution order is: **project config → user config → environment variables**. The API token is never stored in project config — use the user config or environment variables.
+
+### Checking configuration
+
+Use the `check_integrations` MCP tool to verify your Jira setup without exposing secrets:
+
+```json
+// > check_integrations
+{
+  "jira": {
+    "configured": true,
+    "host": "your-instance.atlassian.net",
+    "hostSource": "user",
+    "emailConfigured": true,
+    "emailSource": "user",
+    "apiTokenConfigured": true,
+    "apiTokenSource": "env",
+    "projectKey": "PROJ"
+  }
+}
+```
+
 3. Assign the Jira skill to the relevant personas:
 
 ```bash

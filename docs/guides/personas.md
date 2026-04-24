@@ -16,7 +16,7 @@ The Product Owner focuses on product vision, stakeholder needs, backlog prioriti
 - Make decisions about scope, priority, and trade-offs
 - Accept or reject work results based on acceptance criteria
 
-**Document types:** decisions, questions, actions, features
+**Document types:** decisions, questions, actions, features, use-cases
 
 **Contribution types:** stakeholder-feedback, acceptance-result, priority-change, market-insight
 
@@ -43,6 +43,8 @@ The Delivery Manager focuses on project delivery, risk management, team coordina
 **Document types:** actions, decisions, meetings, questions, features, epics, tasks, sprints
 
 **Contribution types:** risk-finding, blocker-report, dependency-update, status-assessment
+
+**Sprint 0 support:** The DM persona understands Sprint 0 as a variable-duration bootstrapping phase (not a regular time-boxed sprint). When a project has work items but no sprints, the DM will proactively suggest creating Sprint 0 to cover infrastructure provisioning, backlog refinement, ceremony scheduling, and integration setup.
 
 **When to use:** When you need to manage how things get built — planning sprints, tracking progress, running meetings, managing risks, or generating status reports.
 

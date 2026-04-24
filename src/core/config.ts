@@ -53,6 +53,8 @@ export interface LegacyJiraStatusMap {
 }
 
 export interface JiraProjectConfig {
+  host?: string;
+  email?: string;
   projectKey?: string;
   statusMap?:
     | FlatJiraStatusMap

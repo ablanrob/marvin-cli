@@ -65,6 +65,12 @@ export function createJiraTools(
   projectConfig?: MarvinProjectConfig,
 ): SdkMcpToolDefinition<any>[] {
   const jiraUserConfig = loadUserConfig().jira;
+  const jiraSources = {
+    project: projectConfig?.jira
+      ? { host: projectConfig.jira.host, email: projectConfig.jira.email }
+      : undefined,
+    user: jiraUserConfig,
+  };
   const defaultProjectKey = projectConfig?.jira?.projectKey;
   const statusMap = normalizeStatusMap(projectConfig?.jira?.statusMap);
 
@@ -142,7 +148,7 @@ export function createJiraTools(
         maxResults: z.number().optional().describe("Max issues to return (default 20)"),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const result = await jira.client.searchIssuesV3(
@@ -207,7 +213,7 @@ export function createJiraTools(
         key: z.string().describe("Jira issue key (e.g. 'PROJ-123')"),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const issue = await jira.client.getIssue(args.key);
@@ -251,7 +257,7 @@ export function createJiraTools(
         maxResults: z.number().optional().describe("Max issues to fetch (default 50)"),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const result = await jira.client.searchIssues(args.jql, args.maxResults);
@@ -321,7 +327,7 @@ export function createJiraTools(
           };
         }
 
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const artifact = store.get(args.artifactId);
@@ -375,7 +381,7 @@ export function createJiraTools(
         id: z.string().describe("Local JI-xxx ID"),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const doc = store.get(args.id);
@@ -484,7 +490,7 @@ export function createJiraTools(
         jiraKey: z.string().describe("Jira issue key (e.g. 'PROJ-123')"),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const artifact = store.get(args.artifactId);
@@ -527,7 +533,7 @@ export function createJiraTools(
         confluenceUrl: z.string().describe("Confluence page URL"),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const artifact = store.get(args.artifactId);
@@ -584,7 +590,7 @@ export function createJiraTools(
         pageId: z.string().optional().describe("Confluence page ID (alternative to URL)"),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const resolvedId =
@@ -662,7 +668,7 @@ export function createJiraTools(
           ),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const fetchResult = await fetchJiraStatus(
@@ -755,42 +761,27 @@ export function createJiraTools(
           };
         }
 
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
-        // Use v3 search/jql to get statuses
-        const host = jira.host;
-        const auth = `Basic ${Buffer.from(
-          `${(jiraUserConfig?.email ?? process.env.JIRA_EMAIL)!}:${(jiraUserConfig?.apiToken ?? process.env.JIRA_API_TOKEN)!}`,
-        ).toString("base64")}`;
-
-        const params = new URLSearchParams({
-          jql: `project = ${resolvedProjectKey}`,
-          maxResults: String(args.maxResults ?? 100),
-          fields: "status",
-        });
-
-        const resp = await fetch(`https://${host}/rest/api/3/search/jql?${params}`, {
-          headers: { Authorization: auth, Accept: "application/json" },
-        });
-
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => "");
+        let data: { total: number; issues: { fields: { status: { name: string } } }[] };
+        try {
+          data = await jira.client.searchIssuesV3(
+            `project = ${resolvedProjectKey}`,
+            ["status"],
+            args.maxResults ?? 100,
+          );
+        } catch (err) {
           return {
             content: [
               {
                 type: "text" as const,
-                text: `Jira API error ${resp.status}: ${text}`,
+                text: `Jira API error: ${err instanceof Error ? err.message : String(err)}`,
               },
             ],
             isError: true,
           };
         }
-
-        const data = (await resp.json()) as {
-          total: number;
-          issues: { fields: { status: { name: string } } }[];
-        };
 
         // Collect distinct statuses
         const statusCounts = new Map<string, number>();
@@ -912,7 +903,7 @@ export function createJiraTools(
           };
         }
 
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const today = new Date().toISOString().slice(0, 10);
@@ -962,7 +953,7 @@ export function createJiraTools(
           ),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const report = await assessSprintProgress(store, jira.client, jira.host, {
@@ -1010,7 +1001,7 @@ export function createJiraTools(
           ),
       },
       async (args) => {
-        const jira = createJiraClient(jiraUserConfig);
+        const jira = createJiraClient(jiraSources);
         if (!jira) return jiraNotConfiguredError();
 
         const report = await assessArtifact(store, jira.client, jira.host, {
