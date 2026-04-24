@@ -307,12 +307,16 @@ export function createJiraClient(
   };
 }
 
-/** Check which Jira credentials are present without exposing values. */
-export function resolveJiraStatus(sources?: JiraConfigSources): {
+export type CredentialSource = "project" | "user" | "env";
+
+export interface JiraIntegrationStatus {
   host: { configured: boolean; value?: string; source?: CredentialSource };
   email: { configured: boolean; source?: CredentialSource };
   apiToken: { configured: boolean; source?: CredentialSource };
-} {
+}
+
+/** Check which Jira credentials are present without exposing values. */
+export function resolveJiraStatus(sources?: JiraConfigSources): JiraIntegrationStatus {
   const projectHost = sources?.project?.host?.trim();
   const userHost = sources?.user?.host?.trim();
   const envHost = process.env.JIRA_HOST?.trim();
@@ -341,8 +345,6 @@ export function resolveJiraStatus(sources?: JiraConfigSources): {
     },
   };
 }
-
-type CredentialSource = "project" | "user" | "env";
 
 function isConfigSources(
   value: JiraConfigSources["user"] | JiraConfigSources | undefined,

@@ -45,8 +45,8 @@ The resolution order is: **project config → user config → environment variab
 
 Use the `check_integrations` MCP tool to verify your Jira setup without exposing secrets:
 
-```
-> check_integrations
+```json
+// > check_integrations
 {
   "jira": {
     "configured": true,
