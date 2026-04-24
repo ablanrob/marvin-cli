@@ -45,6 +45,7 @@ to specify exactly the fields they need...
 | meeting | M | meetings/ | scheduled, completed, cancelled |
 | report | R | reports/ | — |
 | contribution | C | contributions/ | — |
+| discovery | DS | discoveries/ | draft, in-review, needs-input, accepted, parked |
 
 ## SAP AEM types (sap-aem methodology only)
 
@@ -80,4 +81,4 @@ These fields are defined on `DocumentFrontmatter` in `src/storage/types.ts`. Add
 | `dueDate` | string | no | ISO date |
 | `source` | string | no | Source artifact ID |
 
-Additional fields vary by type (e.g., sprints have `startDate`, `endDate`, `goal`, `linkedEpics`; features have `linkedEpics`; tasks have `linkedEpic`, `complexity`, `estimatedPoints`).
+Additional fields vary by type (e.g., sprints have `startDate`, `endDate`, `goal`, `linkedEpics`; features have `linkedEpics`; tasks have `linkedEpic`, `complexity`, `estimatedPoints`; discoveries have `stakeholder`, `session`, `parent`).

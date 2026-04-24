@@ -16,11 +16,11 @@ The Product Owner focuses on product vision, stakeholder needs, backlog prioriti
 - Make decisions about scope, priority, and trade-offs
 - Accept or reject work results based on acceptance criteria
 
-**Document types:** decisions, questions, actions, features, use-cases
+**Document types:** decisions, questions, actions, features, use-cases, discoveries
 
 **Contribution types:** stakeholder-feedback, acceptance-result, priority-change, market-insight
 
-**When to use:** When you need to define what to build and why — prioritizing features, making scope decisions, capturing stakeholder requirements, or evaluating delivered work against acceptance criteria.
+**When to use:** When you need to define what to build and why — prioritizing features, making scope decisions, capturing stakeholder requirements, conducting discovery sessions with stakeholders, or evaluating delivered work against acceptance criteria.
 
 ```bash
 marvin chat --as po
@@ -40,7 +40,7 @@ The Delivery Manager focuses on project delivery, risk management, team coordina
 - Ensure governance processes are followed (decisions logged, actions tracked)
 - Facilitate meetings and ensure outcomes are captured
 
-**Document types:** actions, decisions, meetings, questions, features, epics, tasks, sprints
+**Document types:** actions, decisions, meetings, questions, features, epics, tasks, sprints, discoveries
 
 **Contribution types:** risk-finding, blocker-report, dependency-update, status-assessment
 
@@ -66,7 +66,7 @@ The Technical Lead focuses on technical architecture, code quality, technical de
 - Guide the team on best practices and patterns
 - Evaluate technical risks and propose mitigations
 
-**Document types:** decisions, actions, questions, epics, tasks, sprints
+**Document types:** decisions, actions, questions, epics, tasks, sprints, discoveries
 
 **Contribution types:** action-result, spike-findings, technical-assessment, architecture-review
 
