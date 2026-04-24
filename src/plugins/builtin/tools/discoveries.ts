@@ -12,6 +12,44 @@ function countBlocks(content: string, prefix: string): number {
   return count;
 }
 
+/** Parse content for GAP blocks that have `**Status:** open`. */
+function collectOpenGaps(content: string): { heading: string; block: string }[] {
+  const results: { heading: string; block: string }[] = [];
+  const lines = content.split("\n");
+  let currentHeading = "";
+  let blockLines: string[] = [];
+  let inGap = false;
+
+  const flushGap = (): void => {
+    if (inGap && blockLines.length > 0) {
+      const block = blockLines.join("\n");
+      if (block.includes("**Status:** open")) {
+        results.push({ heading: currentHeading, block });
+      }
+    }
+  };
+
+  for (const line of lines) {
+    if (/^### GAP-\d+:/.test(line)) {
+      flushGap();
+      currentHeading = line.replace(/^### /, "").trim();
+      blockLines = [line];
+      inGap = true;
+    } else if (inGap) {
+      if (/^### /.test(line) && !/^### GAP-\d+:/.test(line)) {
+        flushGap();
+        inGap = false;
+        blockLines = [];
+      } else {
+        blockLines.push(line);
+      }
+    }
+  }
+  flushGap();
+
+  return results;
+}
+
 export function createDiscoveryTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
   return [
     // -----------------------------------------------------------------------
@@ -53,37 +91,12 @@ export function createDiscoveryTools(store: DocumentStore): SdkMcpToolDefinition
           }
           session = ((parentDoc.frontmatter.session as number) ?? 1) + 1;
 
-          // Extract open gaps from parent content
-          const openGaps: string[] = [];
-          const lines = parentDoc.content.split("\n");
-          let currentGap: string[] = [];
-          let inGap = false;
-          for (const line of lines) {
-            if (/^### GAP-\d+:/.test(line)) {
-              if (inGap && currentGap.length > 0) {
-                const block = currentGap.join("\n");
-                if (block.includes("**Status:** open")) openGaps.push(block);
-              }
-              currentGap = [line];
-              inGap = true;
-            } else if (inGap) {
-              if (/^### /.test(line) && !/^### GAP-\d+:/.test(line)) {
-                const block = currentGap.join("\n");
-                if (block.includes("**Status:** open")) openGaps.push(block);
-                inGap = false;
-                currentGap = [];
-              } else {
-                currentGap.push(line);
-              }
-            }
-          }
-          if (inGap && currentGap.length > 0) {
-            const block = currentGap.join("\n");
-            if (block.includes("**Status:** open")) openGaps.push(block);
-          }
-
+          // Carry forward open gaps from parent
+          const openGaps = collectOpenGaps(parentDoc.content);
           if (openGaps.length > 0) {
-            contentParts.push(`## Open Gaps from ${args.parent}\n\n${openGaps.join("\n\n")}`);
+            contentParts.push(
+              `## Open Gaps from ${args.parent}\n\n${openGaps.map((g) => g.block).join("\n\n")}`,
+            );
           }
         }
 
@@ -268,7 +281,22 @@ export function createDiscoveryTools(store: DocumentStore): SdkMcpToolDefinition
           `- **Status:** Ready for review`,
         ].join("\n");
 
-        store.update(args.id, { status: "in-review" }, `${doc.content}\n\n${summary}`);
+        // Replace existing summary section or append new one
+        const summaryHeader = "## Session Summary";
+        let newContent: string;
+        const summaryIdx = doc.content.indexOf(summaryHeader);
+        if (summaryIdx !== -1) {
+          // Find next ## heading after the summary (or end of content)
+          const afterSummary = doc.content.indexOf("\n## ", summaryIdx + summaryHeader.length);
+          newContent =
+            afterSummary !== -1
+              ? doc.content.slice(0, summaryIdx) + summary + doc.content.slice(afterSummary)
+              : doc.content.slice(0, summaryIdx) + summary;
+        } else {
+          newContent = `${doc.content}\n\n${summary}`;
+        }
+
+        store.update(args.id, { status: "in-review" }, newContent);
         return {
           content: [
             {
@@ -418,8 +446,23 @@ export function createDiscoveryTools(store: DocumentStore): SdkMcpToolDefinition
           };
         }
 
+        const openPattern = new RegExp(
+          `(### GAP-${args.gap_number}:[^]*?)\\*\\*Status:\\*\\* open`,
+        );
+        if (!openPattern.test(doc.content)) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `GAP-${args.gap_number} in ${args.id} is already resolved`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
         const newContent = doc.content.replace(
-          new RegExp(`(### GAP-${args.gap_number}:[^]*?)\\*\\*Status:\\*\\* open`),
+          openPattern,
           `$1**Status:** resolved\n**Resolution:** ${args.rationale}`,
         );
 
@@ -476,34 +519,7 @@ export function createDiscoveryTools(store: DocumentStore): SdkMcpToolDefinition
         }
 
         // Collect unresolved gaps
-        const unresolvedGaps: string[] = [];
-        const lines = doc.content.split("\n");
-        let currentGapTitle = "";
-        let inGap = false;
-        let blockLines: string[] = [];
-        for (const line of lines) {
-          if (/^### GAP-\d+:/.test(line)) {
-            if (inGap && blockLines.join("\n").includes("**Status:** open")) {
-              unresolvedGaps.push(currentGapTitle);
-            }
-            currentGapTitle = line.replace(/^### /, "").trim();
-            inGap = true;
-            blockLines = [line];
-          } else if (inGap) {
-            if (/^### /.test(line) && !/^### GAP-\d+:/.test(line)) {
-              if (blockLines.join("\n").includes("**Status:** open")) {
-                unresolvedGaps.push(currentGapTitle);
-              }
-              inGap = false;
-              blockLines = [];
-            } else {
-              blockLines.push(line);
-            }
-          }
-        }
-        if (inGap && blockLines.join("\n").includes("**Status:** open")) {
-          unresolvedGaps.push(currentGapTitle);
-        }
+        const unresolvedGaps = collectOpenGaps(doc.content).map((g) => g.heading);
 
         const followUpItems =
           unresolvedGaps.length > 0

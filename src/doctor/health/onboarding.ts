@@ -93,7 +93,7 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
     done: (counts["decision"] ?? 0) > 0 && hasActions,
   });
 
-  // Step 4: Break down into epics
+  // Step 5: Break down into epics
   steps.push({
     order: order++,
     title: "Break work into epics",
@@ -104,7 +104,7 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
     done: hasEpics,
   });
 
-  // Step 5: Set up Sprint 0
+  // Step 6: Set up Sprint 0
   steps.push({
     order: order++,
     title: "Set up Sprint 0",
@@ -114,7 +114,7 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
     done: hasSprints,
   });
 
-  // Step 6: Configure Jira integration
+  // Step 7: Configure Jira integration
   steps.push({
     order: order++,
     title: "Configure Jira integration",
@@ -123,7 +123,7 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
     done: hasJira,
   });
 
-  // Step 7: Run health check
+  // Step 8: Run health check
   steps.push({
     order: order,
     title: "Run a health check",

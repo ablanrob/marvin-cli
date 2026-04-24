@@ -85,10 +85,8 @@ describe("Discovery Tools", () => {
         question: "Performance requirements?",
         area: "technical",
       });
-      // Resolve one gap
+      // Complete transitions to in-review but gaps remain open in content
       await tools.complete_discovery({ id: "DS-001" });
-      // We need the DS to be in a state with open gaps - let's work with content directly
-      // The gaps are still in content as open since we didn't resolve them
 
       const result = await tools.start_discovery({
         title: "Session 2",
@@ -293,6 +291,39 @@ describe("Discovery Tools", () => {
       expect(doc!.content).toContain("**Gaps:** 1");
     });
 
+    it("should replace existing summary when re-completing from needs-input", async () => {
+      await tools.start_discovery({
+        title: "Session",
+        content: "Agenda",
+        stakeholder: "Team",
+      });
+      await tools.record_finding({
+        id: "DS-001",
+        finding: "Finding 1",
+        source: "Interview",
+        impacts: "Scope",
+        confidence: "high",
+      });
+      await tools.complete_discovery({ id: "DS-001" });
+
+      // Request follow-up transitions to needs-input, then re-complete
+      await tools.request_followup({ id: "DS-001", reason: "Need more info" });
+      await tools.record_finding({
+        id: "DS-001",
+        finding: "Finding 2",
+        source: "Workshop",
+        impacts: "Architecture",
+        confidence: "medium",
+      });
+      await tools.complete_discovery({ id: "DS-001" });
+
+      const doc = store.get("DS-001");
+      // Should have exactly one summary section, not two
+      const summaryCount = (doc!.content.match(/## Session Summary/g) || []).length;
+      expect(summaryCount).toBe(1);
+      expect(doc!.content).toContain("**Findings:** 2");
+    });
+
     it("should error on wrong status (already in-review)", async () => {
       await tools.start_discovery({
         title: "Session",
@@ -466,6 +497,29 @@ describe("Discovery Tools", () => {
       expect(result.content[0].text).toContain("Updated Q-001 to answered");
       const q = store.get("Q-001");
       expect(q!.frontmatter.status).toBe("answered");
+    });
+
+    it("should error when gap is already resolved", async () => {
+      await tools.start_discovery({
+        title: "Session",
+        content: "Agenda",
+        stakeholder: "Team",
+      });
+      await tools.record_gap({
+        id: "DS-001",
+        question: "Auth approach?",
+        area: "technical",
+      });
+      await tools.resolve_gap({ id: "DS-001", gap_number: 1, rationale: "OAuth2" });
+
+      const result = await tools.resolve_gap({
+        id: "DS-001",
+        gap_number: 1,
+        rationale: "SAML",
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("already resolved");
     });
 
     it("should return error for non-existent gap", async () => {
