@@ -37,7 +37,7 @@ export const techLead: PersonaDefinition = {
     "Task creation and breakdown",
     "Sprint scoping and technical execution",
   ],
-  documentTypes: ["decision", "action", "question", "epic", "task", "sprint"],
+  documentTypes: ["decision", "action", "question", "epic", "task", "sprint", "discovery"],
   contributionTypes: [
     "action-result",
     "spike-findings",

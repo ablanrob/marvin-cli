@@ -32,6 +32,7 @@ function setup(options?: { methodology?: string; jiraProjectKey?: string }) {
     { type: "use-case", dirName: "use-cases", idPrefix: "UC" },
     { type: "tech-assessment", dirName: "tech-assessments", idPrefix: "TA" },
     { type: "extension-design", dirName: "extension-designs", idPrefix: "XD" },
+    { type: "discovery", dirName: "discoveries", idPrefix: "DS" },
   ];
 
   const store = new DocumentStore(marvinDir, registrations);
@@ -161,6 +162,43 @@ describe("Health Check Engine", () => {
 
     const noJira = report.findings.find((f) => f.checkId === "no-jira-project");
     expect(noJira).toBeUndefined();
+  });
+
+  it("should flag no-discoveries when features exist but no discoveries", () => {
+    const env = setup();
+    tmpDir = env.tmpDir;
+
+    env.store.create("feature", { title: "Feature 1", status: "draft" });
+
+    const report = runHealthCheck(env.ctx);
+
+    const noDiscoveries = report.findings.find((f) => f.checkId === "no-discoveries");
+    expect(noDiscoveries).toBeDefined();
+    expect(noDiscoveries!.severity).toBe("recommendation");
+    expect(noDiscoveries!.message).toContain("1 feature(s)");
+  });
+
+  it("should not flag no-discoveries when discoveries exist", () => {
+    const env = setup();
+    tmpDir = env.tmpDir;
+
+    env.store.create("feature", { title: "Feature 1", status: "draft" });
+    env.store.create("discovery", { title: "Discovery 1", status: "draft" });
+
+    const report = runHealthCheck(env.ctx);
+
+    const noDiscoveries = report.findings.find((f) => f.checkId === "no-discoveries");
+    expect(noDiscoveries).toBeUndefined();
+  });
+
+  it("should not flag no-discoveries when no features exist", () => {
+    const env = setup();
+    tmpDir = env.tmpDir;
+
+    const report = runHealthCheck(env.ctx);
+
+    const noDiscoveries = report.findings.find((f) => f.checkId === "no-discoveries");
+    expect(noDiscoveries).toBeUndefined();
   });
 
   it("should produce correct summary counts", () => {

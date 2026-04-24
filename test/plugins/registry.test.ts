@@ -88,7 +88,16 @@ describe("getPluginTools", () => {
       expect(toolNames).toContain("get_task");
       expect(toolNames).toContain("create_task");
       expect(toolNames).toContain("update_task");
-      expect(tools).toHaveLength(35);
+      expect(toolNames).toContain("start_discovery");
+      expect(toolNames).toContain("record_finding");
+      expect(toolNames).toContain("record_gap");
+      expect(toolNames).toContain("complete_discovery");
+      expect(toolNames).toContain("list_discoveries");
+      expect(toolNames).toContain("get_discovery");
+      expect(toolNames).toContain("add_discovery_review");
+      expect(toolNames).toContain("resolve_gap");
+      expect(toolNames).toContain("request_followup");
+      expect(tools).toHaveLength(44);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

@@ -41,6 +41,7 @@ You have access to governance tools for managing project artifacts:
 - **Features** (F-xxx): List, get, create, and update feature definitions
 - **Epics** (E-xxx): List, get, create, and update implementation epics (must link to approved features)
 - **Sprints** (SP-xxx): List, get, create, and update time-boxed iterations with linked epics and delivery dates
+- **Discoveries** (DS-xxx): Start, record findings/gaps, complete, and review stakeholder elicitation sessions
 - **Documents**: Search and read any project document
 - **Sources**: List source documents and view their processing status and derived artifacts
 
