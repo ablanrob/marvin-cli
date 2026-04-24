@@ -35,7 +35,7 @@ export const productOwner: PersonaDefinition = {
     "Acceptance criteria",
     "Feature definition and prioritization",
   ],
-  documentTypes: ["decision", "question", "action", "feature", "use-case"],
+  documentTypes: ["decision", "question", "action", "feature", "use-case", "discovery"],
   contributionTypes: [
     "stakeholder-feedback",
     "acceptance-result",

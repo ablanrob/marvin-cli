@@ -16,3 +16,10 @@ export const ACTION_STATUSES = ["open", "in-progress", "done"] as const;
 export const MEETING_STATUSES = ["scheduled", "completed"] as const;
 export const DECISION_STATUSES = ["open", "decided", "superseded"] as const;
 export const QUESTION_STATUSES = ["open", "answered"] as const;
+export const DISCOVERY_STATUSES = [
+  "draft",
+  "in-review",
+  "needs-input",
+  "accepted",
+  "parked",
+] as const;

@@ -72,7 +72,18 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
     });
   }
 
-  // Step 3: Capture decisions and actions
+  // Step 3: Conduct discovery sessions
+  const hasDiscoveries = (counts["discovery"] ?? 0) > 0;
+  steps.push({
+    order: order++,
+    title: "Conduct discovery sessions",
+    description:
+      "As PO or DM, start discovery sessions with functional stakeholders to validate extracted requirements, identify gaps, and refine features before committing to decisions and epics.",
+    tool: "start_discovery",
+    done: hasDiscoveries,
+  });
+
+  // Step 4: Capture decisions and actions
   steps.push({
     order: order++,
     title: "Capture key decisions and actions",

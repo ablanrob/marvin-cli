@@ -18,6 +18,7 @@ export const genericAgilePlugin: MarvinPlugin = {
     "contribution",
     "sprint",
     "task",
+    "discovery",
   ],
   documentTypeRegistrations: [...COMMON_REGISTRATIONS],
   tools: (store) => [...createCommonTools(store)],
@@ -49,7 +50,18 @@ export const genericAgilePlugin: MarvinPlugin = {
 - Available contribution types: stakeholder-feedback, acceptance-result, priority-change, market-insight.
 
 **Sprint Tools (read-only for awareness):**
-- **list_sprints** / **get_sprint**: View sprints to understand delivery timelines and iteration scope.`,
+- **list_sprints** / **get_sprint**: View sprints to understand delivery timelines and iteration scope.
+
+**Discovery Tools:**
+- **start_discovery**: Start a new discovery session with a stakeholder to validate requirements and elicit gaps.
+- **record_finding** / **record_gap**: Record findings and gaps during the session. Use \`spawn_question: true\` on gaps to create linked Q-xxx artifacts.
+- **complete_discovery**: Finalize the session and transition to in-review.
+- **list_discoveries** / **get_discovery**: Browse discovery sessions.
+
+**Discovery Workflow:**
+- Focus on value alignment: validate that findings map to business outcomes.
+- Use gaps to identify missing acceptance criteria or scope ambiguities.
+- Review completed discoveries to refine features before committing to epics.`,
 
     "tech-lead": `You own epics and break approved features into implementation work.
 
@@ -91,6 +103,16 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **update_sprint**: Assign epics to sprints by updating linkedEpics when breaking features into work.
 - Tag technical actions and decisions with \`sprint:SP-xxx\` to associate them with a sprint.
 - Use **generate_sprint_progress** to track technical work completion within an iteration.
+
+**Discovery Tools (review focus):**
+- **list_discoveries** / **get_discovery**: Review discovery sessions for technical feasibility.
+- **add_discovery_review**: Annotate findings and gaps with technical assessments (feasibility, NFRs, architecture impact).
+- **resolve_gap**: Resolve technical gaps with rationale.
+
+**Discovery Review Guidelines:**
+- Assess findings for architectural feasibility and non-functional requirement impacts.
+- Flag gaps that require spikes or proof-of-concepts before resolution.
+- Annotate gap resolutions with technical rationale and links to relevant decisions.
 
 **Sprint Planning:**
 - When asked to plan or propose a sprint, ALWAYS call **gather_sprint_planning_context** first.
@@ -154,6 +176,20 @@ export const genericAgilePlugin: MarvinPlugin = {
 - Track delivery dates and flag at-risk sprints.
 - Register past/completed sprints for historical tracking.
 
+**Discovery Tools:**
+- **start_discovery**: Start discovery sessions with functional stakeholders. Chain sessions using \`parent\` to carry forward open gaps.
+- **record_finding** / **record_gap**: Capture structured findings and gaps during elicitation. Use \`spawn_question: true\` to create linked Q-xxx for gaps.
+- **complete_discovery**: Finalize sessions and transition to in-review.
+- **add_discovery_review**: Add review annotations.
+- **resolve_gap** / **request_followup**: Resolve gaps or request follow-up input.
+- **list_discoveries** / **get_discovery**: Browse and read discovery sessions.
+
+**Discovery Workflow:**
+- Use structured elicitation techniques (interviews, workshops, walk-throughs) to validate requirements.
+- Track gaps systematically — spawn Q-xxx for items that need stakeholder input.
+- Ensure all gaps are resolved or parked before moving features to epics.
+- Chain discovery sessions to iterate on unresolved items.
+
 **Sprint Planning:**
 - When asked to plan or propose a sprint, ALWAYS call **gather_sprint_planning_context** first. It aggregates approved features, backlog epics, active sprint status, velocity from recent sprints, blockers, and summary stats in one call.
 - Reason through: priority (critical/high features first), capacity (compare backlog effort to velocity reference), dependencies and blockers, balance across features, and risk.
@@ -174,6 +210,8 @@ export const genericAgilePlugin: MarvinPlugin = {
 - **create_meeting**: Record meetings with attendees, date, and agenda. The meeting date is required — extract it from the meeting content or ask the user if not found.
 - **update_meeting**: Update meeting status or notes.
 - **analyze_meeting**: Analyze a meeting to extract decisions, actions, and questions as governance artifacts.
+
+**Discoveries** (DS-xxx): Stakeholder elicitation sessions that validate requirements and identify gaps. Status: draft -> in-review -> needs-input -> accepted | parked.
 
 **Contributions** (C-xxx): Structured inputs from personas outside of meetings (e.g. action results, risk findings, stakeholder feedback). Contributions are analyzed to produce governance effects.
 - **list_contributions** / **get_contribution**: Browse and read contribution records.

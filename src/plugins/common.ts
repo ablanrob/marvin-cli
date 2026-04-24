@@ -9,6 +9,7 @@ import { createContributionTools } from "./builtin/tools/contributions.js";
 import { createSprintTools } from "./builtin/tools/sprints.js";
 import { createSprintPlanningTools } from "./builtin/tools/sprint-planning.js";
 import { createTaskTools } from "./builtin/tools/tasks.js";
+import { createDiscoveryTools } from "./builtin/tools/discoveries.js";
 
 export const COMMON_REGISTRATIONS: DocumentTypeRegistration[] = [
   { type: "meeting", dirName: "meetings", idPrefix: "M" },
@@ -18,6 +19,7 @@ export const COMMON_REGISTRATIONS: DocumentTypeRegistration[] = [
   { type: "contribution", dirName: "contributions", idPrefix: "C" },
   { type: "sprint", dirName: "sprints", idPrefix: "SP" },
   { type: "task", dirName: "tasks", idPrefix: "T" },
+  { type: "discovery", dirName: "discoveries", idPrefix: "DS" },
 ];
 
 export function createCommonTools(store: DocumentStore): SdkMcpToolDefinition<any>[] {
@@ -30,5 +32,6 @@ export function createCommonTools(store: DocumentStore): SdkMcpToolDefinition<an
     ...createSprintTools(store),
     ...createSprintPlanningTools(store),
     ...createTaskTools(store),
+    ...createDiscoveryTools(store),
   ];
 }

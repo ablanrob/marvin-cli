@@ -23,6 +23,7 @@ export const sapAemPlugin: MarvinPlugin = {
     "use-case",
     "tech-assessment",
     "extension-design",
+    "discovery",
   ],
   documentTypeRegistrations: [
     ...COMMON_REGISTRATIONS,
@@ -62,7 +63,18 @@ export const sapAemPlugin: MarvinPlugin = {
 - Assess and approve use cases before they move to technology assessment.
 - Do NOT create tech assessments or extension designs — those are the Tech Lead's responsibility.
 - Use priorities (critical, high, medium, low) to communicate business value.
-- Tag use cases with relevant business processes for traceability.`,
+- Tag use cases with relevant business processes for traceability.
+
+**Discovery Tools:**
+- **start_discovery**: Start discovery sessions with business stakeholders to validate extension use cases and elicit requirements.
+- **record_finding** / **record_gap**: Capture findings about extension needs and gaps in business process understanding.
+- **complete_discovery**: Finalize sessions and transition to in-review.
+- **list_discoveries** / **get_discovery**: Browse discovery sessions.
+
+**Discovery Workflow for AEM:**
+- Focus on validating extension use cases with business process owners.
+- Use gaps to identify missing business scenarios or unclear extension requirements.
+- Review discoveries to refine use cases before technology assessment.`,
 
     "tech-lead": `You are the Solution Architect in the SAP Application Extension Methodology (AEM).
 
@@ -93,7 +105,12 @@ export const sapAemPlugin: MarvinPlugin = {
 - Only create tech assessments for assessed/approved use cases — the system enforces this.
 - Only create extension designs for recommended tech assessments — the system enforces this.
 - Document BTP services (e.g., SAP Build Work Zone, SAP Event Mesh, SAP Integration Suite) in assessments.
-- Use epics to break extension designs into implementation work packages.`,
+- Use epics to break extension designs into implementation work packages.
+
+**Discovery Tools (review focus):**
+- **list_discoveries** / **get_discovery**: Review discovery sessions for technical feasibility.
+- **add_discovery_review**: Annotate findings with BTP technology assessments and extension point feasibility.
+- **resolve_gap**: Resolve technical gaps with rationale on BTP service capabilities.`,
 
     "delivery-manager": `You are the Project Manager in the SAP Application Extension Methodology (AEM).
 
@@ -124,6 +141,18 @@ export const sapAemPlugin: MarvinPlugin = {
 - Generate tech readiness reports to identify BTP service gaps.
 - Track risks via actions and questions. Flag unresolved items before phase gates.
 
+**Discovery Tools:**
+- **start_discovery**: Start discovery sessions with business stakeholders to validate extension scenarios.
+- **record_finding** / **record_gap**: Capture findings and gaps during elicitation. Use \`spawn_question: true\` to create linked Q-xxx for gaps.
+- **complete_discovery**: Finalize sessions and transition to in-review.
+- **add_discovery_review** / **resolve_gap** / **request_followup**: Review and resolve discovery outcomes.
+- **list_discoveries** / **get_discovery**: Browse discovery sessions.
+
+**Discovery Workflow for AEM:**
+- Conduct discovery sessions before each phase gate to validate readiness.
+- Track gaps that block phase transitions and escalate via actions.
+- Chain sessions to iterate on unresolved extension requirements.
+
 **Sprint 0 for AEM Projects:**
 When setting up Sprint 0, also include AEM-specific bootstrapping:
 - **Phase gate preparation**: Define soft gate checklists with readiness criteria for each AEM phase transition.
@@ -146,6 +175,8 @@ When setting up Sprint 0, also include AEM-specific bootstrapping:
 - **Features** (F-xxx): Product capabilities. **Epics** (E-xxx): Implementation work packages.
 - **Meetings**: Meeting records. **Reports** (R-xxx): Persisted project reports.
 - Core governance: **Decisions** (D-xxx), **Actions** (A-xxx), **Questions** (Q-xxx).
+
+**Discoveries** (DS-xxx): Stakeholder elicitation sessions that validate extension use cases and identify gaps. Status: draft -> in-review -> needs-input -> accepted | parked.
 
 **Key Workflow:** Use cases → Tech assessments → Extension designs. Each level links to the previous. The system enforces that linked artifacts must be in the right status.`,
   },

@@ -31,6 +31,7 @@ function setup(options?: { methodology?: string; jiraProjectKey?: string; aemPha
     { type: "epic", dirName: "epics", idPrefix: "E" },
     { type: "sprint", dirName: "sprints", idPrefix: "S" },
     { type: "use-case", dirName: "use-cases", idPrefix: "UC" },
+    { type: "discovery", dirName: "discoveries", idPrefix: "DS" },
   ];
 
   const store = new DocumentStore(marvinDir, registrations);
@@ -47,7 +48,7 @@ describe("Onboarding Guide", () => {
     if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("should return empty status for a blank project with full 7-step checklist", () => {
+  it("should return empty status for a blank project with full 8-step checklist", () => {
     const env = setup();
     tmpDir = env.tmpDir;
 
@@ -55,12 +56,13 @@ describe("Onboarding Guide", () => {
 
     expect(guide.status).toBe("empty");
     expect(guide.projectName).toBe("test-project");
-    expect(guide.steps).toHaveLength(7);
+    expect(guide.steps).toHaveLength(8);
 
     const titles = guide.steps.map((s) => s.title);
     expect(titles).toEqual([
       "Ingest source documents",
       "Define features",
+      "Conduct discovery sessions",
       "Capture key decisions and actions",
       "Break work into epics",
       "Set up Sprint 0",
@@ -74,7 +76,7 @@ describe("Onboarding Guide", () => {
     }
 
     // Orders should be sequential
-    expect(guide.steps.map((s) => s.order)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(guide.steps.map((s) => s.order)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 
     // Source step should prompt user to add files
     expect(guide.steps[0].description).toContain("No source files found");
@@ -118,6 +120,19 @@ describe("Onboarding Guide", () => {
     expect(scopeStep!.tool).toBe("create_feature");
   });
 
+  it("should mark discovery step as done when discoveries exist", () => {
+    const env = setup();
+    tmpDir = env.tmpDir;
+
+    env.store.create("discovery", { title: "Discovery 1", status: "draft" });
+
+    const guide = buildOnboardingGuide(env.ctx);
+
+    const discoveryStep = guide.steps.find((s) => s.title === "Conduct discovery sessions");
+    expect(discoveryStep).toBeDefined();
+    expect(discoveryStep!.done).toBe(true);
+  });
+
   it("should mark Sprint 0 step as done when sprints exist", () => {
     const env = setup();
     tmpDir = env.tmpDir;
@@ -154,6 +169,7 @@ describe("Onboarding Guide", () => {
     env.store.create("decision", { title: "Use React" });
     env.store.create("action", { title: "Set up CI/CD" });
     env.store.create("feature", { title: "Feature 1", status: "approved" });
+    env.store.create("discovery", { title: "Discovery 1", status: "draft" });
     env.store.create("epic", { title: "Epic 1" });
     env.store.create("sprint", { title: "Sprint 0", status: "active" });
 

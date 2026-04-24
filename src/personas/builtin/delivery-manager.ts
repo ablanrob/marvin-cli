@@ -46,6 +46,16 @@ Sprint 0 ends when the team is ready to start Sprint 1 with a refined backlog an
     "Epic scheduling and tracking",
     "Sprint planning and tracking",
   ],
-  documentTypes: ["action", "decision", "meeting", "question", "feature", "epic", "task", "sprint"],
+  documentTypes: [
+    "action",
+    "decision",
+    "meeting",
+    "question",
+    "feature",
+    "epic",
+    "task",
+    "sprint",
+    "discovery",
+  ],
   contributionTypes: ["risk-finding", "blocker-report", "dependency-update", "status-assessment"],
 };
