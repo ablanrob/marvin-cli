@@ -37,6 +37,8 @@ export interface ConceptFilter {
   methodology?: Methodology;
 }
 
+import { ConfigError } from "../core/errors.js";
+
 const METHODOLOGY_ALIASES: Record<string, Methodology> = {
   "sap-aem": "aem",
   aem: "aem",
@@ -46,5 +48,10 @@ const METHODOLOGY_ALIASES: Record<string, Methodology> = {
 /** Normalize a config methodology ID (e.g. "sap-aem") to a concept-registry Methodology value ("aem"). */
 export function normalizeMethodology(configValue?: string): Methodology {
   if (!configValue) return "generic-agile";
-  return METHODOLOGY_ALIASES[configValue] ?? "generic-agile";
+  const mapped = METHODOLOGY_ALIASES[configValue];
+  if (!mapped) {
+    const valid = Object.keys(METHODOLOGY_ALIASES).join(", ");
+    throw new ConfigError(`Unknown methodology "${configValue}". Valid values: ${valid}`);
+  }
+  return mapped;
 }
