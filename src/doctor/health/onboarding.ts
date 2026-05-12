@@ -105,12 +105,16 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
   });
 
   // Step 6: Set up Sprint 0
+  const hasWorkItems = hasActions || hasFeatures || hasUseCases;
   steps.push({
     order: order++,
     title: "Set up Sprint 0",
-    description:
-      "As DM, create a Sprint 0 to organize bootstrapping work: infrastructure provisioning, CI/CD setup, backlog refinement, and ceremony scheduling. Sprint 0 is not a regular sprint — it's a variable-duration bootstrapping phase that ensures the team is ready for Sprint 1.",
-    tool: "create_sprint",
+    description: hasSprints
+      ? "Sprint 0 has been created."
+      : hasWorkItems
+        ? "As DM, run bootstrap_sprint_zero to create a guided Sprint 0 with linked bootstrapping actions for infrastructure, backlog refinement, ceremonies, and integrations. This generates a fully scaffolded sprint with checklist items pre-populated."
+        : "As DM, create a Sprint 0 to organize bootstrapping work: infrastructure provisioning, CI/CD setup, backlog refinement, and ceremony scheduling. Sprint 0 is not a regular sprint — it's a variable-duration bootstrapping phase that ensures the team is ready for Sprint 1.",
+    tool: hasWorkItems && !hasSprints ? "bootstrap_sprint_zero" : "create_sprint",
     done: hasSprints,
   });
 
