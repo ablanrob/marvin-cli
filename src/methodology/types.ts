@@ -36,3 +36,15 @@ export interface ConceptFilter {
   category?: ConceptCategory;
   methodology?: Methodology;
 }
+
+const METHODOLOGY_ALIASES: Record<string, Methodology> = {
+  "sap-aem": "aem",
+  aem: "aem",
+  "generic-agile": "generic-agile",
+};
+
+/** Normalize a config methodology ID (e.g. "sap-aem") to a concept-registry Methodology value ("aem"). */
+export function normalizeMethodology(configValue?: string): Methodology {
+  if (!configValue) return "generic-agile";
+  return METHODOLOGY_ALIASES[configValue] ?? "generic-agile";
+}

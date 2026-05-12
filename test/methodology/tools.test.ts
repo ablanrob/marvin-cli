@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createConceptTools } from "../../src/methodology/tools.js";
+import { phaseConcepts } from "../../src/methodology/concepts/index.js";
 import type { MarvinProjectConfig } from "../../src/core/config.js";
 
 function extractHandler(tools: any[], name: string): (args: any) => Promise<any> {
@@ -38,7 +39,7 @@ describe("Concept tools", () => {
 
       const result = await handler({ category: "phase" });
       const data = parseResult(result);
-      expect(data.concepts.length).toBe(3);
+      expect(data.concepts.length).toBe(phaseConcepts.length);
       for (const c of data.concepts) {
         expect(c.category).toBe("phase");
       }

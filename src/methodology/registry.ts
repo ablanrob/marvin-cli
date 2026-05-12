@@ -39,7 +39,7 @@ export class ConceptRegistry {
     if (!concept) return undefined;
 
     if (!concept.checklist || methodology === "aem") {
-      return concept;
+      return { ...concept };
     }
 
     // Filter out checklist items that require AEM when methodology is not AEM

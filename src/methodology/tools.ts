@@ -2,10 +2,11 @@ import { z } from "zod/v4";
 import { tool, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import type { MarvinProjectConfig } from "../core/config.js";
 import type { Methodology, ConceptCategory } from "./types.js";
+import { normalizeMethodology } from "./types.js";
 import { getConceptRegistry } from "./registry.js";
 
 export function createConceptTools(config?: MarvinProjectConfig): SdkMcpToolDefinition<any>[] {
-  const methodology = (config?.methodology as Methodology) ?? "generic-agile";
+  const methodology = normalizeMethodology(config?.methodology);
 
   return [
     tool(
@@ -107,7 +108,7 @@ export function createConceptTools(config?: MarvinProjectConfig): SdkMcpToolDefi
 
         // Try matching by human name (case-insensitive)
         if (!concept) {
-          const phases = registry.list({ category: "phase" });
+          const phases = registry.list({ category: "phase", methodology });
           const match = phases.find((p) => p.name.toLowerCase() === args.name.toLowerCase());
           if (match) {
             concept = registry.explain(match.id, methodology);
@@ -115,7 +116,7 @@ export function createConceptTools(config?: MarvinProjectConfig): SdkMcpToolDefi
         }
 
         if (!concept) {
-          const phases = registry.list({ category: "phase" });
+          const phases = registry.list({ category: "phase", methodology });
           const available = phases.map((p) => `${p.id} ("${p.name}")`).join(", ");
           return {
             content: [

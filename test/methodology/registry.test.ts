@@ -132,7 +132,7 @@ describe("ConceptRegistry", () => {
       expect(sprint0!.checklist!.length).toBe(4);
     });
 
-    it("includes AEM addendum when no methodology specified (no filtering)", () => {
+    it("excludes AEM addendum when no methodology specified", () => {
       const registry = new ConceptRegistry();
       const sprint0 = registry.explain("sprint-0");
       expect(sprint0).toBeDefined();
