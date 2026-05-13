@@ -57,6 +57,7 @@ export function createBootstrapTools(
           store,
           config: options.config,
           manifest: options.manifest,
+          includeAemAddendum: args.includeAemAddendum,
         };
 
         try {

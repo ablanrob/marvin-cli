@@ -4,6 +4,7 @@ import type { SourceManifestManager } from "../sources/manifest.js";
 import type { Methodology, ChecklistItem } from "./types.js";
 import { normalizeMethodology } from "./types.js";
 import { getConceptRegistry } from "./registry.js";
+import { ConfigError } from "../core/errors.js";
 
 export type BootstrapStep = "survey" | "draft" | "populate" | "review" | "commit";
 
@@ -86,20 +87,29 @@ export interface BootstrapContext {
   store: DocumentStore;
   config: MarvinProjectConfig;
   manifest?: SourceManifestManager;
+  /** Override AEM addendum inclusion. undefined = auto-detect from methodology. */
+  includeAemAddendum?: boolean;
 }
 
 function getMethodology(config: MarvinProjectConfig): Methodology {
   return normalizeMethodology(config.methodology);
 }
 
-function getChecklist(methodology: Methodology): ChecklistItem[] {
+function getChecklist(methodology: Methodology, includeAemAddendum?: boolean): ChecklistItem[] {
   const registry = getConceptRegistry();
-  const sprint0 = registry.explain("sprint-0", methodology);
+  // When overridden, force "aem" to include or "generic-agile" to exclude the addendum
+  const effectiveMethodology =
+    includeAemAddendum === true
+      ? "aem"
+      : includeAemAddendum === false
+        ? "generic-agile"
+        : methodology;
+  const sprint0 = registry.explain("sprint-0", effectiveMethodology);
   return sprint0?.checklist ?? [];
 }
 
-function getSections(methodology: Methodology): string[] {
-  return getChecklist(methodology).map((c) => c.category);
+function getSections(methodology: Methodology, includeAemAddendum?: boolean): string[] {
+  return getChecklist(methodology, includeAemAddendum).map((c) => c.category);
 }
 
 function findExistingSprint0(store: DocumentStore): string | undefined {
@@ -146,7 +156,7 @@ export function survey(ctx: BootstrapContext): SurveyResult {
       decisionsCount: counts["decision"] ?? 0,
       integrationsConfigured: {
         jira: !!config.jira?.projectKey?.trim(),
-        confluence: !!config.jira?.projectKey?.trim(),
+        confluence: false, // No independent Confluence config field exists yet
       },
     },
     alreadySatisfied,
@@ -156,7 +166,7 @@ export function survey(ctx: BootstrapContext): SurveyResult {
 
 export function draft(ctx: BootstrapContext): DraftResult {
   const methodology = getMethodology(ctx.config);
-  const sections = getSections(methodology);
+  const sections = getSections(methodology, ctx.includeAemAddendum);
 
   const goalParts = sections.map((s) => s.replace(/-/g, " "));
   const goal = `Project bootstrapping — ${goalParts.join(", ")}`;
@@ -178,7 +188,7 @@ export function draft(ctx: BootstrapContext): DraftResult {
 
 export function populate(ctx: BootstrapContext, section?: BootstrapSection): PopulateResult {
   const methodology = getMethodology(ctx.config);
-  const checklist = getChecklist(methodology);
+  const checklist = getChecklist(methodology, ctx.includeAemAddendum);
   const surveyResult = survey(ctx);
   const satisfiedItems = new Set(surveyResult.alreadySatisfied.map((s) => s.item));
 
@@ -195,9 +205,11 @@ export function populate(ctx: BootstrapContext, section?: BootstrapSection): Pop
   }
 
   const currentSection = targetSections[0];
-  const allSections = getSections(methodology);
+  const allSections = getSections(methodology, ctx.includeAemAddendum);
   const currentIdx = allSections.indexOf(currentSection.category);
-  const hasMore = !section && currentIdx < allSections.length - 1;
+  // Full populate (no section filter) returns all items at once → next is review
+  const isFullPopulate = !section;
+  const hasMore = !isFullPopulate && currentIdx < allSections.length - 1;
 
   const ownerMap: Record<string, string> = {
     "infrastructure-provisioning": "tl",
@@ -290,7 +302,7 @@ export function commit(ctx: BootstrapContext): CommitResult {
   // Check for existing Sprint 0
   const existingId = findExistingSprint0(store);
   if (existingId) {
-    throw new Error(
+    throw new ConfigError(
       `Sprint 0 already exists (${existingId}). Cannot create a duplicate. Use get_sprint("${existingId}") to view it.`,
     );
   }
@@ -363,6 +375,6 @@ export function runStep(
     case "commit":
       return commit(ctx);
     default:
-      throw new Error(`Unknown step: ${effectiveStep}`);
+      throw new ConfigError(`Unknown step: ${effectiveStep}`);
   }
 }

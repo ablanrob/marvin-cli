@@ -29,7 +29,6 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
   const pendingSources = ctx.manifest?.list("pending")?.length ?? 0;
   const hasActions = (counts["action"] ?? 0) > 0;
   const hasEpics = (counts["epic"] ?? 0) > 0;
-  const hasSprints = (counts["sprint"] ?? 0) > 0;
   const hasFeatures = (counts["feature"] ?? 0) > 0;
   const hasUseCases = (counts["use-case"] ?? 0) > 0;
   const hasJira = !!ctx.config.jira?.projectKey?.trim();
@@ -106,16 +105,24 @@ export function buildOnboardingGuide(ctx: HealthContext): OnboardingGuide {
 
   // Step 6: Set up Sprint 0
   const hasWorkItems = hasActions || hasFeatures || hasUseCases;
+  const hasSprintZero = ctx.store.list({ type: "sprint" }).some((s) => {
+    const tags: string[] = s.frontmatter.tags ?? [];
+    return (
+      tags.includes("sprint-0") ||
+      tags.includes("bootstrapping") ||
+      s.frontmatter.title?.toLowerCase().includes("sprint 0")
+    );
+  });
   steps.push({
     order: order++,
     title: "Set up Sprint 0",
-    description: hasSprints
+    description: hasSprintZero
       ? "Sprint 0 has been created."
       : hasWorkItems
         ? "As DM, run bootstrap_sprint_zero to create a guided Sprint 0 with linked bootstrapping actions for infrastructure, backlog refinement, ceremonies, and integrations. This generates a fully scaffolded sprint with checklist items pre-populated."
         : "As DM, create a Sprint 0 to organize bootstrapping work: infrastructure provisioning, CI/CD setup, backlog refinement, and ceremony scheduling. Sprint 0 is not a regular sprint — it's a variable-duration bootstrapping phase that ensures the team is ready for Sprint 1.",
-    tool: hasWorkItems && !hasSprints ? "bootstrap_sprint_zero" : "create_sprint",
-    done: hasSprints,
+    tool: hasWorkItems && !hasSprintZero ? "bootstrap_sprint_zero" : "create_sprint",
+    done: hasSprintZero,
   });
 
   // Step 7: Configure Jira integration
