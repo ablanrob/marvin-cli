@@ -10,15 +10,15 @@
  * Tests use keyword matching (not exact phrases) because registry items
  * are structured labels while persona guidance is prose.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { deliveryManager } from "../../src/personas/builtin/delivery-manager.js";
 import { sapAemPlugin } from "../../src/plugins/builtin/sap-aem.js";
 import { getConceptRegistry } from "../../src/methodology/registry.js";
 
 const registry = getConceptRegistry();
-const dmPrompt = deliveryManager.systemPrompt.toLowerCase();
-const aemDmFragment = sapAemPlugin.promptFragments!["delivery-manager"].toLowerCase();
-const aemWildcardFragment = sapAemPlugin.promptFragments!["*"].toLowerCase();
+let dmPrompt: string;
+let aemDmFragment: string;
+let aemWildcardFragment: string;
 
 /** Extract significant keywords from a phrase (drops short filler words). */
 function keywords(phrase: string): string[] {
@@ -38,6 +38,17 @@ function hasKeywordOverlap(text: string, phrase: string, minRatio = 0.5): boolea
 }
 
 describe("Concept registry ↔ persona guidance drift check", () => {
+  beforeAll(() => {
+    dmPrompt = deliveryManager.systemPrompt.toLowerCase();
+
+    expect(sapAemPlugin.promptFragments).toBeDefined();
+    expect(sapAemPlugin.promptFragments!["delivery-manager"]).toBeDefined();
+    expect(sapAemPlugin.promptFragments!["*"]).toBeDefined();
+
+    aemDmFragment = sapAemPlugin.promptFragments!["delivery-manager"].toLowerCase();
+    aemWildcardFragment = sapAemPlugin.promptFragments!["*"].toLowerCase();
+  });
+
   describe("Sprint 0 checklist vs DM persona guidance", () => {
     const sprint0 = registry.get("sprint-0")!;
 
